@@ -1,16 +1,20 @@
 name: Leaf upstream
 
-# Once a week: are there Leaf commits on ver/26.3 that Kindling has not merged yet? Opens (or updates) one issue.
+# Once a week: merge Leaf's new commits on ver/26.3 into a branch auto/leaf-<commit>, apply the patches, build and run
+# Kindling's tests. One issue labelled "upstream" says how it went: a link to open the pull request, or what failed.
 on:
   schedule:
     - cron: "0 6 * * 1"
   workflow_dispatch:
 
+concurrency: leaf-upstream
+
 jobs:
-  check:
+  merge:
     if: github.repository == 'jonax1337/KindlingMC'
     runs-on: ubuntu-latest
     permissions:
+      contents: write
       issues: write
     steps:
       - name: Checkout repository
@@ -18,18 +22,70 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Compare with Leaf
+      - name: Set up JDK 25
+        uses: actions/setup-java@v6
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+          cache: gradle
+
+      - name: Configure Git
+        run: |
+          git config --global user.email "no-reply@github.com"
+          git config --global user.name "Github Actions"
+
+      - name: Merge, build and test
+        id: merge
+        run: |
+          set -uo pipefail
+          report() {
+            printf '%s\n' "$1" > report.md
+            if [ -n "${2:-}" ]; then printf '\n```\n%s\n```\n' "$(tail -n 40 "$2")" >> report.md; fi
+            exit 0
+          }
+          git fetch --quiet https://github.com/Winds-Studio/Leaf.git ver/26.3
+          LEAF=$(git rev-parse FETCH_HEAD)
+          BEHIND=$(git rev-list --count HEAD..FETCH_HEAD)
+          BRANCH="auto/leaf-${LEAF:0:7}"
+          echo "leaf=$LEAF" >> "$GITHUB_OUTPUT"
+          echo "behind=$BEHIND" >> "$GITHUB_OUTPUT"
+          [ "$BEHIND" -eq 0 ] && exit 0
+
+          git switch -c "$BRANCH"
+          if ! git merge --no-edit "$LEAF" > merge.log 2>&1; then
+            git diff --name-only --diff-filter=U > conflicts.txt
+            git merge --abort
+            report "Merging Leaf stopped on a conflict; merge by hand as described in docs/UPSTREAM.md." conflicts.txt
+          fi
+          for dir in leaf-server/minecraft-patches/features leaf-server/paper-patches/features leaf-api/paper-patches/features; do
+            ls "$dir" | cut -d- -f1 | sort | uniq -d | sed "s|^|$dir/|"
+          done > duplicates.txt
+          [ -s duplicates.txt ] && report "Leaf added patches with numbers Kindling uses; renumber Kindling's patches so they stay last (docs/UPSTREAM.md)." duplicates.txt
+          ./gradlew applyAllPatches --no-daemon > apply.log 2>&1 || report "Applying the patches failed after the merge." apply.log
+          ./gradlew createPaperclipJar --no-daemon > build.log 2>&1 || report "The build failed after the merge." build.log
+          ./gradlew :leaf-server:test --tests org.bukkit.support.suite.KindlingTestSuite --no-daemon > test.log 2>&1 || report "Kindling's tests failed after the merge." test.log
+          if ! git ls-remote --exit-code --heads origin "$BRANCH" > /dev/null; then
+            git push origin "$BRANCH" > push.log 2>&1 || report "Pushing $BRANCH failed." push.log
+          fi
+          report "The merge applies, builds and passes Kindling's tests. Open the pull request: https://github.com/${{ github.repository }}/compare/ver/26.3...$BRANCH?expand=1 and measure with kindling-bench before releasing (docs/UPSTREAM.md)."
+
+      - name: Report
+        if: steps.merge.outputs.behind != ''
         env:
           GH_TOKEN: ${{ github.token }}
+          BEHIND: ${{ steps.merge.outputs.behind }}
+          LEAF: ${{ steps.merge.outputs.leaf }}
         run: |
-          git fetch --quiet https://github.com/Winds-Studio/Leaf.git ver/26.3
-          BEHIND=$(git rev-list --count HEAD..FETCH_HEAD)
-          echo "Leaf commits not merged yet: $BEHIND"
-          [ "$BEHIND" -eq 0 ] && exit 0
-          TITLE="Leaf has $BEHIND new commits on ver/26.3"
-          BODY="Merge Leaf's ver/26.3 as described in docs/UPSTREAM.md. Newest: https://github.com/Winds-Studio/Leaf/commit/$(git rev-parse FETCH_HEAD)"
           gh label create upstream --color BFD4F2 --description "Leaf updates" 2>/dev/null || true
           OPEN=$(gh issue list --label upstream --state open --json number --jq '.[0].number')
+          if [ "$BEHIND" -eq 0 ]; then
+            [ -n "$OPEN" ] && gh issue close "$OPEN" --comment "Kindling contains Leaf's ver/26.3 again."
+            exit 0
+          fi
+          TITLE="Leaf has $BEHIND new commits on ver/26.3"
+          BODY="$(cat report.md)
+
+          Newest Leaf commit: https://github.com/Winds-Studio/Leaf/commit/$LEAF"
           if [ -n "$OPEN" ]; then
             gh issue edit "$OPEN" --title "$TITLE" --body "$BODY"
           else

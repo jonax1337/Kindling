@@ -1,6 +1,6 @@
 # Following Leaf
 
-Kindling is Leaf's `ver/26.3` branch plus a few commits on top. A weekly workflow (`.github/workflows/leaf-upstream.yml`) opens an issue labelled `upstream` when Leaf has commits Kindling has not merged yet.
+Kindling is Leaf's `ver/26.3` branch plus a few commits on top. A weekly workflow (`.github/workflows/leaf-upstream.yml`, also startable by hand) merges Leaf's new commits into a branch `auto/leaf-<commit>`, applies the patches, builds the jar and runs Kindling's tests. It reports in one issue labelled `upstream`: a link to open the pull request when all of that passed, otherwise the step that failed (a merge conflict, a Leaf patch with a number Kindling uses, the build or the tests) with the end of its log. The pull request is still merged by hand after a `kindling-bench` run.
 
 ## Layout
 
