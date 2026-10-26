@@ -96,6 +96,21 @@ Since 26.x, Minecraft decodes every palette entry of a saved chunk section (a bl
 - Cost: in the pregeneration profile, parsing chunks fell from 13.9 % to 10.0 % of the worker time; the codec frames vanished and the decoder itself takes about 1 %.
 - Flying through an already generated world (five players at elytra speed, 8 cores) showed no measurable difference (tick time 37.2 vs 36.6 ms, CPU 660 vs 654 s, lead and void identical): there the workers are not the bottleneck.
 
+Writing the palettes without the codecs as well (branch `exp/palette-encoder`, byte for byte the codec's output) was measured and not taken: saving is only about 1.3 % of the CPU of a pregeneration run, the encoder cut that to 1.1 %, and chunks per run differed less than two runs of the same build did (28 421 / 28 410 against 26 368 / 28 396).
+
+## The lagging check of the tick loop
+
+Purpur's lagging check (`lagging = TPS < lagging-threshold`) runs every tick and asked for all TPS averages, although it only uses the 5-second one. The tick before has always cleared the cached averages, so every tick walked the 1, 5 and 15 minute windows, about 25 000 ticks. Kindling computes only the 5-second average there; the value is the same. In a profile of our SMP server (one player, 15 minutes) this was 8.6 % of the main thread.
+
+Main thread samples in the TPS averaging, JFR, one player at spawn for 2 minutes, 8 cores:
+
+| Run | Before | After |
+| --- | --- | --- |
+| Idle server | 13.6 % | 3.4 % |
+| Pregenerating | 2.9 % | 1.5 % |
+
+The average tick time of an idle server is too noisy at this level (2.6 / 2.0 ms before, 1.8 / 2.5 ms after) to show it.
+
 ## Where the time goes (profile)
 
 JFR profile of the main thread during the flight (plain Leaf):

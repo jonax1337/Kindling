@@ -6,7 +6,7 @@ Kindling is Leaf's `ver/26.3` branch plus a few commits on top. A weekly workflo
 
 | Path | What Kindling changes there |
 | --- | --- |
-| `leaf-server/minecraft-patches/features/0316-…` to `0318-…` | Kindling's own Minecraft patches, appended after Leaf's; their subject starts with `Kindling:` |
+| `leaf-server/minecraft-patches/features/0316-…` to `0319-…` | Kindling's own Minecraft patches, appended after Leaf's; their subject starts with `Kindling:` |
 | `leaf-server/paper-patches/features/0069-…` to `0070-…` | Kindling's own Paper patches (default number of chunk workers, `/version` message), appended after Leaf's |
 | `leaf-server/src/main/java/net/kindlingmc/` | Kindling's own server code (`pregen`: pregenerator, `chunk`: palette decoder, `version`: `/version` text and the update check against Kindling's GitHub releases); tests in `leaf-server/src/test/java/net/kindlingmc/` |
 | `leaf-server/src/main/java/org/dreeam/leaf/` | Leaf's own code; Kindling changes defaults and adds config modules there, every line marked `// Kindling - …` |
