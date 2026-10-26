@@ -37,6 +37,8 @@ jobs:
         run: ./gradlew applyAllPatches --stacktrace --no-daemon
       - name: Create Paperclip jar
         run: ./gradlew createPaperclipJar --stacktrace --no-daemon
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
 
       - name: Name the jar
         id: jar

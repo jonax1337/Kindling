@@ -1,0 +1,36 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Mon, 26 Oct 2026 19:39:36 +0100
+Subject: [PATCH] Kindling: Version message from Kindling's releases
+
+
+diff --git a/src/main/java/io/papermc/paper/PaperServerInternalAPIBridge.java b/src/main/java/io/papermc/paper/PaperServerInternalAPIBridge.java
+index d4b06f17f53f00f8284f439d04b77efec3cc2186..a86019d70d5af76e6872a80345d2c2becef10c7d 100644
+--- a/src/main/java/io/papermc/paper/PaperServerInternalAPIBridge.java
++++ b/src/main/java/io/papermc/paper/PaperServerInternalAPIBridge.java
+@@ -203,7 +203,7 @@ public class PaperServerInternalAPIBridge implements InternalAPIBridge {
+ 
+     @Override
+     public VersionFetcher getVersionFetcher() {
+-        return new org.dreeam.leaf.version.LeafVersionFetcher(); // Leaf - Rebrand
++        return new net.kindlingmc.version.KindlingVersionFetcher(); // Leaf - Rebrand // Kindling - compare with Kindling's releases
+     }
+ 
+     @Override
+diff --git a/src/main/java/io/papermc/paper/command/PaperVersionCommand.java b/src/main/java/io/papermc/paper/command/PaperVersionCommand.java
+index 5f17c295e2158b93ed6f77012c0ac5507ac88284..ac97176cfd78756969ae219c843106e2d6fdae7a 100644
+--- a/src/main/java/io/papermc/paper/command/PaperVersionCommand.java
++++ b/src/main/java/io/papermc/paper/command/PaperVersionCommand.java
+@@ -164,11 +164,7 @@ public class PaperVersionCommand {
+ 
+     private CompletableFuture<ComputedVersion> fetchVersionMessage() {
+        return CompletableFuture.supplyAsync(() -> {
+-           final Component message = Component.textOfChildren(
+-               Component.text(Bukkit.getVersionMessage(), NamedTextColor.WHITE),
+-               Component.newline(),
+-               this.versionFetcher.getVersionMessage()
+-           );
++           final Component message = this.versionFetcher.getVersionMessage(); // Kindling - the version fetcher writes the whole message
+ 
+            return new ComputedVersion(
+                message.hoverEvent(Component.translatable("chat.copy.click", NamedTextColor.WHITE))
