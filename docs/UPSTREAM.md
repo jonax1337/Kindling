@@ -6,8 +6,9 @@ Kindling is Leaf's `ver/26.3` branch plus a few commits on top. A weekly workflo
 
 | Path | What Kindling changes there |
 | --- | --- |
-| `leaf-server/minecraft-patches/features/0316-…`, `0317-…` | Kindling's own Minecraft patches, appended after Leaf's; their subject starts with `Kindling:` |
-| `leaf-server/src/main/java/net/kindlingmc/` | Kindling's own server code (pregenerator) |
+| `leaf-server/minecraft-patches/features/0316-…` to `0318-…` | Kindling's own Minecraft patches, appended after Leaf's; their subject starts with `Kindling:` |
+| `leaf-server/paper-patches/features/0069-…` | Kindling's own Paper patch (default number of chunk workers), appended after Leaf's |
+| `leaf-server/src/main/java/net/kindlingmc/` | Kindling's own server code (`pregen`: pregenerator, `chunk`: palette decoder) |
 | `leaf-server/src/main/java/org/dreeam/leaf/` | Leaf's own code; Kindling changes defaults and adds config modules there, every line marked `// Kindling - …` |
 | `leaf-server/build.gradle.kts.patch` | the name in the jar manifest (`Brand-Name`, `Implementation-Title`) |
 | `settings.gradle.kts` | the `kindling-bench` module |
@@ -37,8 +38,8 @@ Compare with the numbers in [MEASUREMENTS.md](MEASUREMENTS.md). If Leaf changed 
 
 ## Changing a Kindling patch
 
-1. Edit the applied source in `leaf-server/src/minecraft/java` and commit there (`git commit --fixup` onto the matching `Kindling:` commit, or a new commit for a new patch).
-2. `./gradlew :leaf-server:rebuildMinecraftFeaturePatches` turns the commits back into patch files.
+1. Edit the applied source in `leaf-server/src/minecraft/java` (Minecraft classes) or `paper-server` (Paper classes) and commit there (`git commit --fixup` onto the matching `Kindling:` commit, or a new commit for a new patch). The commit author becomes the `From:` line of the public patch file, so commit with the identity you want published.
+2. `./gradlew :leaf-server:rebuildMinecraftFeaturePatches :leaf-server:rebuildPaperServerFeaturePatches` turns the commits back into patch files.
 3. Commit the changed `.patch` files in this repository.
 
 Code that does not touch Minecraft classes belongs in `leaf-server/src/main/java/net/kindlingmc/` instead of a patch; a patch should only hook it in.

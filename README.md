@@ -1,6 +1,6 @@
 # Kindling
 
-**Kindling** is a [Leaf](https://github.com/Winds-Studio/Leaf) fork for small and mid-sized survival servers on shared hardware. It keeps vanilla behaviour and the full vanilla world, and makes the parts that hurt on a cheap VPS cheaper: fast players outrunning world generation, pregeneration, and memory.
+**Kindling** is a [Leaf](https://github.com/Winds-Studio/Leaf) fork for small and mid-sized survival servers on shared hardware. It keeps vanilla behaviour and the full vanilla world, and makes the parts that hurt on a cheap VPS cheaper: fast players outrunning world generation, pregeneration, loading chunks from disk, and memory.
 
 Every change here had to win against a reproducible load test (`kindling-bench`, fake players flying, landing between mobs, idling). Changes that only win by altering gameplay (mob spawn throttling, distant entity tick skipping) are not defaults.
 
@@ -11,8 +11,10 @@ Every change here had to win against a reproducible load test (`kindling-bench`,
 
 | | What it does | Why |
 | --- | --- | --- |
-| **Built-in pregenerator** | `/pregen start <world> <radius>`, `pause`, `resume`, `cancel`, `status`; optional automatic start per dimension | No Chunky needed. Runs at the chunk system's lowest priority, so chunks players need always come first; throttles itself by tick time; resumes after a restart. ~140 chunks/s on 8 cores at 6.5 ms per tick. |
+| **Built-in pregenerator** | `/pregen start <world> <radius>`, `pause`, `resume`, `cancel`, `status`; optional automatic start per dimension | No Chunky needed. Runs at the chunk system's lowest priority, so chunks players need always come first; throttles itself by tick time; resumes after a restart. Works in 16 × 16 chunk tiles and keeps the half-generated neighbours in memory instead of saving and re-reading them: **+59 % chunks per minute, −41 % CPU per chunk**, 5 ms per tick while it runs ([details](docs/MEASUREMENTS.md#pregeneration)). |
 | **Directional chunk loading** | Chunks ahead of a moving player are queued before chunks behind them | Five players flying elytras outward in five directions: time spent flying into ungenerated void drops from 9 % to **0 %** at the same CPU (with 5 chunk workers). |
+| **Chunk workers sized for fast players** | Five eighths of the cores, at most five, never fewer than Paper (1 → 2 on 4 cores, 2 → 5 on 8, 3 → 5 on 12) | Paper's quarter of the cores lets players fly into the void (24 % of the time with eight fliers on 12 cores); five keep them out of it, more only add load ([details](docs/MEASUREMENTS.md#default-number-of-chunk-workers)). |
+| **Chunk loading without DataFixerUpper** | Block and biome palettes of saved chunks are read straight from NBT instead of through Mojang's codec library | Same result (anything unusual still goes through the codec; check it with `-Dkindling.verifyPaletteDecoder=true`), a smaller share of the chunk workers' time ([details](docs/MEASUREMENTS.md#loading-chunks-from-disk)). |
 | **Async defaults** | Leaf's async entity tracker, async pathfinding and async player data saving are on by default | −5 to −13 % tick time under load, same behaviour as vanilla. |
 | **Measured JVM advice** | G1 + `-XX:+UseCompactObjectHeaders`, right-sized heap | −29 % resident memory at the same tick time ([details](docs/MEASUREMENTS.md#jvm-and-heap)). |
 
@@ -28,11 +30,16 @@ Measured with `kindling-bench` against Leaf `4c3d5689` on Java 25, the elytra an
 | Kindling, 5 chunk workers + directional loading | **0 %** | 19.2 / 35 ms |
 | Kindling, same, while the pregenerator runs | **0 %** | 19.5 / 37 ms |
 
+| Pregenerator alone, 2.5 min | Chunks generated | Tick time avg / p95 | CPU per chunk | GC time |
+| --- | --- | --- | --- | --- |
+| Kindling 26.3-1 (ring by ring) | 19 040 | 7.2 / 13.8 ms | 47 ms | 8.0 s |
+| Kindling (tiles, palette decoder) | **30 315** | **5.1 / 7.8 ms** | **28 ms** | **1.9 s** |
+
 ## Getting started
 
 1. Download the newest `kindling-26.3-<build>.jar` from [Releases](https://github.com/jonax1337/KindlingMC/releases).
 2. Use it like a Leaf or Paper jar: `java -Xms2G -Xmx2G -XX:+UseCompactObjectHeaders -jar kindling-26.3-<build>.jar --nogui`.
-3. For fast players (elytras, boats on ice), raise the chunk workers in `config/paper-global.yml`: `chunk-system.worker-threads: 5` on 8 cores. Paper's default is a quarter of the cores, which cannot keep up with even one elytra.
+3. Leave `chunk-system.worker-threads` in `config/paper-global.yml` at `-1`: Kindling then picks the measured default (5 on 8 cores). If several servers share the machine and generate at the same time, lower it per server.
 4. Pregenerate the area your players will use: `/pregen start world 5000`. Watch it with `/pregen status`.
 
 ### Pregeneration settings (`config/leaf-global.yml`)
