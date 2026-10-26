@@ -1,0 +1,26 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Mon, 26 Oct 2026 21:03:44 +0100
+Subject: [PATCH] Kindling: Encode chunk section palettes without
+ DataFixerUpper
+
+
+diff --git a/net/minecraft/world/level/chunk/storage/SerializableChunkData.java b/net/minecraft/world/level/chunk/storage/SerializableChunkData.java
+index af6bd977c5578446782453bf19873ced99f84b34..15e4c0597f69448cdb23f11195781402daa8f424 100644
+--- a/net/minecraft/world/level/chunk/storage/SerializableChunkData.java
++++ b/net/minecraft/world/level/chunk/storage/SerializableChunkData.java
+@@ -612,8 +612,12 @@ public record SerializableChunkData(
+             CompoundTag sectionTag = new CompoundTag();
+             LevelChunkSection chunkSection = section.chunkSection;
+             if (chunkSection != null) {
+-                sectionTag.store("block_states", blockStatesCodec, chunkSection.getStates());
+-                sectionTag.store("biomes", biomeCodec, chunkSection.getBiomes());
++                // Kindling start - encode palettes without DFU
++                sectionTag.put("block_states", net.kindlingmc.chunk.SectionPaletteEncoder.writeBlockStates(chunkSection.getStates(), this.containerFactory.blockStatesStrategy(),
++                    () -> blockStatesCodec.encodeStart(NbtOps.INSTANCE, chunkSection.getStates()).getOrThrow()));
++                sectionTag.put("biomes", net.kindlingmc.chunk.SectionPaletteEncoder.writeBiomes(chunkSection.getBiomes(), this.containerFactory.biomeStrategy(),
++                    () -> biomeCodec.encodeStart(NbtOps.INSTANCE, chunkSection.getBiomes()).getOrThrow()));
++                // Kindling end - encode palettes without DFU
+             }
+ 
+             if (section.blockLight != null) {
