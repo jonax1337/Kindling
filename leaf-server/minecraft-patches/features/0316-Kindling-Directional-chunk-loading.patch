@@ -6,7 +6,7 @@ Subject: [PATCH] Kindling: Directional chunk loading
 Sorts the load, generate and send queues of a moving player by distance weighted against the direction of travel (times 1 - w cos theta), so chunks ahead of a fast (elytra) flight come first. Along any one direction the order stays by distance and the same chunks load; only the order changes.
 
 diff --git a/ca/spottedleaf/moonrise/patches/chunk_system/player/RegionizedPlayerChunkLoader.java b/ca/spottedleaf/moonrise/patches/chunk_system/player/RegionizedPlayerChunkLoader.java
-index bada1d995614d028160166002555d261821ad7dc..0a114e1052f3514c6162f00bf0dc21de1cecc2c3 100644
+index bada1d995614d028160166002555d261821ad7dc..752ad85f461d9dff5cebbe36ff9c31b12caae294 100644
 --- a/ca/spottedleaf/moonrise/patches/chunk_system/player/RegionizedPlayerChunkLoader.java
 +++ b/ca/spottedleaf/moonrise/patches/chunk_system/player/RegionizedPlayerChunkLoader.java
 @@ -331,6 +331,16 @@ public final class RegionizedPlayerChunkLoader {

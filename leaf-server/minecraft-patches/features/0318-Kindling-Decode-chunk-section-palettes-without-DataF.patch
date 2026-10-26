@@ -1,0 +1,43 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Mon, 26 Oct 2026 14:34:18 +0100
+Subject: [PATCH] Kindling: Decode chunk section palettes without
+ DataFixerUpper
+
+Reads the block and biome palettes of a saved section straight from NBT (net.kindlingmc.chunk.SectionPaletteDecoder) and falls back to the codec for anything the codec would report as an error, so results, logging and repair stay vanilla. The codec path parsed an identifier and built several DataResults per palette entry and was the largest single cost of loading a chunk.
+
+diff --git a/net/minecraft/world/level/chunk/storage/SerializableChunkData.java b/net/minecraft/world/level/chunk/storage/SerializableChunkData.java
+index 6d453411faa989785325caf8c259da7e52dbe3eb..af6bd977c5578446782453bf19873ced99f84b34 100644
+--- a/net/minecraft/world/level/chunk/storage/SerializableChunkData.java
++++ b/net/minecraft/world/level/chunk/storage/SerializableChunkData.java
+@@ -195,6 +195,7 @@ public record SerializableChunkData(
+         List<SerializableChunkData.SectionData> sectionData = new ArrayList<>(sectionTags.size());
+         Codec<PalettedContainer<Holder<Biome>>> biomesCodec = containerFactory.biomeContainerRWCodec(); // CraftBukkit - read/write
+         Codec<PalettedContainer<BlockState>> blockStatesCodec = containerFactory.blockStatesContainerCodec();
++        net.minecraft.core.Registry<Biome> biomeRegistry = serverLevel.registryAccess().lookupOrThrow(net.minecraft.core.registries.Registries.BIOME); // Kindling - decode palettes without DFU
+ 
+         for (int i = 0; i < sectionTags.size(); i++) {
+             Optional<CompoundTag> maybeSectionTag = sectionTags.getCompound(i);
+@@ -207,16 +208,20 @@ public record SerializableChunkData(
+                     final Codec<PalettedContainer<BlockState>> antiXrayBlockStateCodec = presetBlockStates == null ? blockStatesCodec : PalettedContainer.codecRW(BlockState.CODEC, containerFactory.blockStatesStrategy(), net.minecraft.world.level.block.Blocks.AIR.defaultBlockState(), presetBlockStates); // Paper - Anti-Xray
+                     PalettedContainer<BlockState> blocks = sectionTag.getCompound("block_states")
+                         .map(
+-                            container -> antiXrayBlockStateCodec.parse(NbtOps.INSTANCE, container) // Paper - Anti-Xray
++                            container -> net.kindlingmc.chunk.SectionPaletteDecoder.readBlockStates(container, containerFactory, presetBlockStates, () -> // Kindling - decode palettes without DFU
++                            antiXrayBlockStateCodec.parse(NbtOps.INSTANCE, container) // Paper - Anti-Xray
+                                 .promotePartial(msg -> logErrors(chunkPos, y, msg))
+                                 .getOrThrow(SerializableChunkData.ChunkReadException::new)
++                            ) // Kindling - decode palettes without DFU
+                         )
+                         .orElseGet(containerFactory::createForBlockStates);
+                     PalettedContainer<Holder<Biome>> biomes = sectionTag.getCompound("biomes") // CraftBukkit - read/write
+                         .map(
+-                            container -> biomesCodec.parse(NbtOps.INSTANCE, container)
++                            container -> net.kindlingmc.chunk.SectionPaletteDecoder.readBiomes(container, containerFactory, biomeRegistry, () -> // Kindling - decode palettes without DFU
++                            biomesCodec.parse(NbtOps.INSTANCE, container)
+                                 .promotePartial(msg -> logErrors(chunkPos, y, msg))
+                                 .getOrThrow(SerializableChunkData.ChunkReadException::new)
++                            ) // Kindling - decode palettes without DFU
+                         )
+                         .orElseGet(containerFactory::createForBiomes);
+                     section = new LevelChunkSection(blocks, biomes);

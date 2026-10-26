@@ -5,7 +5,7 @@ Subject: [PATCH] Kindling: Chunk pregenerator
 
 
 diff --git a/net/minecraft/server/dedicated/DedicatedServer.java b/net/minecraft/server/dedicated/DedicatedServer.java
-index 20be4ace1c594565881c4829d10d940c3117841d..1b3b23d64440bb8a5366ab113119f30c777b470a 100644
+index 20be4ace1c594565881c4829d10d940c3117841d..7b40897467f0e83505e273c0a09669f332934744 100644
 --- a/net/minecraft/server/dedicated/DedicatedServer.java
 +++ b/net/minecraft/server/dedicated/DedicatedServer.java
 @@ -265,6 +265,7 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
