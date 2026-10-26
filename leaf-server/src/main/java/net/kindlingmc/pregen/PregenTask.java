@@ -2,15 +2,18 @@ package net.kindlingmc.pregen;
 
 import ca.spottedleaf.concurrentutil.util.Priority;
 import ca.spottedleaf.moonrise.patches.chunk_system.level.ChunkSystemServerLevel;
-import java.util.concurrent.atomic.AtomicInteger;
+import it.unimi.dsi.fastutil.longs.LongRBTreeSet;
+import it.unimi.dsi.fastutil.longs.LongSortedSet;
 import java.util.concurrent.atomic.AtomicLong;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 
 /**
- * Generates every chunk of a square around a centre, nearest first, at the chunk system's lowest priority: chunks
- * players ask for always come first. Runs with as many chunks in flight as the tick time allows, halving them when the
- * average tick takes longer than the budget and adding one a second while it stays well below.
+ * Generates every chunk of a square around a centre, tile by tile from the centre outwards ({@link TileSpiral}), at the
+ * chunk system's lowest priority: chunks players ask for always come first. Runs with as many chunks in flight as the
+ * tick time allows, halving them when the average tick takes longer than the budget and adding one a second while it
+ * stays well below. The last tiles stay in memory ({@link KeptTiles}), so their neighbours are not generated halfway,
+ * saved and loaded again. Runs on the main thread, where the chunk system also completes full chunk loads.
  */
 final class PregenTask {
 
@@ -22,21 +25,24 @@ final class PregenTask {
     final int centerZ;
     final int radius;
     private final long total;
-    private final AtomicInteger inFlight = new AtomicInteger();
+    private final KeptTiles kept;
+    private final LongSortedSet inFlight = new LongRBTreeSet();
     private final AtomicLong completed = new AtomicLong();
     private final long startIndex;
     private final long startNanos = System.nanoTime();
     private long next;
     private int parallel = 1;
     private boolean paused;
+    private boolean closed;
 
-    /** @param next the index to continue from, 0 for a new run */
+    /** @param next the {@link TileSpiral} index to continue from, 0 for a new run */
     PregenTask(final ServerLevel level, final int centerX, final int centerZ, final int radius, final long next) {
         this.level = level;
         this.centerX = centerX;
         this.centerZ = centerZ;
         this.radius = radius;
-        this.total = SquareSpiral.size(radius);
+        this.total = TileSpiral.size(radius);
+        this.kept = new KeptTiles(level);
         this.next = Math.min(next, this.total);
         this.startIndex = this.next;
     }
@@ -45,6 +51,7 @@ final class PregenTask {
         if (this.paused || this.next >= this.total) {
             return;
         }
+        this.kept.releaseBefore(TileSpiral.tileOf(this.resumeIndex()));
         if (averageTickNanos > budgetNanos) {
             this.parallel = Math.max(1, this.parallel / 2);
             return;
@@ -52,37 +59,48 @@ final class PregenTask {
         if (tick % TICKS_PER_SECOND == 0 && averageTickNanos < budgetNanos * RELAXED_SHARE_OF_BUDGET) {
             this.parallel = Math.min(maxParallel, this.parallel + 1);
         }
-        while (this.inFlight.get() < this.parallel && this.next < this.total) {
-            this.schedule(SquareSpiral.offset(this.next++));
+        while (this.inFlight.size() < this.parallel && this.next < this.total) {
+            this.schedule(this.next++);
         }
     }
 
-    private void schedule(final long offset) {
+    private void schedule(final long index) {
+        final long offset = TileSpiral.offset(index);
         final int chunkX = this.centerX + SquareSpiral.x(offset);
         final int chunkZ = this.centerZ + SquareSpiral.z(offset);
-        if (!this.level.getWorldBorder().isChunkInBounds(chunkX, chunkZ)) {
+        if (!TileSpiral.isInside(offset, this.radius) || !this.level.getWorldBorder().isChunkInBounds(chunkX, chunkZ)) {
             this.completed.incrementAndGet();
             return;
         }
-        this.inFlight.incrementAndGet();
+        this.inFlight.add(index);
         ((ChunkSystemServerLevel) this.level).moonrise$getChunkTaskScheduler().scheduleChunkLoad(
             chunkX, chunkZ, ChunkStatus.FULL, true, Priority.IDLE, chunk -> {
                 this.completed.incrementAndGet();
-                this.inFlight.decrementAndGet();
+                this.inFlight.remove(index);
+                if (chunk != null && !this.closed && !this.paused) {
+                    this.kept.keep(TileSpiral.tileOf(index), chunkX, chunkZ);
+                }
             });
     }
 
-    boolean finished() {
-        return this.next >= this.total && this.inFlight.get() == 0;
+    /** Lets go of every chunk the task keeps in memory; chunks still in flight complete without being kept. */
+    void close() {
+        this.closed = true;
+        this.kept.releaseAll();
     }
 
-    /** Where a restart picks up: chunks still in flight are done again (they then load from disk). */
+    boolean finished() {
+        return this.next >= this.total && this.inFlight.isEmpty();
+    }
+
+    /** Where a restart picks up: the oldest chunk still in flight, so none is skipped (later ones load from disk). */
     long resumeIndex() {
-        return Math.max(0L, this.next - this.inFlight.get());
+        return this.inFlight.isEmpty() ? this.next : this.inFlight.firstLong();
     }
 
     void pause() {
         this.paused = true;
+        this.kept.releaseAll();
     }
 
     void resume() {

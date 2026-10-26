@@ -42,7 +42,7 @@ public final class SquareSpiral {
         return (int) offset;
     }
 
-    private static int ringOf(final long index) {
+    static int ringOf(final long index) {
         int ring = (int) Math.ceil((Math.sqrt(index + 1.0) - 1) / 2);
         while (size(ring) <= index) {
             ring++;
@@ -53,7 +53,7 @@ public final class SquareSpiral {
         return ring;
     }
 
-    private static long pack(final int x, final int z) {
+    static long pack(final int x, final int z) {
         return ((long) x << 32) | (z & 0xFFFFFFFFL);
     }
 }

@@ -37,6 +37,7 @@ public final class Pregenerator {
     private static final String RUNNING = "running";
     private static final String PAUSED = "paused";
     private static final String DONE = "done";
+    private static final String TILE_ORDER = "tiles-" + TileSpiral.TILE_SIDE;
 
     private static final Map<ResourceKey<Level>, PregenTask> TASKS = new LinkedHashMap<>();
     private static final Properties STATE = new Properties();
@@ -66,6 +67,7 @@ public final class Pregenerator {
             task.pump(tick, average, budget, Pregeneration.maxParallel);
             if (task.finished()) {
                 LOGGER.info("Pregeneration finished: {}", task.describe());
+                task.close();
                 remember(task, DONE);
                 tasks.remove();
                 saveState();
@@ -81,7 +83,10 @@ public final class Pregenerator {
     public static String start(final ServerLevel level, final BlockPos center, final int radiusBlocks) {
         final PregenTask task = new PregenTask(level, center.getX() >> 4, center.getZ() >> 4,
             Math.max(0, radiusBlocks / BLOCKS_PER_CHUNK), 0L);
-        TASKS.put(level.dimension(), task);
+        final PregenTask replaced = TASKS.put(level.dimension(), task);
+        if (replaced != null) {
+            replaced.close();
+        }
         remember(task, RUNNING);
         saveState();
         return task.describe();
@@ -102,9 +107,11 @@ public final class Pregenerator {
     }
 
     public static boolean cancel(final ServerLevel level) {
-        if (TASKS.remove(level.dimension()) == null) {
+        final PregenTask task = TASKS.remove(level.dimension());
+        if (task == null) {
             return false;
         }
+        task.close();
         forget(level.dimension());
         saveState();
         return true;
@@ -132,7 +139,7 @@ public final class Pregenerator {
             final String state = STATE.getProperty(prefix + "state");
             if (RUNNING.equals(state) || PAUSED.equals(state)) {
                 final PregenTask task = new PregenTask(level, intOf(prefix + "center-x"), intOf(prefix + "center-z"),
-                    intOf(prefix + "radius"), Long.parseLong(STATE.getProperty(prefix + "next", "0")));
+                    intOf(prefix + "radius"), savedIndex(prefix));
                 if (PAUSED.equals(state)) {
                     task.pause();
                 }
@@ -140,6 +147,12 @@ public final class Pregenerator {
                 LOGGER.info("Pregeneration continues: {}", task.describe());
             }
         }
+    }
+
+    /** The index to continue from; runs saved before the tile order count rings and are converted. */
+    private static long savedIndex(final String prefix) {
+        final long next = Long.parseLong(STATE.getProperty(prefix + "next", "0"));
+        return TILE_ORDER.equals(STATE.getProperty(prefix + "order")) ? next : TileSpiral.fromRingIndex(next);
     }
 
     /** Starts the configured radius of every world that has neither a run nor a finished run at least as large. */
@@ -165,6 +178,7 @@ public final class Pregenerator {
         STATE.setProperty(prefix + "center-z", Integer.toString(task.centerZ));
         STATE.setProperty(prefix + "radius", Integer.toString(task.radius));
         STATE.setProperty(prefix + "next", Long.toString(task.resumeIndex()));
+        STATE.setProperty(prefix + "order", TILE_ORDER);
         STATE.setProperty(prefix + "state", state);
     }
 
