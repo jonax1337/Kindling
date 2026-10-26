@@ -1,0 +1,38 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Mon, 26 Oct 2026 14:34:18 +0100
+Subject: [PATCH] Kindling: Measured default chunk worker count
+
+Five eighths of the available processors, at most five, and never fewer than Paper's quarter of the cores: with a quarter (2 on 8 cores, 1 on 4) world generation cannot keep up with a single elytra flight; five keep eight flying players out of the void on 8 and on 12 cores, and more only add main thread load. Measured with kindling-bench (docs/MEASUREMENTS.md). worker-threads in paper-global.yml and -D<brand>.WorkerThreadCount still override it.
+
+diff --git a/src/main/java/ca/spottedleaf/moonrise/common/util/MoonriseCommon.java b/src/main/java/ca/spottedleaf/moonrise/common/util/MoonriseCommon.java
+index ee857c23afb54763db452981e7ed1f0eb0d2d2a0..2893d4eeecaec11a6738ed926e0cd9dc4a61dac1 100644
+--- a/src/main/java/ca/spottedleaf/moonrise/common/util/MoonriseCommon.java
++++ b/src/main/java/ca/spottedleaf/moonrise/common/util/MoonriseCommon.java
+@@ -1,7 +1,6 @@
+ package ca.spottedleaf.moonrise.common.util;
+ 
+ import ca.spottedleaf.concurrentutil.executor.thread.BalancedPrioritisedThreadPool;
+-import ca.spottedleaf.concurrentutil.numa.OSNuma;
+ import ca.spottedleaf.moonrise.common.PlatformHooks;
+ import com.mojang.logging.LogUtils;
+ import org.slf4j.Logger;
+@@ -44,12 +43,12 @@ public final class MoonriseCommon {
+     public static final BalancedPrioritisedThreadPool.OrderedStreamGroup SERVER_GROUP = MoonriseCommon.WORKER_POOL.createOrderedStreamGroup();
+ 
+     public static void adjustWorkerThreads(final int configWorkerThreads, final int configIoThreads) {
+-        int defaultWorkerThreads = OSNuma.getNativeInstance().getTotalCores()  / 2;
+-        if (defaultWorkerThreads <= 4) {
+-            defaultWorkerThreads = defaultWorkerThreads <= 3 ? 1 : 2;
+-        } else {
+-            defaultWorkerThreads = defaultWorkerThreads / 2;
+-        }
++        // Kindling start - measured default: Paper's quarter of the cores cannot keep one elytra flight ahead of world generation;
++        // five workers keep eight flying players out of the void on 8 and on 12 cores, more only add load (docs/MEASUREMENTS.md)
++        final int cores = Runtime.getRuntime().availableProcessors();
++        final int enoughForFastPlayers = 5;
++        int defaultWorkerThreads = Math.max(1, Math.max(Math.min(enoughForFastPlayers, cores * 5 / 8), cores / 4));
++        // Kindling end - measured default
+         defaultWorkerThreads = Integer.getInteger(PlatformHooks.get().getBrand() + ".WorkerThreadCount", Integer.valueOf(defaultWorkerThreads));
+ 
+         int workerThreads = configWorkerThreads;
