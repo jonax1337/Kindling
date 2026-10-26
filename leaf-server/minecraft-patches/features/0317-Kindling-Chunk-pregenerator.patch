@@ -1,0 +1,18 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Mon, 26 Oct 2026 09:47:16 +0100
+Subject: [PATCH] Kindling: Chunk pregenerator
+
+
+diff --git a/net/minecraft/server/dedicated/DedicatedServer.java b/net/minecraft/server/dedicated/DedicatedServer.java
+index 20be4ace1c594565881c4829d10d940c3117841d..1b3b23d64440bb8a5366ab113119f30c777b470a 100644
+--- a/net/minecraft/server/dedicated/DedicatedServer.java
++++ b/net/minecraft/server/dedicated/DedicatedServer.java
+@@ -265,6 +265,7 @@ public class DedicatedServer extends MinecraftServer implements ServerInterface
+         org.purpurmc.purpur.PurpurConfig.registerCommands();
+         // Purpur end - Purpur config files
+         org.dreeam.leaf.command.LeafCommands.registerCommands(this); // Leaf - Leaf commands
++        net.kindlingmc.pregen.Pregenerator.install(this); // Kindling - chunk pregenerator
+         // Leaf start - SparklyPaper - parallel world ticking
+         if (org.dreeam.leaf.config.modules.async.SparklyPaperParallelWorldTicking.enabled) {
+             serverLevelTickingSemaphore = new java.util.concurrent.Semaphore(org.dreeam.leaf.config.modules.async.SparklyPaperParallelWorldTicking.threads);

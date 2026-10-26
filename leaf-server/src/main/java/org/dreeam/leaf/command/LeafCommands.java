@@ -18,6 +18,7 @@ public final class LeafCommands {
 
     static {
         COMMANDS.put(LeafCommand.COMMAND_LABEL, new LeafCommand());
+        COMMANDS.put(net.kindlingmc.pregen.PregenCommand.LABEL, new net.kindlingmc.pregen.PregenCommand()); // Kindling - chunk pregenerator
     }
 
     public static void registerCommands(final MinecraftServer server) {

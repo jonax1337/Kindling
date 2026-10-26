@@ -1,0 +1,4 @@
+# only DAB (far mobs think less often; changes mob behaviour)
+performance:
+  dab:
+    enabled: true

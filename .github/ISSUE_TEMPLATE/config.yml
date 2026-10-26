@@ -1,5 +1,5 @@
 blank_issues_enabled: true
 contact_links:
-  - name: Discord
-    url: https://discord.com/invite/gfgAwdSEuM
-    about: 在 Discord 上联系我们 | Contact us on Discord
+  - name: Problem with a Leaf feature that Kindling does not change
+    url: https://github.com/Winds-Studio/Leaf/issues
+    about: Please check first whether plain Leaf shows the same problem, and report it there if it does.

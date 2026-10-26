@@ -1,0 +1,8 @@
+# fork candidate A: the async features that measured faster and keep vanilla behaviour
+async:
+  async-entity-tracker:
+    enabled: true
+  async-pathfinding:
+    enabled: true
+  async-playerdata-save:
+    enabled: true

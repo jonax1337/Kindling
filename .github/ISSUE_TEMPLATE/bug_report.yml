@@ -1,0 +1,35 @@
+name: Bug report
+description: Something in Kindling does not work as it should
+labels: [ "bug" ]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened, and what did you expect?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: How to reproduce
+      placeholder: Steps, commands, the relevant part of leaf-global.yml
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Output of /version
+    validations:
+      required: true
+  - type: dropdown
+    id: leaf
+    attributes:
+      label: Does plain Leaf of the same Minecraft version show it too?
+      options: [ "No, only Kindling", "Yes, Leaf too", "Not tested" ]
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs or spark profile
+      render: text

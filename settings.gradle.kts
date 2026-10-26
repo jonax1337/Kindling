@@ -16,15 +16,15 @@ if (!file(".git").exists()) {
     val errorText = """
         
         =====================[ ERROR ]=====================
-         The Leaf project directory is not a properly cloned Git repository.
-         
-         In order to build Leaf from source you must clone
-         the Leaf repository using Git, not download a code
+         The Kindling project directory is not a properly cloned Git repository.
+
+         In order to build Kindling from source you must clone
+         the Kindling repository using Git, not download a code
          zip from GitHub.
-         
-         Built Leaf jars are available for download at
-         https://www.leafmc.one/download
-         
+
+         Built Kindling jars are available for download at
+         https://github.com/jonax1337/KindlingMC/releases
+
          See https://github.com/PaperMC/Paper/blob/main/CONTRIBUTING.md
          for further information on building and modifying Paper forks.
         ===================================================
@@ -35,7 +35,7 @@ if (!file(".git").exists()) {
 
 rootProject.name = "leaf"
 
-for (name in listOf("leaf-api", "leaf-server")) {
+for (name in listOf("leaf-api", "leaf-server", "kindling-bench")) { // Kindling - benchmark plugin
     val projName = name.lowercase(Locale.ENGLISH)
     include(projName)
 }

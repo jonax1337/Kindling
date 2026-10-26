@@ -1,0 +1,4 @@
+# only throttled natural spawning (changes spawning)
+performance:
+  throttle-mob-spawning:
+    enabled: true

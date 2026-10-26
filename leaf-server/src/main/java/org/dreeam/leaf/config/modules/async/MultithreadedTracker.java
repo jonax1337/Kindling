@@ -13,7 +13,7 @@ public class MultithreadedTracker extends ConfigModule {
     }
 
     @Experimental
-    public static boolean enabled = false;
+    public static boolean enabled = true; // Kindling - on by default: measured faster, vanilla behaviour kept
     public static int threads = 0;
     public static int minEntitiesPerTask = 64;
     private static boolean asyncTrackerInitialized;
@@ -34,7 +34,7 @@ public class MultithreadedTracker extends ConfigModule {
         }
         asyncTrackerInitialized = true;
 
-        enabled = globalConfig.getBoolean(basePath() + ".enabled", false);
+        enabled = globalConfig.getBoolean(basePath() + ".enabled", enabled); // Kindling - default from the field
         threads = globalConfig.getInt(basePath() + ".threads", 0);
         if (threads <= 0) {
             threads = Math.min(Runtime.getRuntime().availableProcessors() / 2, 4);

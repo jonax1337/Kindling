@@ -1,0 +1,4 @@
+# only async pathfinding
+async:
+  async-pathfinding:
+    enabled: true

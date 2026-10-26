@@ -2,22 +2,19 @@ package org.dreeam.leaf.version;
 
 import org.galemc.gale.version.AbstractPaperVersionFetcher;
 
+// Kindling - fork name: compare the running build with the Kindling repository instead of Leaf's download API
 public class LeafVersionFetcher extends AbstractPaperVersionFetcher {
 
-    public static final String DOWNLOAD_PAGE = "https://www.leafmc.one/download";
-    public static final String API_URL = "https://api.leafmc.one/v2/projects/leaf/versions/" + AbstractPaperVersionFetcher.BUILD_INFO.minecraftVersionId() + "/builds";
-    public static final String USER_AGENT = null;
+    public static final String DOWNLOAD_PAGE = "https://github.com/jonax1337/KindlingMC/releases";
 
     public LeafVersionFetcher() {
         super(
             DOWNLOAD_PAGE,
-            "Winds Studio",
-            "Leaf",
-            "Winds-Studio",
-            "Leaf",
-            API_URL,
-            USER_AGENT,
-            ApiType.BIBLIOTHEK
+            "KindlingMC",
+            "Kindling",
+            "jonax1337",
+            "KindlingMC",
+            ApiType.GITHUB
         );
     }
 }

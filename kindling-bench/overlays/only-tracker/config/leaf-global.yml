@@ -1,0 +1,4 @@
+# only the async entity tracker
+async:
+  async-entity-tracker:
+    enabled: true

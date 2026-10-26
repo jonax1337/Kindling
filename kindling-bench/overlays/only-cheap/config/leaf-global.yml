@@ -1,0 +1,18 @@
+# the synchronous Leaf optimisations that are off by default and keep vanilla behaviour
+async:
+  async-playerdata-save:
+    enabled: true
+performance:
+  cache-biome:
+    enabled: true
+    mob-spawning: true
+    advancements: true
+  optimize-mob-despawn: true
+  optimize-entity-activation: true
+  optimize-mob-spawning: true
+  sleeping-block-entity: true
+  reuse-random-ticking-blockpos: true
+  optimized-powered-rails: true
+  optimize-waypoint: true
+  faster-random-generator:
+    enabled: true

@@ -9,7 +9,7 @@ public class AsyncPlayerDataSave extends ConfigModule {
         return ConfigCategory.ASYNC.basePath() + ".async-playerdata-save";
     }
 
-    public static boolean enabled = false;
+    public static boolean enabled = true; // Kindling - on by default: saving player data leaves the main thread
 
     @Override
     public void onLoaded() {

@@ -2,7 +2,12 @@
 
 ## Project overview
 
-Leaf is a high-performance Paper fork.
+Kindling is a fork of Leaf, itself a high-performance Paper fork. Kindling keeps
+vanilla behaviour and Leaf compatibility; every change must be justified by a
+`kindling-bench` measurement (see `CONTRIBUTING.md` and `docs/MEASUREMENTS.md`).
+Kindling's own code lives in `leaf-server/src/main/java/net/kindlingmc/`, its own
+patches start with `Kindling:` and its lines in Leaf code are marked
+`// Kindling - …` (see `docs/UPSTREAM.md`).
 
 ## Allowed scope
 

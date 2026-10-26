@@ -32,3 +32,8 @@ paper-server
 # AI tools
 .codegraph
 .pi
+
+# Kindling - benchmark runs and server jars under test
+/kindling-bench/runs/
+/kindling-bench/jars/
+/kindling-bench/worlds/

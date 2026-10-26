@@ -1,0 +1,5 @@
+name: KindlingBench
+version: "1"
+main: net.kindlingmc.bench.KindlingBench
+api-version: "26.3"
+description: Reproducible load benchmark with fake players; run it only on a throwaway server (it stops the server).

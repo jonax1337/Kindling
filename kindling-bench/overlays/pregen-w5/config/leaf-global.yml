@@ -1,0 +1,9 @@
+performance:
+  pregeneration:
+    max-mspt: 40.0
+    max-parallel: 32
+    automatic:
+      enabled: true
+      overworld-radius: 3000
+      nether-radius: 0
+      end-radius: 0

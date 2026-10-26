@@ -1,0 +1,22 @@
+# Leaf features that are off by default and, per Leaf, keep vanilla behaviour.
+async:
+  async-entity-tracker:
+    enabled: true
+  async-pathfinding:
+    enabled: true
+  async-playerdata-save:
+    enabled: true
+performance:
+  cache-biome:
+    enabled: true
+    mob-spawning: true
+    advancements: true
+  optimize-mob-despawn: true
+  optimize-entity-activation: true
+  optimize-mob-spawning: true
+  sleeping-block-entity: true
+  reuse-random-ticking-blockpos: true
+  optimized-powered-rails: true
+  optimize-waypoint: true
+  faster-random-generator:
+    enabled: true

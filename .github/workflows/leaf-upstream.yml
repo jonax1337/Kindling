@@ -1,0 +1,37 @@
+name: Leaf upstream
+
+# Once a week: are there Leaf commits on ver/26.3 that Kindling has not merged yet? Opens (or updates) one issue.
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+jobs:
+  check:
+    if: github.repository == 'jonax1337/KindlingMC'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Compare with Leaf
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git fetch --quiet https://github.com/Winds-Studio/Leaf.git ver/26.3
+          BEHIND=$(git rev-list --count HEAD..FETCH_HEAD)
+          echo "Leaf commits not merged yet: $BEHIND"
+          [ "$BEHIND" -eq 0 ] && exit 0
+          TITLE="Leaf has $BEHIND new commits on ver/26.3"
+          BODY="Merge Leaf's ver/26.3 as described in docs/UPSTREAM.md. Newest: https://github.com/Winds-Studio/Leaf/commit/$(git rev-parse FETCH_HEAD)"
+          gh label create upstream --color BFD4F2 --description "Leaf updates" 2>/dev/null || true
+          OPEN=$(gh issue list --label upstream --state open --json number --jq '.[0].number')
+          if [ -n "$OPEN" ]; then
+            gh issue edit "$OPEN" --title "$TITLE" --body "$BODY"
+          else
+            gh issue create --title "$TITLE" --body "$BODY" --label upstream
+          fi
