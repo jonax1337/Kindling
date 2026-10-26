@@ -23,6 +23,10 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Build number
+        # Kindling moved into a GitHub fork of Leaf after build 4; the run numbers of the fork start at 1 again.
+        run: echo "BUILD=$(( ${{ github.run_number }} + 4 ))" >> "$GITHUB_ENV"
+
       - name: Set up JDK 25
         uses: actions/setup-java@v6
         with:
@@ -40,12 +44,12 @@ jobs:
       - name: Create Paperclip jar
         run: ./gradlew createPaperclipJar --stacktrace --no-daemon
         env:
-          BUILD_NUMBER: ${{ github.run_number }}
+          BUILD_NUMBER: ${{ env.BUILD }}
 
       - name: Name the jar
         id: jar
         run: |
-          NAME="kindling-${MC_VERSION}-${{ github.run_number }}.jar"
+          NAME="kindling-${MC_VERSION}-${{ env.BUILD }}.jar"
           mv leaf-server/build/libs/leaf-paperclip-${MC_VERSION}*.jar "./$NAME"
           echo "name=$NAME" >> "$GITHUB_OUTPUT"
           echo "sha256=$(sha256sum "$NAME" | awk '{ print $1 }')" >> "$GITHUB_OUTPUT"
@@ -60,8 +64,8 @@ jobs:
         if: github.event_name == 'push' && github.repository == 'jonax1337/KindlingMC'
         uses: softprops/action-gh-release@v3
         with:
-          name: "Kindling ${{ env.MC_VERSION }} build ${{ github.run_number }}"
-          tag_name: "${{ env.MC_VERSION }}-${{ github.run_number }}"
+          name: "Kindling ${{ env.MC_VERSION }} build ${{ env.BUILD }}"
+          tag_name: "${{ env.MC_VERSION }}-${{ env.BUILD }}"
           target_commitish: "${{ github.sha }}"
           files: ./${{ steps.jar.outputs.name }}
           generate_release_notes: true
