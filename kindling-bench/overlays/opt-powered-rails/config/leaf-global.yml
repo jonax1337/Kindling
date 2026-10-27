@@ -1,0 +1,3 @@
+# Leaf optimized-powered-rails alone (keeps vanilla order; the load has no rails, so this should show no effect).
+performance:
+  optimized-powered-rails: true

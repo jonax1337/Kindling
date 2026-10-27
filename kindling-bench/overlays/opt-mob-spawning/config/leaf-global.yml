@@ -1,0 +1,3 @@
+# Leaf optimize-mob-spawning alone: own spawning-chunk selection, nearest-player lookup through a k-d tree and fewer random calls per spawn attempt. Same distribution but a different random sequence (statistically equivalent, a seed no longer reproduces the exact spawns).
+performance:
+  optimize-mob-spawning: true

@@ -2,11 +2,11 @@
 # Runs benchmark variants against one server jar, twice each, one after another (never in parallel: they would share
 # the CPU and skew each other). Usage: [SCENARIO=type=bases] matrix.sh <server.jar> <label prefix> [variant ...]
 set -euo pipefail
-cd "$(dirname "$0")"
-
-jar=$1
+jar=$(realpath "$1")
 prefix=$2
 shift 2
+cd "$(dirname "$0")"
+mkdir -p runs
 plugin=build/libs/kindling-bench.jar
 coh="-XX:+UseCompactObjectHeaders"
 elastic="-Xms256M -XX:G1PeriodicGCInterval=15000 -XX:+UseStringDeduplication"
@@ -28,6 +28,13 @@ declare -A jvm=(
     [leaf-safe]="$coh $elastic"
     [leaf-aggressive]="$coh $elastic"
     [sleeping-be]="$coh -Xms2G -Xmx2G"
+    [opt-cache-biome]="$coh -Xms2G -Xmx2G"
+    [opt-mob-spawning]="$coh -Xms2G -Xmx2G"
+    [opt-mob-despawn]="$coh -Xms2G -Xmx2G"
+    [opt-entity-activation]="$coh -Xms2G -Xmx2G"
+    [opt-waypoint]="$coh -Xms2G -Xmx2G"
+    [opt-powered-rails]="$coh -Xms2G -Xmx2G"
+    [opt-all]="$coh -Xms2G -Xmx2G"
 )
 
 variants=("$@")

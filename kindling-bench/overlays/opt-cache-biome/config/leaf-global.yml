@@ -1,0 +1,6 @@
+# Leaf cache-biome alone: a 65 536-entry biome cache per level, used by natural spawning (advancement checks are not part of the mixed load).
+performance:
+  cache-biome:
+    enabled: true
+    mob-spawning: true
+    advancements: true

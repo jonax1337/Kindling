@@ -1,0 +1,3 @@
+# Leaf optimize-mob-despawn alone: one k-d tree pass over all ticking entities replaces the per-mob nearest-player search.
+performance:
+  optimize-mob-despawn: true
