@@ -1,0 +1,11 @@
+# The five candidates together (the original "synchronous optimisations" measurement without faster-random-generator,
+# reuse-random-ticking-blockpos and optimized-powered-rails): shows whether the options interact.
+performance:
+  cache-biome:
+    enabled: true
+    mob-spawning: true
+    advancements: true
+  optimize-mob-despawn: true
+  optimize-entity-activation: true
+  optimize-mob-spawning: true
+  optimize-waypoint: true

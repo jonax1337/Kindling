@@ -1,0 +1,3 @@
+# Leaf optimize-entity-activation alone: activation ranges computed with k-d trees and chunk-slice lookups instead of per-player box scans.
+performance:
+  optimize-entity-activation: true

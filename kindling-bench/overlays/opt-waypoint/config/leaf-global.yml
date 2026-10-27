@@ -1,0 +1,3 @@
+# Leaf optimize-waypoint alone: waypoint updates only when an entity enters another block.
+performance:
+  optimize-waypoint: true

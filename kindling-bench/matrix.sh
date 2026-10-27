@@ -28,6 +28,12 @@ declare -A jvm=(
     [leaf-safe]="$coh $elastic"
     [leaf-aggressive]="$coh $elastic"
     [sleeping-be]="$coh -Xms2G -Xmx2G"
+    [opt-cache-biome]="$coh -Xms2G -Xmx2G"
+    [opt-mob-spawning]="$coh -Xms2G -Xmx2G"
+    [opt-mob-despawn]="$coh -Xms2G -Xmx2G"
+    [opt-entity-activation]="$coh -Xms2G -Xmx2G"
+    [opt-waypoint]="$coh -Xms2G -Xmx2G"
+    [opt-all]="$coh -Xms2G -Xmx2G"
 )
 
 variants=("$@")
