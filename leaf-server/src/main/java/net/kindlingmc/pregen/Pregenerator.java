@@ -2,17 +2,14 @@ package net.kindlingmc.pregen;
 
 import com.mojang.logging.LogUtils;
 import java.io.IOException;
-import java.io.Reader;
-import java.io.Writer;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Properties;
 import java.util.function.Consumer;
+import net.kindlingmc.pregen.PregenState.Phase;
 import net.minecraft.core.BlockPos;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
@@ -34,13 +31,9 @@ public final class Pregenerator {
     private static final int SAVE_EVERY_TICKS = 600;
     private static final int BLOCKS_PER_CHUNK = 16;
     private static final long NANOS_PER_MILLI = 1_000_000L;
-    private static final String RUNNING = "running";
-    private static final String PAUSED = "paused";
-    private static final String DONE = "done";
-    private static final String TILE_ORDER = "tiles-" + TileSpiral.TILE_SIDE;
 
     private static final Map<ResourceKey<Level>, PregenTask> TASKS = new LinkedHashMap<>();
-    private static final Properties STATE = new Properties();
+    private static PregenState state = new PregenState();
     private static MinecraftServer server;
     private static boolean started;
 
@@ -68,13 +61,13 @@ public final class Pregenerator {
             if (task.finished()) {
                 LOGGER.info("Pregeneration finished: {}", task.describe());
                 task.close();
-                remember(task, DONE);
+                remember(task, Phase.DONE);
                 tasks.remove();
                 saveState();
             }
         }
         if (tick % SAVE_EVERY_TICKS == 0 && !TASKS.isEmpty()) {
-            TASKS.values().forEach(task -> remember(task, task.paused() ? PAUSED : RUNNING));
+            TASKS.values().forEach(task -> remember(task, task.paused() ? Phase.PAUSED : Phase.RUNNING));
             saveState();
         }
     }
@@ -87,7 +80,7 @@ public final class Pregenerator {
         if (replaced != null) {
             replaced.close();
         }
-        remember(task, RUNNING);
+        remember(task, Phase.RUNNING);
         saveState();
         return task.describe();
     }
@@ -95,14 +88,14 @@ public final class Pregenerator {
     public static boolean pause(final ServerLevel level) {
         return withTask(level, task -> {
             task.pause();
-            remember(task, PAUSED);
+            remember(task, Phase.PAUSED);
         });
     }
 
     public static boolean resume(final ServerLevel level) {
         return withTask(level, task -> {
             task.resume();
-            remember(task, RUNNING);
+            remember(task, Phase.RUNNING);
         });
     }
 
@@ -135,24 +128,15 @@ public final class Pregenerator {
 
     private static void resumeSaved() {
         for (final ServerLevel level : server.getAllLevels()) {
-            final String prefix = keyOf(level.dimension());
-            final String state = STATE.getProperty(prefix + "state");
-            if (RUNNING.equals(state) || PAUSED.equals(state)) {
-                final PregenTask task = new PregenTask(level, intOf(prefix + "center-x"), intOf(prefix + "center-z"),
-                    intOf(prefix + "radius"), savedIndex(prefix));
-                if (PAUSED.equals(state)) {
+            state.run(keyOf(level.dimension())).filter(run -> run.phase() != Phase.DONE).ifPresent(run -> {
+                final PregenTask task = new PregenTask(level, run.centerX(), run.centerZ(), run.radius(), run.next());
+                if (run.phase() == Phase.PAUSED) {
                     task.pause();
                 }
                 TASKS.put(level.dimension(), task);
                 LOGGER.info("Pregeneration continues: {}", task.describe());
-            }
+            });
         }
-    }
-
-    /** The index to continue from; runs saved before the tile order count rings and are converted. */
-    private static long savedIndex(final String prefix) {
-        final long next = Long.parseLong(STATE.getProperty(prefix + "next", "0"));
-        return TILE_ORDER.equals(STATE.getProperty(prefix + "order")) ? next : TileSpiral.fromRingIndex(next);
     }
 
     /** Starts the configured radius of every world that has neither a run nor a finished run at least as large. */
@@ -162,9 +146,9 @@ public final class Pregenerator {
         }
         for (final ServerLevel level : server.getAllLevels()) {
             final int radiusBlocks = Pregeneration.radiusFor(level.dimension());
-            final String prefix = keyOf(level.dimension());
-            final boolean doneBefore = DONE.equals(STATE.getProperty(prefix + "state"))
-                && intOf(prefix + "radius") >= radiusBlocks / BLOCKS_PER_CHUNK;
+            final boolean doneBefore = state.run(keyOf(level.dimension()))
+                .filter(run -> run.phase() == Phase.DONE && run.radius() >= radiusBlocks / BLOCKS_PER_CHUNK)
+                .isPresent();
             if (radiusBlocks > 0 && !TASKS.containsKey(level.dimension()) && !doneBefore) {
                 final BlockPos center = level.dimension() == Level.OVERWORLD ? level.getRespawnData().pos() : BlockPos.ZERO;
                 LOGGER.info("Automatic pregeneration starts: {}", start(level, center, radiusBlocks));
@@ -172,49 +156,43 @@ public final class Pregenerator {
         }
     }
 
-    private static void remember(final PregenTask task, final String state) {
-        final String prefix = keyOf(task.level.dimension());
-        STATE.setProperty(prefix + "center-x", Integer.toString(task.centerX));
-        STATE.setProperty(prefix + "center-z", Integer.toString(task.centerZ));
-        STATE.setProperty(prefix + "radius", Integer.toString(task.radius));
-        STATE.setProperty(prefix + "next", Long.toString(task.resumeIndex()));
-        STATE.setProperty(prefix + "order", TILE_ORDER);
-        STATE.setProperty(prefix + "state", state);
+    private static void remember(final PregenTask task, final Phase phase) {
+        state.put(keyOf(task.level.dimension()),
+            new PregenState.Run(task.centerX, task.centerZ, task.radius, task.resumeIndex(), phase));
     }
 
     private static void forget(final ResourceKey<Level> dimension) {
-        final String prefix = keyOf(dimension);
-        STATE.stringPropertyNames().stream().filter(key -> key.startsWith(prefix)).forEach(STATE::remove);
+        state.remove(keyOf(dimension));
     }
 
     private static String keyOf(final ResourceKey<Level> dimension) {
-        return dimension.identifier() + ".";
-    }
-
-    private static int intOf(final String key) {
-        return Integer.parseInt(STATE.getProperty(key, "0"));
+        return dimension.identifier().toString();
     }
 
     private static Path stateFile() {
         return server.getWorldPath(LevelResource.ROOT).resolve(STATE_FILE);
     }
 
+    /** An unusable file is kept as {@code .corrupt}; what in it is still valid is resumed, the rest starts fresh. */
     private static void loadState() {
         final Path file = stateFile();
-        if (!Files.exists(file)) {
+        state = PregenState.load(file);
+        if (state.problems().isEmpty()) {
             return;
         }
-        try (Reader reader = Files.newBufferedReader(file)) {
-            STATE.load(reader);
+        LOGGER.warn("The pregeneration state {} is damaged ({}); the affected worlds start over",
+            file, String.join("; ", state.problems()));
+        try {
+            PregenState.keepCorrupt(file);
         } catch (final IOException e) {
-            LOGGER.error("Cannot read the pregeneration state {}; every run starts over", file, e);
+            LOGGER.error("Cannot keep a copy of the damaged pregeneration state {}", file, e);
         }
     }
 
     private static void saveState() {
         final Path file = stateFile();
-        try (Writer writer = Files.newBufferedWriter(file)) {
-            STATE.store(writer, "Progress of the chunk pregeneration; '/pregen' changes it");
+        try {
+            state.save(file);
         } catch (final IOException e) {
             LOGGER.error("Cannot write the pregeneration state {}", file, e);
         }
