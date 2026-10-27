@@ -1,0 +1,36 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Tue, 27 Oct 2026 22:11:49 +0100
+Subject: [PATCH] Kindling: Fix async mob spawning stall
+
+
+diff --git a/net/minecraft/server/level/ServerChunkCache.java b/net/minecraft/server/level/ServerChunkCache.java
+index cc305c6644af627d25d839e00cd7047cb21bb72d..22e65e4a6e8e4e8e16c1177117708a1b737595e8 100644
+--- a/net/minecraft/server/level/ServerChunkCache.java
++++ b/net/minecraft/server/level/ServerChunkCache.java
+@@ -75,7 +75,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+     @VisibleForDebug
+     private NaturalSpawner.@Nullable SpawnState lastSpawnState;
+     private volatile NaturalSpawner.@Nullable SpawnState asyncSpawnState; // Leaf - Pufferfish - async mob spawning
+-    private boolean spawnCountPending; // Leaf - Pufferfish - async mob spawning
++    private volatile boolean spawnCountPending; // Leaf - Pufferfish - async mob spawning // Kindling - Leaf PR #937: the worker resets it when counting fails
+     private NaturalSpawner.@Nullable AsyncSpawnCostSampler asyncSpawnCostSampler; // Leaf - Pufferfish - async mob spawning
+     // Paper start
+     public final ca.spottedleaf.concurrentutil.map.concurrent.longs.ConcurrentChainedLong2ReferenceHashTable<net.minecraft.world.level.chunk.LevelChunk> fullChunks = ca.spottedleaf.concurrentutil.map.concurrent.longs.ConcurrentChainedLong2ReferenceHashTable.createWithCapacity(ca.spottedleaf.concurrentutil.map.concurrent.longs.ConcurrentChainedLong2ReferenceHashTable.defaultCapacity(), 0.25f);
+@@ -699,7 +699,15 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+             boolean countAllMobsForSpawning = this.level.paperConfig().entities.spawning.countAllMobsForSpawning;
+             this.spawnCountPending = true;
+             this.level.getServer().mobSpawnExecutor.submit(() -> {
+-                this.asyncSpawnState = NaturalSpawner.createStateAsync(spawnableChunkCount, entities, this.level, environmentAttributes, countAllMobsForSpawning);
++                // Kindling start - Leaf PR #937: a failed count must not stall natural spawning
++                try {
++                    this.asyncSpawnState = NaturalSpawner.createStateAsync(spawnableChunkCount, entities, this.level, environmentAttributes, countAllMobsForSpawning);
++                } catch (Throwable t) {
++                    this.asyncSpawnState = null;
++                    this.spawnCountPending = false;
++                    throw t;
++                }
++                // Kindling end - Leaf PR #937
+             });
+         }
+         // Leaf end - Pufferfish - async mob spawning
