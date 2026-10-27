@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Kindling | More world. Less waiting.</title>
+  <meta name="description" content="A measured Leaf fork for small and mid-sized Minecraft survival servers. Vanilla behaviour, built-in pregeneration and smarter chunk loading.">
+  <link rel="canonical" href="https://jonax1337.github.io/Kindling/">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Kindling | More world. Less waiting.">
+  <meta property="og:description" content="Vanilla behaviour. The full world. Every change measured.">
+  <meta property="og:url" content="https://jonax1337.github.io/Kindling/">
+  <meta property="og:image" content="https://jonax1337.github.io/Kindling/branding/holzschnitt/social-preview-dark.png">
+  <meta name="twitter:card" content="summary_large_image">
+  <link rel="icon" type="image/png" sizes="64x64" href="branding/holzschnitt/server-icon.png">
+  <link rel="preload" as="image" href="media/kindling-world.webp" fetchpriority="high">
+  <link rel="preload" as="font" href="branding/fonts/Manrope.ttf" type="font/ttf" crossorigin>
+  <link rel="preload" as="font" href="branding/fonts/Fraunces.ttf" type="font/ttf" crossorigin>
+  <script>try{const t=localStorage.getItem('kindling-theme');if(t==='light'||t==='dark')document.documentElement.dataset.theme=t}catch{}</script>
+  <link rel="stylesheet" href="site.css">
+  <script src="vendor/gsap.min.js" defer></script>
+  <script src="vendor/ScrollTrigger.min.js" defer></script>
+  <script src="site.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="site-header">
+    <div class="nav-shell wrap">
+      <a class="brand" href="#" aria-label="Kindling home">
+        <img class="brand-light" src="branding/holzschnitt/logo-horizontal-light.svg" width="194" height="51" alt="Kindling">
+        <img class="brand-dark" src="branding/holzschnitt/logo-horizontal-dark.svg" width="194" height="51" alt="Kindling">
+      </a>
+      <button class="menu-toggle" type="button" aria-expanded="false" aria-controls="main-nav">Menu</button>
+      <nav id="main-nav" aria-label="Main navigation">
+        <a href="#features">Why Kindling</a>
+        <a href="#measurements">The numbers</a>
+        <a href="#start">Get started</a>
+        <a class="nav-github" href="https://github.com/jonax1337/Kindling">GitHub <span aria-hidden="true">↗</span></a>
+      </nav>
+      <button class="theme-toggle" type="button" hidden>Theme</button>
+    </div>
+    <div class="reading-progress" aria-hidden="true"></div>
+  </header>
+
+  <main id="main">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-scene" aria-hidden="true">
+        <img class="hero-image" src="media/kindling-world.webp" width="1916" height="821" alt="" fetchpriority="high">
+      </div>
+      <div class="hero-shade" aria-hidden="true"></div>
+      <div class="hero-content wrap">
+        <p class="eyebrow hero-enter">A Leaf fork. A little more spark.</p>
+        <h1 id="hero-title"><span class="hero-line">More world.</span><span class="hero-line accent">Less waiting.</span></h1>
+        <p class="hero-description hero-enter">A measured Minecraft server fork for survival communities. Familiar gameplay, with more room to explore.</p>
+        <div class="hero-actions hero-enter">
+          <a class="button button-primary" href="https://github.com/jonax1337/Kindling/releases">Download Kindling <span aria-hidden="true">↗</span></a>
+          <a class="text-link" href="#features">Meet Kindling <span aria-hidden="true">→</span></a>
+        </div>
+      </div>
+    </section>
+
+    <div class="compatibility wrap" aria-label="Project foundations">
+      <span>Minecraft <strong>26.3</strong></span>
+      <span>Java <strong>25</strong></span>
+      <span>Built on <a href="https://github.com/Winds-Studio/Leaf">Leaf</a></span>
+      <span>Made for <strong>survival</strong></span>
+    </div>
+
+    <section class="intro section wrap" aria-labelledby="intro-title">
+      <div class="intro-mark" aria-hidden="true"><img class="brand-light" src="branding/holzschnitt/icon-color.svg" width="216" height="216" alt=""><img class="brand-dark" src="branding/holzschnitt/icon-inverse.svg" width="216" height="216" alt=""></div>
+      <div>
+        <h2 id="intro-title" class="reveal">Keep the world.<br>Make the work lighter.</h2>
+        <p class="large-copy reveal">The mobs, the redstone, the faraway places. Those stay. Kindling focuses on the work behind them.</p>
+        <p class="muted reveal">Built for small and mid-sized servers sharing real hardware, with changes backed by reproducible measurements.</p>
+      </div>
+    </section>
+
+    <section id="features" class="features section wrap" aria-labelledby="features-title">
+      <div class="section-heading reveal">
+        <h2 id="features-title">A better foundation<br>for the next adventure.</h2>
+        <p>Useful changes underneath. The survival experience you know on top.</p>
+      </div>
+      <div class="feature-layout">
+        <div class="feature-copy">
+          <article class="feature-item reveal" data-feature="ahead">
+            <h3>Ahead of the adventure.</h3>
+            <p>Directional chunk loading prioritizes the terrain in front of moving players. The world loads where you're going next.</p>
+            <a class="text-link" href="https://github.com/jonax1337/Kindling/blob/ver/26.3/docs/MEASUREMENTS.md#elytra-test-new-chunks-ahead-of-fast-players">See the elytra measurements <span aria-hidden="true">↗</span></a>
+          </article>
+          <article class="feature-item reveal" data-feature="pregen">
+            <h3>Prepare the world.<br>Keep players first.</h3>
+            <p>The built-in pregenerator fills terrain in the background, gives player chunks priority and can resume after a restart.</p>
+            <code class="inline-command">/pregen start world 5000</code>
+          </article>
+          <article class="feature-item reveal" data-feature="lean">
+            <h3>Less overhead.<br>Same familiar home.</h3>
+            <p>Lean chunk loading, measured runtime advice and Leaf's plugin compatibility. Keep your worlds and existing configuration.</p>
+            <a class="text-link" href="https://github.com/jonax1337/Kindling#configuration">Review the configuration <span aria-hidden="true">↗</span></a>
+          </article>
+        </div>
+        <div class="feature-visual" data-mode="ahead" aria-label="Simplified illustration of chunks loading ahead of a player">
+          <div class="map-caption"><span>Room to keep going.</span><span aria-hidden="true">↗</span></div>
+          <div class="map-stage" aria-hidden="true"><div class="chunk-grid"></div><span class="player-marker">You</span></div>
+          <p class="map-note">Player chunks come first.</p>
+          <span class="map-disclaimer">Simplified illustration</span>
+        </div>
+      </div>
+    </section>
+
+    <section id="measurements" class="measurements section" aria-labelledby="numbers-title">
+      <div class="wrap">
+        <div class="section-heading reveal">
+          <h2 id="numbers-title">A little less guesswork.<br>A lot more measuring.</h2>
+          <p>Changes earn their place in Kindling. Here are three results from the published load tests.</p>
+        </div>
+        <dl class="metrics">
+          <div class="metric reveal"><dt>More terrain prepared</dt><dd class="metric-value">+59<span>%</span></dd><dd class="metric-caption">Chunks generated in a 2.5-minute run, compared with Kindling 26.3-1.</dd></div>
+          <div class="metric reveal"><dt>Less CPU per chunk</dt><dd class="metric-value">−41<span>%</span></dd><dd class="metric-caption">47 ms down to 28 ms in the same pregeneration comparison.</dd></div>
+          <div class="metric reveal"><dt>Time flying into void</dt><dd class="metric-value">0<span>%</span></dd><dd class="metric-caption">Five elytra players, 90 seconds, eight logical cores and directional loading.</dd></div>
+        </dl>
+        <div class="measurement-source reveal"><p>Specific workloads. Published methods. Your hardware and world will differ.</p><a class="text-link" href="https://github.com/jonax1337/Kindling/blob/ver/26.3/docs/MEASUREMENTS.md">Read the full measurements <span aria-hidden="true">↗</span></a></div>
+      </div>
+    </section>
+
+    <section id="start" class="getting-started section wrap" aria-labelledby="start-title">
+      <div class="start-copy">
+        <h2 id="start-title" class="reveal">Your next world<br>starts here.</h2>
+        <ol class="steps">
+          <li class="reveal"><strong>Pick up the latest build.</strong><p><a href="https://github.com/jonax1337/Kindling/releases">Download a release JAR</a> and rename it <code>kindling.jar</code>.</p></li>
+          <li class="reveal"><strong>Start with Java 25.</strong><p>Run the command, follow the server's EULA prompt, then restart.</p></li>
+          <li class="reveal"><strong>Make room to explore.</strong><p>Optionally pregenerate your world. Kindling gives chunks needed by players priority.</p></li>
+        </ol>
+      </div>
+      <div class="start-panel reveal">
+        <div class="code-panel">
+          <div class="code-tabs" role="tablist" aria-label="Server commands">
+            <button id="startup-tab" type="button" role="tab" aria-selected="true" aria-controls="startup-panel" tabindex="0">Start the server</button>
+            <button id="pregen-tab" type="button" role="tab" aria-selected="false" aria-controls="pregen-panel" tabindex="-1">Pregenerate</button>
+          </div>
+          <div id="startup-panel" role="tabpanel" aria-labelledby="startup-tab" tabindex="0"><pre><code>java -Xms2G -Xmx2G -XX:+UseCompactObjectHeaders -jar kindling.jar --nogui</code></pre><p class="code-hint">For an existing Leaf or Paper setup, back up the world first.</p></div>
+          <div id="pregen-panel" role="tabpanel" aria-labelledby="pregen-tab" tabindex="0"><pre><code>/pregen start world 5000</code></pre><p class="code-hint">In the server console or as an operator. Check progress with <code>/pregen status</code>.</p></div>
+          <div class="code-bottom"><span>Java 25 · Minecraft 26.3</span><button class="copy-button" type="button" hidden>Copy command</button></div>
+        </div>
+        <p class="copy-status" role="status" aria-live="polite"></p>
+        <aside class="release-note"><strong>A small project, still growing.</strong> Kindling is young and published as pre-release software. Back up your worlds before switching.</aside>
+      </div>
+    </section>
+
+    <section id="questions" class="questions section wrap" aria-labelledby="questions-title">
+      <h2 id="questions-title" class="reveal">A few things<br>worth knowing.</h2>
+      <div class="faq-list">
+        <details class="reveal"><summary>Is this still vanilla survival?</summary><div><p>Kindling preserves vanilla and Leaf behaviour by default. No smaller world, mob-spawn throttling or distant-entity tick skipping is required for its default optimizations.</p></div></details>
+        <details class="reveal"><summary>Can I switch from Leaf or Paper?</summary><div><p>Kindling keeps Leaf's configuration and Paper plugin compatibility. Back up your worlds before replacing the server JAR. Existing Leaf configurations stay intact; review the <a href="https://github.com/jonax1337/Kindling#configuration">recommended settings</a> when migrating.</p></div></details>
+        <details class="reveal"><summary>Do I need a separate pregenerator?</summary><div><p>No. Kindling includes <code>/pregen</code> with start, pause, resume, cancel and status commands. It can also prepare each dimension automatically when configured.</p></div></details>
+        <details class="reveal"><summary>Where are the docs and source?</summary><div><p>The <a href="https://github.com/jonax1337/Kindling#readme">repository README</a> covers setup and configuration. The <a href="https://github.com/jonax1337/Kindling/blob/ver/26.3/docs/MEASUREMENTS.md">measurement notes</a> explain the tests. Source, issues and releases live on GitHub.</p></div></details>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer wrap">
+    <a class="footer-brand" href="#" aria-label="Back to top"><img src="branding/holzschnitt/server-icon.png" width="48" height="48" alt=""><span>Kindling</span></a>
+    <p>A small spark. A full world.</p>
+    <div><a href="https://github.com/jonax1337/Kindling">GitHub</a><a href="https://github.com/Winds-Studio/Leaf">Built on Leaf</a><a href="https://github.com/jonax1337/Kindling/blob/ver/26.3/LICENSE.md">License & credits</a></div>
+  </footer>
+  <noscript><p class="noscript-note wrap">JavaScript is disabled. All content and downloads remain available; use the commands shown above.</p></noscript>
+</body>
+</html>

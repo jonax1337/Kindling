@@ -18,6 +18,7 @@ Vanilla behaviour, the full vanilla world, and every change measured.
 [![Based on Leaf](https://img.shields.io/badge/based%20on-Leaf-556457?style=for-the-badge&labelColor=19291f)](https://github.com/Winds-Studio/Leaf)
 [![License](https://img.shields.io/badge/license-MIT%20%2F%20GPL--3.0-556457?style=for-the-badge&labelColor=19291f)](LICENSE.md)
 
+[Website](https://jonax1337.github.io/Kindling/) ·
 [Features](#what-kindling-adds-on-top-of-leaf) ·
 [Numbers](#numbers) ·
 [Getting started](#getting-started) ·
