@@ -1,21 +1,27 @@
-# kindling-bench: a reproducible load test
+# 🧪 kindling-bench
 
-A plugin plus a few scripts that put a server under the same load every time, so that every change (patch, setting, JVM flag) competes against a number instead of a feeling.
+**A reproducible load test.** A plugin plus a few scripts that put a server under the same load every time, so that every change (patch, setting, JVM flag) competes against a number instead of a feeling.
 
 ## What a run does
 
 `run_bench.py` creates a fresh server under `runs/<label>-<n>/` (port 25999, bound to `127.0.0.1`, fixed seed, view distance 10, simulation distance 8), drops the plugin in and starts the given jar. The `KindlingBench` plugin waits until startup is done (`ServerLoadEvent`) and then plays the scenario from `plugins/KindlingBench/scenario.properties`:
 
-1. **Warm-up** (`warmup-seconds`, 30): `players` (8) fake players join on a circle of radius `circle-radius` (512) around the origin, in creative mode, flying at height 160.
-2. **Flight** (`travel-seconds`, 90): all fly straight outward at `blocks-per-tick` (1.0, roughly an elytra). The server keeps generating, loading, sending and unloading chunks. Measured: tick times.
-3. **Landing**: every player lands; around each, `mobs-per-player` (150) animals, villagers, zombies and skeletons appear (fixed random seed). It stays night.
-4. **Settle** (`settle-seconds`, 15), then **standing** (`steady-seconds`, 90): the players stand between the mobs. Measured: tick times.
-5. **State under load**: loaded chunks, entities, heap before and after two `System.gc()`, GC count and time.
-6. **Idle** (`idle-seconds`, 60): all players leave, as at night on a small server. Then the plugin records what the JVM still holds on its own (`idle`), writes `bench-result.json` and stops the server.
+| # | Phase | Key (default) | What happens | Measured |
+| :-: | --- | --- | --- | --- |
+| 1 | **Warm-up** | `warmup-seconds` (30) | `players` (8) fake players join on a circle of radius `circle-radius` (512) around the origin, in creative mode, flying at height 160 | |
+| 2 | **Flight** | `travel-seconds` (90) | All fly straight outward at `blocks-per-tick` (1.0, roughly an elytra). The server keeps generating, loading, sending and unloading chunks | tick times, chunk lead |
+| 3 | **Landing** | | Every player lands; around each, `mobs-per-player` (150) animals, villagers, zombies and skeletons appear (fixed random seed). It stays night | |
+| 4 | **Settle**, then **standing** | `settle-seconds` (15), `steady-seconds` (90) | The players stand between the mobs | tick times |
+| 5 | **State under load** | | | loaded chunks, entities, heap before and after two `System.gc()`, GC count and time |
+| 6 | **Idle** | `idle-seconds` (60) | All players leave, as at night on a small server | what the JVM still holds on its own (`idle`) |
 
-The script adds what only the operating system sees: peak RSS, RSS at the end of the idle phase (`rss_idle_mb`, the moment the result file appears), final RSS and the CPU time of the process.
+Then the plugin writes `bench-result.json` and stops the server. The script adds what only the operating system sees: peak RSS, RSS at the end of the idle phase (`rss_idle_mb`, the moment the result file appears), final RSS and the CPU time of the process.
+
+### Chunk lead
 
 During the flight, `chunk_lead` samples every 5 ticks per player how many chunks in flight direction, gap-free from the player, have already reached the client (`Player#isChunkSent`): average, minimum, 5th percentile, the share with lead 0 (`hole_pct`, the player flies into the void) and with lead at most 2 (`close_pct`), plus newly generated chunks per second.
+
+### Fake players
 
 The fake players request view distance 12 like a vanilla client (`client-view-distance`); the server sends up to the smaller of that and its own. They join through `PlayerList.placeNewPlayer` and move through the same packets as a client (movement, tick end, teleport and keep-alive answers). Their connection discards all outgoing packets, so everything up to the network is measured, but not encoding and compressing packets on the Netty threads. `flown_blocks_avg` in the result shows whether the flight really happened (expected: `travel-seconds × 20 × blocks-per-tick`).
 
@@ -28,18 +34,36 @@ python -I kindling-bench/run_bench.py --jar <server.jar> --plugin kindling-bench
 bash kindling-bench/matrix.sh <server.jar> <prefix> [variant ...]   # all variants in turn, two runs each
 ```
 
-- `--heap` sets `-Xmx` (default 3G) and, unless `--jvm` names its own `-Xms`, also `-Xms`.
-- `--overlay <folder>` copies files over the server folder before the start, for example `overlays/leaf-safe/config/leaf-global.yml`. Leaf fills in missing keys, so an overlay only needs the keys it changes.
-- `--world <folder>` copies a world in as `world` before the start.
-- `--scenario "players=4,travel-seconds=30"` overrides single keys.
-- `--cpus N` pins the server to the first N logical cores as a stand-in for a smaller machine (pair it with `-XX:ActiveProcessorCount=N` in `--jvm`, so the JVM sizes its thread pools accordingly).
-- `bash kindling-bench/elytra.sh <kindling.jar> <leaf.jar> <prefix>` runs the elytra test from [docs/MEASUREMENTS.md](../docs/MEASUREMENTS.md), including the pregenerated world (`worlds/`, not checked in).
-- `bash kindling-bench/pregen.sh <kindling.jar> <prefix>` measures the built-in pregenerator alone and during an elytra flight.
+| Option of `run_bench.py` | Effect |
+| --- | --- |
+| `--heap` | Sets `-Xmx` (default 3G) and, unless `--jvm` names its own `-Xms`, also `-Xms` |
+| `--overlay <folder>` | Copies files over the server folder before the start, for example `overlays/leaf-safe/config/leaf-global.yml`. Leaf fills in missing keys, so an overlay only needs the keys it changes |
+| `--world <folder>` | Copies a world in as `world` before the start |
+| `--scenario "players=4,travel-seconds=30"` | Overrides single scenario keys |
+| `--cpus N` | Pins the server to the first N logical cores as a stand-in for a smaller machine (pair it with `-XX:ActiveProcessorCount=N` in `--jvm`, so the JVM sizes its thread pools accordingly) |
 
-Never run two benchmarks at once, and do not build anything heavy during a measurement: the runs would share the CPU and the numbers would be worthless. Run every variant twice and only trust differences larger than the gap between the two runs.
+| Script | Measures |
+| --- | --- |
+| `bash kindling-bench/elytra.sh <kindling.jar> <leaf.jar> <prefix>` | The elytra test from [docs/MEASUREMENTS.md](../docs/MEASUREMENTS.md), including the pregenerated world (`worlds/`, not checked in) |
+| `bash kindling-bench/pregen.sh <kindling.jar> <prefix>` | The built-in pregenerator alone and during an elytra flight |
+| `python -I kindling-bench/compare.py <label> …` | Not a run: puts finished runs side by side |
 
-## Variants in `matrix.sh`
+> [!WARNING]
+> Never run two benchmarks at once, and do not build anything heavy during a measurement: the runs would share the CPU and the numbers would be worthless. Run every variant twice and only trust differences larger than the gap between the two runs.
 
-A variant is a name. Its JVM arguments come from the `jvm` table in `matrix.sh` (without an entry it runs with `-Xms3G -Xmx3G` and G1); if a folder `overlays/<name>` exists, it is copied over the server before the start. So `g1-2g`, `zgc-free` and `shenandoah` are JVM variants; `only-tracker`, `only-pathfinding`, `only-cheap`, `only-dab` and `only-throttle` switch on one Leaf feature each; `cand-a`, `cand-b` and `cand-b-throttle` were the candidates for Kindling's defaults; `fork` is the Kindling jar without an overlay. What each variant showed is in [docs/MEASUREMENTS.md](../docs/MEASUREMENTS.md).
+> [!TIP]
+> Every run leaves a full server with its world under `runs/`. Delete the run folders once the results are read; they fill a disk quickly.
 
-Results land in `runs/<prefix>-<variant>.json` (a list of runs). `runs/`, `jars/` and `worlds/` are not checked in.
+## Variants
+
+A variant is a name. Its JVM arguments come from the `jvm` table in `matrix.sh` (without an entry it runs with `-Xms3G -Xmx3G` and G1); if a folder `overlays/<name>` exists, it is copied over the server before the start.
+
+| Kind | Variants |
+| --- | --- |
+| JVM only (`matrix.sh`) | `coh` (compact object headers), `g1-2g`, `elastic`, `g1-tight`, `zgc`, `zgc-free`, `shenandoah` |
+| One Leaf feature each | `only-tracker`, `only-pathfinding`, `only-cheap` (Leaf's synchronous optimisations), `only-dab`, `only-throttle` |
+| Candidate sets for Kindling's defaults | `cand-a`, `cand-b`, `cand-b-throttle`, `leaf-safe`, `leaf-aggressive` |
+| The Kindling jar without an overlay | `fork` |
+| Used by `elytra.sh` and `pregen.sh` | `workers-5`, `workers-7`, `vd-8` (view distance 8), `pregen-w5` (automatic pregeneration, 5 workers) |
+
+What each variant showed is in [docs/MEASUREMENTS.md](../docs/MEASUREMENTS.md). Results land in `runs/<prefix>-<variant>.json` (a list of runs). `runs/`, `jars/` and `worlds/` are not checked in.

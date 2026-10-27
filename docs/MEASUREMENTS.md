@@ -1,13 +1,29 @@
-# Measurements
+# 📊 Measurements
 
-Why each Kindling change exists, and what was tried and left out. All numbers come from `kindling-bench` ([how it works](../kindling-bench/README.md)), measured on 2026-10-26 on a Windows machine with 12 logical cores and Java 25.0.4, against Leaf `4c3d5689` (Paper `1b9bf5c8`). Each variant ran twice; tables show the mean. A shared-core VPS will show other absolute numbers; the direction should hold.
+Why each Kindling change exists, and what was tried and left out.
+
+> [!NOTE]
+> All numbers come from `kindling-bench` ([how it works](../kindling-bench/README.md)), measured on 2026-10-26 on a Windows machine with 12 logical cores and Java 25.0.4, against Leaf `4c3d5689` (Paper `1b9bf5c8`). Each variant ran twice; tables show the mean. A shared-core VPS will show other absolute numbers; the direction should hold.
+
+**Contents**
+
+- [Mixed load](#mixed-load) · [not adopted, although Leaf offers them](#not-adopted-although-leaf-offers-them)
+- [JVM and heap](#jvm-and-heap)
+- [Elytra test: new chunks ahead of fast players](#elytra-test-new-chunks-ahead-of-fast-players)
+- [Default number of chunk workers](#default-number-of-chunk-workers)
+- [Pregeneration](#pregeneration)
+- [Loading chunks from disk](#loading-chunks-from-disk)
+- [The lagging check of the tick loop](#the-lagging-check-of-the-tick-loop)
+- [Where the time goes (profile)](#where-the-time-goes-profile)
+
+---
 
 ## Mixed load
 
 Scenario defaults: 8 fake players fly outward for 90 s at 1 block/tick, then land between 1 200 mobs with natural spawning on and stand for 90 s.
 
 | Variant | Tick time flight | Tick time standing | p95 standing | Peak RSS | CPU time |
-| --- | --- | --- | --- | --- | --- |
+| --- | ---: | ---: | ---: | ---: | ---: |
 | Leaf, `-Xms3G -Xmx3G` | 16.1 | 26.0 | 30.5 | 3 590 MB | 746 s |
 | G1 2 GB + compact object headers | 16.1 | 25.8 | 31.5 | 2 549 MB | 782 s |
 | **Kindling defaults** (2 GB, compact headers, async tracker, pathfinding and saving) | 15.6 | 22.5 | 28.0 | 2 555 MB | 794 s |
@@ -19,20 +35,26 @@ Tick times in milliseconds. Raw data lands in `kindling-bench/runs/` after a run
 
 ### Not adopted, although Leaf offers them
 
-- `performance.faster-random-generator`: **slower** than vanilla's random in this test (flight +14 % tick time; the profile shows 18 % instead of 10 % of the main thread in the generator during natural spawning).
-- Leaf's other synchronous optimisations together (`cache-biome`, `optimize-mob-spawning`, `optimize-entity-activation`, `optimize-mob-despawn`, `sleeping-block-entity`, …): standing −5 %, but flight +15 %. Which of them slows chunk generation is still open.
-- `performance.dab`: no gain in this test, and it changes how distant mobs behave.
-- `performance.throttle-mob-spawning`: the biggest single gain (flight −26 %, standing −5 %), but it skips 75 % of spawn attempts in chunks whose last 8 attempts failed. That changes spawn rates (mob farms with many failed attempts yield less), so it is a per-server decision, not a default.
+| Option | Why not |
+| --- | --- |
+| `performance.faster-random-generator` | **Slower** than vanilla's random in this test (flight +14 % tick time; the profile shows 18 % instead of 10 % of the main thread in the generator during natural spawning). |
+| Leaf's other synchronous optimisations together (`cache-biome`, `optimize-mob-spawning`, `optimize-entity-activation`, `optimize-mob-despawn`, `sleeping-block-entity`, …) | Standing −5 %, but flight +15 %. Which of them slows chunk generation is still open. |
+| `performance.dab` | No gain in this test, and it changes how distant mobs behave. |
+| `performance.throttle-mob-spawning` | The biggest single gain (flight −26 %, standing −5 %), but it skips 75 % of spawn attempts in chunks whose last 8 attempts failed. That changes spawn rates (mob farms with many failed attempts yield less), so it is a per-server decision, not a default. |
 
-Defaults only apply when Leaf writes `config/leaf-global.yml` fresh. A server with an existing file keeps its values; set `async.async-entity-tracker.enabled`, `async.async-pathfinding.enabled` and `async.async-playerdata-save.enabled` to `true` there.
+> [!IMPORTANT]
+> Defaults only apply when Leaf writes `config/leaf-global.yml` fresh. A server with an existing file keeps its values; set `async.async-entity-tracker.enabled`, `async.async-pathfinding.enabled` and `async.async-playerdata-save.enabled` to `true` there.
 
 ## JVM and heap
 
 A server jar cannot bring its own JVM flags. Measured and recommended:
 
-- `-XX:+UseCompactObjectHeaders` (Java 25): live heap −5 %, GC time −17 %, no tick time cost.
-- Heap 2 GB instead of 3 GB with G1: under full load (8 players, 2 900 entities) the server holds about 1.2 GB of live data; with 2 GB the process uses 1 GB less memory (−29 %) at the same tick time.
-- Not recommended: ZGC (−22 % peak memory and returns memory to the OS, but +11 % CPU and worse tick spikes), generational Shenandoah (slower, barely less memory), G1 with a small `-Xms` (G1 returns practically nothing while the server ticks, because `G1PeriodicGCInterval` only acts after GC-free pauses).
+- ✅ `-XX:+UseCompactObjectHeaders` (Java 25): live heap −5 %, GC time −17 %, no tick time cost.
+- ✅ Heap 2 GB instead of 3 GB with G1: under full load (8 players, 2 900 entities) the server holds about 1.2 GB of live data; with 2 GB the process uses 1 GB less memory (−29 %) at the same tick time.
+- ❌ Not recommended:
+  - ZGC: −22 % peak memory and returns memory to the OS, but +11 % CPU and worse tick spikes.
+  - Generational Shenandoah: slower, barely less memory.
+  - G1 with a small `-Xms`: G1 returns practically nothing while the server ticks, because `G1PeriodicGCInterval` only acts after GC-free pauses.
 
 ## Elytra test: new chunks ahead of fast players
 
@@ -41,7 +63,7 @@ Five players fly 90 s straight outward in five directions at elytra speed (1.7 b
 At view distance 10 one elytra needs about 45 new chunks per second, five need about 225. Paper uses a quarter of the cores for chunk generation (`chunk-system.worker-threads: -1` gives **2 threads** on 8 cores, log line "Paper is using 2 worker threads"), which manages about 75 chunks/s.
 
 | Variant | Lead avg / min | Time in the void | Tick time avg / p95 | CPU |
-| --- | --- | --- | --- | --- |
+| --- | ---: | ---: | ---: | ---: |
 | Leaf, 2 workers | 0.2 / 0 | 92 % | 19.8 / 95 | 394 s |
 | Kindling, 2 workers | 0.2 / 0 | 94 % | 24.5 / 113 | 413 s |
 | view distance 8 instead of 10 | 0.3 / 0 | 89 % | 8.5 / 36 | 408 s |
@@ -59,12 +81,17 @@ Conclusions:
 
 ## Default number of chunk workers
 
-Paper starts about a quarter of the cores as chunk workers (`chunk-system.worker-threads: -1`): 1 on 4 cores, 2 on 8, 3 on 12. The elytra test above shows that 2 cannot keep up with even one elytra. Kindling's default is five eighths of the cores, at most five, and never fewer than Paper's quarter: 2 on 4 cores, 5 on 8, 12 and 16, 6 on 24, 8 on 32. A value in `paper-global.yml` still wins.
+Paper starts about a quarter of the cores as chunk workers (`chunk-system.worker-threads: -1`). The elytra test above shows that 2 cannot keep up with even one elytra. Kindling's default is five eighths of the cores, at most five, and never fewer than Paper's quarter. A value in `paper-global.yml` still wins.
+
+| Cores | 4 | 8 | 12 | 16 | 24 | 32 |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Paper | 1 | 2 | 3 | 4 | 6 | 8 |
+| **Kindling** | **2** | **5** | **5** | **5** | **6** | **8** |
 
 Why at most five: the mixed load (eight players flying outward, 12 logical cores, not pinned), two runs each:
 
 | Workers | Time in the void | Tick time flying avg / p95 | Tick time standing avg / p95 | New chunks / s |
-| --- | --- | --- | --- | --- |
+| --- | ---: | ---: | ---: | ---: |
 | 3 (Paper's default here) | 24 % | 13.4 / 29.5 | 29.8 / 39.9 | 125 |
 | **5 (Kindling's default)** | **0 %** | 30.6 / 43.7 | **26.6 / 31.2** | 203 |
 | 7 (five eighths of 12) | 0 % | 40.1 / 64.9 | 26.9 / 32.3 | 244 |
@@ -75,37 +102,40 @@ With 3 workers the ticks look cheap only because a quarter of the time there is 
 
 The pregenerator generates a square around a centre in tiles of 16 × 16 chunks: the tiles ring by ring from the centre tile, the chunks of a tile row by row, at `Priority.IDLE`. While the average tick time is above `max-mspt` it halves its chunks in flight; while it stays below three quarters of that, it adds one per second, up to `max-parallel`. The world is the same as without pregeneration (vanilla generator, same seed).
 
-Why tiles: generating a chunk to `FULL` also generates its neighbours part of the way (up to eleven chunks out, mostly only to the structure stage). The first version went ring by ring and released every chunk right after it was done, so those half-generated neighbours were saved and unloaded, then read back from disk when the next ring needed them, often several times per chunk. The profile showed 14 % of the worker time in parsing such chunks, and 7 % of the main thread in copying chunks for saving while unloading them. Now the generated chunks of the last two tiles keep a ticket one level below full: the next tile finds their neighbours still in memory. One level below full means a kept chunk leaves the world right after generation exactly as an unloaded one does (unload event, entities hidden: not ticked, not counted for mob caps, not selectable by commands); only its data stays in memory. Older tiles are let go, so memory stays bounded.
+**Why tiles.** Generating a chunk to `FULL` also generates its neighbours part of the way (up to eleven chunks out, mostly only to the structure stage). The first version went ring by ring and released every chunk right after it was done, so those half-generated neighbours were saved and unloaded, then read back from disk when the next ring needed them, often several times per chunk. The profile showed 14 % of the worker time in parsing such chunks, and 7 % of the main thread in copying chunks for saving while unloading them.
+
+Now the generated chunks of the last two tiles keep a ticket one level below full: the next tile finds their neighbours still in memory. One level below full means a kept chunk leaves the world right after generation exactly as an unloaded one does (unload event, entities hidden: not ticked, not counted for mob caps, not selectable by commands); only its data stays in memory. Older tiles are let go, so memory stays bounded.
 
 Measured with the pregenerator alone (one player standing at spawn, radius 3 000 blocks, 8 cores, 5 workers, 2.5 minutes), two runs each, interleaved with Kindling 26.3-1 (ring order):
 
 | Variant | Chunks generated | Tick time avg / p95 | GC time | CPU per chunk | Heap after GC |
-| --- | --- | --- | --- | --- | --- |
+| --- | ---: | ---: | ---: | ---: | ---: |
 | Kindling 26.3-1 | 19 040 | 7.2 / 13.8 | 8.0 s | 47 ms | 637 MB |
-| Kindling, tiles and palette decoder | **30 315 (+59 %)** | **5.1 / 7.8** | **1.9 s** | **28 ms (−41 %)** | 604 MB |
+| Kindling 26.3-2, tiles and palette decoder | **30 315 (+59 %)** | **5.1 / 7.8** | **1.9 s** | **28 ms (−41 %)** | 604 MB |
 
-A run saved by 26.3-1 (no `order` key in `pregeneration.properties`) continues at the first tile ring beyond the rings it had finished; chunks that are generated a second time this way only load from disk. A restart now also continues at the oldest chunk still in flight instead of at the newest index minus the chunks in flight, which could skip a chunk when chunks finished out of order.
+**Resuming.** A run saved by 26.3-1 (no `order` key in `pregeneration.properties`) continues at the first tile ring beyond the rings it had finished; chunks that are generated a second time this way only load from disk. A restart continues at the oldest chunk still in flight instead of at the newest index minus the chunks in flight, which could skip a chunk when chunks finished out of order.
 
-With 26.3-1 the pregenerator stepped back almost entirely while five players flew at elytra speed (616 chunks in 90 s, lead 4.1 / min 1, 0 % void, 19.5 / 37 ms per tick); the tile order does not change that throttling.
+**Next to fliers.** With 26.3-1 the pregenerator stepped back almost entirely while five players flew at elytra speed (616 chunks in 90 s, lead 4.1 / min 1, 0 % void, 19.5 / 37 ms per tick); the tile order does not change that throttling.
 
 ## Loading chunks from disk
 
 Since 26.x, Minecraft decodes every palette entry of a saved chunk section (a block name, or a block with its properties, or a biome name) through DataFixerUpper codecs: an identifier is parsed and validated and several `DataResult`s are built per entry. Kindling reads the palettes straight from NBT (`net.kindlingmc.chunk.SectionPaletteDecoder`), resolves names through a cache and hands the result to the same `PalettedContainer.unpack` the codec uses. Whatever the codec would treat as an error (unknown or invalid names, unexpected tag types, a broken container) is left to the codec, so such chunks are logged and repaired exactly as in vanilla.
 
-- Same result: with `-Dkindling.verifyPaletteDecoder=true` every section is decoded both ways and compared block by block; flying five players through a pregenerated world (thousands of sections) found no difference.
-- Cost: in the pregeneration profile, parsing chunks fell from 13.9 % to 10.0 % of the worker time; the codec frames vanished and the decoder itself takes about 1 %.
-- Flying through an already generated world (five players at elytra speed, 8 cores) showed no measurable difference (tick time 37.2 vs 36.6 ms, CPU 660 vs 654 s, lead and void identical): there the workers are not the bottleneck.
+- **Same result:** with `-Dkindling.verifyPaletteDecoder=true` every section is decoded both ways and compared block by block; flying five players through a pregenerated world (thousands of sections) found no difference.
+- **Cost:** in the pregeneration profile, parsing chunks fell from 13.9 % to 10.0 % of the worker time; the codec frames vanished and the decoder itself takes about 1 %.
+- **Flying through an already generated world** (five players at elytra speed, 8 cores) showed no measurable difference (tick time 37.2 vs 36.6 ms, CPU 660 vs 654 s, lead and void identical): there the workers are not the bottleneck.
 
-Writing the palettes without the codecs as well (branch `exp/palette-encoder`, byte for byte the codec's output) was measured and not taken: saving is only about 1.3 % of the CPU of a pregeneration run, the encoder cut that to 1.1 %, and chunks per run differed less than two runs of the same build did (28 421 / 28 410 against 26 368 / 28 396).
+> [!NOTE]
+> Writing the palettes without the codecs as well (branch `exp/palette-encoder`, byte for byte the codec's output) was measured and not taken: saving is only about 1.3 % of the CPU of a pregeneration run, the encoder cut that to 1.1 %, and chunks per run differed less than two runs of the same build did (28 421 / 28 410 against 26 368 / 28 396).
 
 ## The lagging check of the tick loop
 
-Purpur's lagging check (`lagging = TPS < lagging-threshold`) runs every tick and asked for all TPS averages, although it only uses the 5-second one. The tick before has always cleared the cached averages, so every tick walked the 1, 5 and 15 minute windows, about 25 000 ticks. Kindling computes only the 5-second average there; the value is the same. In a profile of our SMP server (one player, 15 minutes) this was 8.6 % of the main thread.
+Purpur's lagging check (`lagging = TPS < lagging-threshold`) runs every tick and asked for all TPS averages, although it only uses the 5-second one. The tick before has always cleared the cached averages, so every tick walked the 1, 5 and 15 minute windows, about 25 000 ticks. Kindling computes only the 5-second average there; the value is the same. In a profile of our SMP server (one player, 15 minutes) this was 8.6 % of the main thread. The same change is proposed to Leaf as [pull request #970](https://github.com/Winds-Studio/Leaf/pull/970).
 
 Main thread samples in the TPS averaging, JFR, one player at spawn for 2 minutes, 8 cores:
 
 | Run | Before | After |
-| --- | --- | --- |
+| --- | ---: | ---: |
 | Idle server | 13.6 % | 3.4 % |
 | Pregenerating | 2.9 % | 1.5 % |
 
@@ -113,21 +143,28 @@ The average tick time of an idle server is too noisy at this level (2.6 / 2.0 ms
 
 ## Where the time goes (profile)
 
-JFR profile of the main thread during the flight (plain Leaf):
+**Main thread during the flight** (JFR, plain Leaf):
 
-- 40 % natural spawning (`NaturalSpawner.spawnForChunk`), of which about 11 % each go to biome lookups with Voronoi zoom (`BiomeManager.getBiome`, called through the new `EnvironmentAttributeSystem` for `NATURAL_MOB_SPAWNS`) and 10 % to random numbers.
-- 21 % entity ticks, 8 % scheduled block ticks (water and lava in new chunks), 8 % random ticks.
-- 9 % in Leaf's `ChunkCache.get` (memory access for the spawner's random chunk lookups).
+| Share | Where |
+| ---: | --- |
+| 40 % | natural spawning (`NaturalSpawner.spawnForChunk`), of which about 11 % each go to biome lookups with Voronoi zoom (`BiomeManager.getBiome`, called through the new `EnvironmentAttributeSystem` for `NATURAL_MOB_SPAWNS`) and 10 % to random numbers |
+| 21 % | entity ticks |
+| 8 % | scheduled block ticks (water and lava in new chunks) |
+| 8 % | random ticks |
+| 9 % | Leaf's `ChunkCache.get` (memory access for the spawner's random chunk lookups) |
 
 These are the candidates for further patches. A vanilla-identical shortcut for the biome lookup during spawning would be the biggest lever, but it has to reproduce the value computation of `EnvironmentAttributeSystem` exactly. Every such patch has to beat `kindling-bench`.
 
-JFR profile of the chunk workers while the pregenerator runs alone (Kindling 26.3-1):
+**Chunk workers while the pregenerator runs alone** (JFR, Kindling 26.3-1):
 
-- 58 % building terrain: 28 % surface rules (`MaterialSystem.buildSurface`: rule evaluation for every solid block of a column, 10 % of it in biome lookups with Voronoi zoom), 25 % noise fill (density functions, 7 % aquifers).
-- 14 % parsing chunks loaded back from disk (fixed by the tile order and the palette decoder above).
-- 10 % features, 4 % carvers, 3 % biomes, 2 % light, 3 % saving.
+| Share | Where |
+| ---: | --- |
+| 58 % | building terrain: 28 % surface rules (`MaterialSystem.buildSurface`: rule evaluation for every solid block of a column, 10 % of it in biome lookups with Voronoi zoom), 25 % noise fill (density functions, 7 % aquifers) |
+| 14 % | parsing chunks loaded back from disk (fixed by the tile order and the palette decoder above) |
+| 10 % | features |
+| 4 / 3 / 2 / 3 % | carvers / biomes / light / saving |
 
-Looked at and left alone, because the gain was too small for the risk:
+**Looked at and left alone**, because the gain was too small for the risk:
 
 - Replacing the `AtomicLong` in `LegacyRandomSource` with a plain field (same sequence, no compare-and-set): random numbers are below 1 % of the main thread and of the workers.
 - Leaf's `ChunkCache.get` (9 % of the main thread with 1 200 mobs): a simulation of its hash table with real chunk keys gives 1.35 probes per hit and 1.7 per miss, so the cost is the number of lookups and their cache misses, not the table.

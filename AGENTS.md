@@ -1,217 +1,105 @@
 # AGENTS.md
 
-## Project overview
+Rules for coding agents working on Kindling. What Kindling is and does: [README.md](README.md). Why each change exists: [docs/MEASUREMENTS.md](docs/MEASUREMENTS.md).
 
-Kindling is a fork of Leaf, itself a high-performance Paper fork. Kindling keeps
-vanilla behaviour and Leaf compatibility; every change must be justified by a
-`kindling-bench` measurement (see `CONTRIBUTING.md` and `docs/MEASUREMENTS.md`).
-Kindling's own code lives in `leaf-server/src/main/java/net/kindlingmc/`, its own
-patches start with `Kindling:` and its lines in Leaf code are marked
-`// Kindling - …` (see `docs/UPSTREAM.md`).
+> [!NOTE]
+> This file is Kindling's own. Leaf ships its own `AGENTS.md`; when a Leaf merge conflicts here, keep this version (the upstream workflow does that by itself).
 
-## Allowed scope
+## Map
 
-Unless the user explicitly expands the scope, only modify applied Java source
-files in these areas:
+| Path | What it is | Edit? |
+| --- | --- | --- |
+| `leaf-server/src/main/java/net/kindlingmc/` | Kindling's own server code (`pregen`, `chunk`, `version`) | ✅ first choice for new code |
+| `leaf-server/src/test/java/net/kindlingmc/` | Kindling's tests (run by `KindlingTestSuite`) | ✅ |
+| `leaf-server/src/minecraft/java/` | Applied Minecraft sources; a Git repository with one commit per patch | ✅ through the patch workflow below |
+| `paper-server/`, `paper-api/` | Applied Paper sources | ✅ through the patch workflow below |
+| `leaf-server/minecraft-patches/features/0316-…`+, `leaf-server/paper-patches/features/0069-…`+ | Kindling's patches (subject `Kindling:`) | only by rebuilding them, never by hand |
+| other `*-patches/` | Leaf's patches | ❌ read only |
+| `leaf-server/src/main/java/org/dreeam/leaf/` | Leaf's own code | small changes only, each line marked `// Kindling - …` |
+| `leaf-archived-patches/` | history, not the current baseline | ❌ read only |
+| `kindling-bench/` | the load test ([README](kindling-bench/README.md)) | ✅ |
+| `docs/`, `*.md` | documentation, English | ✅ keep it true to the code |
 
-- Minecraft sources under `leaf-server`
-- Applied Paper API sources
-- Applied Paper server sources
-- Existing Leaf source files located alongside those applied sources
+## Ground rules
 
-Before editing, locate the actual applied source file in the current working
-tree. Follow the existing directory layout instead of assuming a source path.
-If a required applied source file is missing, report the missing target and ask
-the owner to prepare the source tree. Do not generate or apply sources, or edit
-patches as a substitute.
+1. **No gameplay changes by default.** Vanilla (and Leaf) behaviour stays: mobs, spawning, AI, redstone, world generation, the full world size, no world border. A behaviour-changing optimisation can only be an opt-in setting with an honest description.
+2. **Measured, not guessed.** A performance change needs `kindling-bench` numbers before and after, two runs each. Only differences larger than the gap between two runs of the same build count. Say which numbers are measured and which are expectations.
+3. **Leaf stays the base.** Fixes for problems plain Leaf has too belong upstream in Leaf. Keep Leaf's config keys, brand id `winds-studio:leaf` and plugin compatibility.
+4. **Small patches.** Logic lives in `net.kindlingmc`; a patch only hooks it into a Minecraft or Paper class. Mark every changed upstream line with `// Kindling - <reason>` or a `// Kindling start - …` / `// Kindling end - …` pair.
+5. **Never write world data differently from vanilla.** Code that reads saved data must fall back to the vanilla path for anything unusual; code that writes it is out of scope unless the owner asks.
 
-Files outside these applied source areas are read-only unless the user
-explicitly requests otherwise.
+## Changing a patch
 
-## Patch restrictions
+1. Edit the applied source and commit there (in `leaf-server/src/minecraft/java` or `paper-server`), as `git commit --fixup` onto the matching `Kindling:` commit or as a new commit for a new patch.
+2. Rebuild: `./gradlew :leaf-server:rebuildMinecraftFeaturePatches :leaf-server:rebuildPaperServerFeaturePatches`.
+3. Check the rebuilt patches: the author of the inner commit becomes the public `From:` line, so look at every `From:` line in the changed patch files before committing them. The owner tells you which identity to commit with; never publish an address that has not been published before.
+4. Commit the changed `.patch` files in this repository.
 
-Do not create, modify, delete, rename, regenerate, reformat, apply, rebuild,
-reset, or export patch files or patch metadata, including through patch rebuild
-or generation tasks.
+Leaf-owned patches are never edited. The exception is a change that is meant for Leaf itself (as with the 5-second TPS patch, Leaf pull request #970): then the patch must match the Leaf pull request exactly.
 
-This covers Paper, Minecraft, API, Leaf, upstream, and generated `.patch` files,
-including patch metadata and ordering or series files. Reading them for review
-and attribution is allowed.
+Details, including renumbering after a Leaf merge: [docs/UPSTREAM.md](docs/UPSTREAM.md).
 
-Leaf patch directories (relative to the repository root; read-only):
+## Building, testing, measuring
 
-- `leaf-server/minecraft-patches/`: Minecraft implementation changes.
-- `leaf-server/paper-patches/`: Paper server implementation changes.
-- `leaf-api/paper-patches/`: Paper API changes.
+```bash
+./gradlew applyAllPatches                     # after cloning and after every Leaf merge
+./gradlew createPaperclipJar                  # leaf-server/build/libs/leaf-paperclip-26.3.local-SNAPSHOT.jar
+./gradlew :leaf-server:test --tests org.bukkit.support.suite.KindlingTestSuite
+```
 
-`leaf-archived-patches/` is historical reference, not the current version's
-baseline.
+- Paper's test task only runs `*TestSuite` classes; `KindlingTestSuite` picks up everything in `net.kindlingmc`. Run it after every change to Kindling code.
+- `applyAllPatches` resets the applied sources to the patches: commit or rebuild your work first.
+- Benchmarks load every core for minutes and leave a full server per run under `kindling-bench/runs/`. Run them only when asked, one at a time, nothing heavy in parallel, and delete the run folders once the results are read.
+- Never start a server on a port or address other than the bench's (`127.0.0.1:25999`).
 
-Do not reset applied sources from patches or update Paper or Minecraft upstream
-references. The repository owner converts source changes into patches when
-necessary.
+Do not claim that a change compiles, passes tests or is faster unless you ran the check and saw the result.
 
-Applied source files are the editing target for the current task, even when
-patch files are the canonical persisted form used by the project.
+## Hot paths
 
-## CodeGraph usage
+Leaf and Kindling code runs per tick, per chunk or per block. On a hot path:
 
-When a `.codegraph/` index exists and the tool is available, use CodeGraph for
-tasks requiring cross-file or cross-module relationship analysis: call paths,
-implementations, inheritance, overrides, field access, dependencies, or unclear
-ownership, lifecycle, and threading relationships. Use `codegraph_explore` or
-`codegraph explore "<symbols or question>"`.
-
-For simple, local changes, inspect the current file and its immediate references
-directly. CodeGraph is not a prerequisite for every edit.
-
-Treat index results as navigation hints. Before changing behavior, inspect the
-actual applied source and verify relevant signatures, callers, overrides, and
-control flow. Use direct source search when the index or tool is unavailable,
-returns no useful result, or conflicts with the checked-out code.
-
-Do not update, rebuild, or reconfigure the CodeGraph index unless the user
-explicitly requests it.
-
-In the completion report, mention CodeGraph only when its analysis materially
-affected the change or when the index appeared incomplete or stale.
-
-## Editing workflow
-
-1. Read the relevant applied source and its surrounding implementation.
-2. Make the smallest changes needed, avoiding unrelated formatting or cleanup.
-3. Review the resulting source diff for correctness.
-
-## Validation policy
-
-Stop after modifying and reviewing the applied source; the owner performs
-compilation, testing, benchmarking, and runtime validation.
-
-Do not run Gradle builds or compilation tasks, test suites, JMH benchmarks,
-patch validation or rebuild tasks, server startup tasks, modifying formatters,
-or scripts that generate or rewrite repository content.
-
-Read-only inspection is allowed: locate files, search references, read source,
-patches, configuration, and Gradle files, and inspect Git status and diffs.
-
-Do not claim that a change compiles, passes tests, improves performance, or
-works at runtime unless the user provides corresponding verification results.
-
-## Java conventions
-
-- Use the project's Java version and follow the surrounding Minecraft, Paper,
-  or Leaf code style.
-- Preserve nullability, visibility, annotations, and API contracts.
-- Avoid introducing new dependencies.
-- Preserve comments that explain upstream behavior or non-obvious invariants.
-
-## Performance-sensitive code
-
-Leaf contains performance-sensitive server code. When changing a hot path:
-
-- avoid unnecessary allocation, boxing, copying, and temporary collections,
-  including repeated construction of coordinates, positions, or keys;
-- avoid streams and capturing lambdas when surrounding code uses explicit loops
-  for performance;
-- consider sparse, typical, and dense workloads;
-- consider memory retention and backing-array capacity;
-- preserve early exits and established fast paths;
-- do not change observable vanilla or Paper behavior solely for performance.
-
-Explain the expected effect of an optimization and distinguish it from measured
-results.
+- avoid allocation, boxing, copying and temporary collections, including repeated construction of positions, keys and coordinates;
+- prefer explicit loops where the surrounding code uses them; no streams or capturing lambdas there;
+- think about sparse, typical and dense worlds, and about how much memory stays retained;
+- keep early exits and established fast paths;
+- never change observable vanilla or Paper behaviour for performance alone.
 
 ## Threading and lifecycle
 
-Do not assume that code is safe to run asynchronously.
-
-Before changing thread ownership or asynchronous behavior, inspect mutable
-state, tick-thread or region-thread assumptions, world and chunk lifecycle,
-entity addition and removal, shutdown and unload behavior, synchronization and
-publication, and interactions with plugins and Paper APIs.
-
-Do not move work to another thread, introduce concurrency, or weaken an
-existing thread check unless the user explicitly requests it and the safety
-argument is clear.
+Do not assume code is safe off the main thread. Before moving work to another thread or weakening a thread check, look at mutable state, tick-thread assumptions, chunk and entity lifecycle (load, unload, removal, shutdown), publication between threads, and what plugins and the Paper API expect. Without a clear safety argument and the owner's request, don't.
 
 ## Compatibility
 
-Unless the user explicitly requests a behavioral change, preserve vanilla and
-Paper API behavior, plugin compatibility, serialized and persistent formats,
-world loading and upgrading, configuration defaults, and public and internal
-API contracts.
+Unless the owner asks for a behaviour change, keep vanilla and Paper API behaviour, plugin compatibility, serialized and persistent formats, world loading and upgrading, config defaults and keys, and API contracts. For API changes, look at both the Paper API source and its server implementation.
 
-For API changes, consider both the applied Paper API source and its server-side
-implementation.
+## Reviewing
 
-## Generated code
+Order of importance: behavioural correctness, vanilla and Paper compatibility, thread safety and lifecycle, hot-path cost, memory retention, API compatibility, diff clarity. Separate confirmed defects from possible risks and optional optimisations.
 
-The applied source tree designated in Allowed scope is an authorized editing
-target even when produced by patch application. Other generated files are
-read-only unless the user explicitly identifies them as the editing target.
+For each defect or risk, put the attribution directly below its title, with a short reason:
 
-If a source file appears to be generated, copied, or overwritten by a build or
-patch task, report that fact before relying on the change as persistent.
+`**Attribution: <label>** — <evidence>`
 
-## Git safety
+| Label | Meaning |
+| --- | --- |
+| `Kindling` | introduced or worsened by a Kindling change |
+| `Leaf` | introduced or worsened by Leaf |
+| `Upstream` | inherited from Paper or vanilla (compare with `paperCommit` in `gradle.properties`, not with the latest Paper) |
+| `Unsupported usage` | caused by usage outside the API contract; name the contract |
+| `Unknown` | not established; say which evidence is missing |
 
-Preserve all unrelated working-tree changes.
+Judge severity by impact, independently of where the defect comes from.
 
-Before editing, inspect the relevant files and use `git status` when available.
-Do not assume existing changes were produced by an agent.
+## Git
 
-Do not run `git reset`, `git checkout --`, `git restore`, `git clean`,
-`git rebase`, `git commit`, or `git push`, or discard, overwrite, stage, or revert
-user changes, unless the user explicitly requests that exact action.
+- Look at `git status` before editing and keep unrelated changes untouched; never assume existing changes are yours.
+- Stage only your own files, by path. Commit messages in English, imperative mood (`feat: …`, `fix: …`, `perf: …`, `docs: …`).
+- No `git push`, `--force`, `reset --hard`, `clean`, `rebase` or history rewriting unless the owner asks for exactly that. Every push to `ver/26.3` that changes more than docs and the bench publishes a release.
 
-## Review expectations
+## Code graph
 
-When reviewing or changing applied source, prioritize behavioral correctness,
-vanilla and Paper compatibility, thread safety and lifecycle correctness,
-hot-path allocation and computational cost, memory retention, API compatibility,
-and diff clarity, in that order.
-
-Separate confirmed defects from possible risks and optional optimizations.
-Assess confidence independently from issue attribution.
-
-For each potential defect, read the relevant Leaf patch diffs and compare the
-corresponding Paper baseline with the current applied source. Account for earlier
-patches affecting the same behavior: a patch's removed lines may already include
-Leaf changes. When patch context is insufficient, inspect the upstream source
-at the `paperCommit` revision in `gradle.properties`, if available. Do not assume
-a different or latest Paper version is equivalent; mark attribution uncertain
-when the necessary baseline evidence is unavailable.
-
-For each reported defect or risk, put a separate, bold attribution field directly
-below its title, before the explanation: `**Attribution: <label>** — <evidence>`.
-Use a self-explanatory label in the report's language corresponding to:
-
-- `Leaf-introduced` / `Leaf-worsened`: introduced or worsened by Leaf.
-- `Leaf-exposed`: a pre-existing defect made reachable by Leaf.
-- `Upstream`: inherited from Paper or vanilla.
-- `Unsupported usage`: caused by usage outside the supported contract.
-- `Unknown`: attribution is not established; identify the missing evidence.
-
-The attribution line must give a brief reason, not just a label. Do not bury it
-in the explanation.
-Then explain the trigger, impact, Paper baseline behavior, and supporting source
-or patch references. Attribution does not replace the full analysis.
-
-Leaf exposing a pre-existing issue does not establish that the original usage
-or behavior was valid. Support any claim of unsupported usage with the relevant
-API contract, thread restriction, or other evidence; otherwise mark it uncertain.
-
-Judge severity by impact, separately from Leaf's action priority. Upstream
-issues or unsupported usage normally have lower priority for Leaf action and
-belong in supplemental findings, not among confirmed Leaf regressions. If Leaf
-expands the affected scenarios or worsens the consequences, assess that change
-separately. Do not omit a serious impact solely because its origin is upstream.
+When a `.codegraph/` index exists (not checked in), use it for cross-file questions (call paths, overrides, ownership) and treat its answers as hints: verify against the applied source before changing behaviour. Do not rebuild the index unless asked.
 
 ## Completion report
 
-At the end of a task, report:
-
-- which files changed;
-- what behavior changed;
-- important threading, compatibility, or performance considerations;
-- concrete scenarios and expected outcomes still requiring manual verification.
+At the end of a task, report which files changed, what behaviour changed, the threading, compatibility and performance considerations, what you verified yourself (with the command), and what still needs a manual check.

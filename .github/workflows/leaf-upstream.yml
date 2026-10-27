@@ -54,8 +54,14 @@ jobs:
           git switch -c "$BRANCH"
           if ! git merge --no-edit "$LEAF" > merge.log 2>&1; then
             git diff --name-only --diff-filter=U > conflicts.txt
-            git merge --abort
-            report "Merging Leaf stopped on a conflict; merge by hand as described in docs/UPSTREAM.md." conflicts.txt
+            # Kindling's AGENTS.md replaces Leaf's: a conflict in it alone keeps Kindling's version.
+            if [ "$(cat conflicts.txt)" = "AGENTS.md" ]; then
+              { git checkout --ours AGENTS.md && git add AGENTS.md && git commit --no-edit; } > merge.log 2>&1 \
+                || report "Keeping Kindling's AGENTS.md in the merge failed." merge.log
+            else
+              git merge --abort
+              report "Merging Leaf stopped on a conflict; merge by hand as described in docs/UPSTREAM.md." conflicts.txt
+            fi
           fi
           for dir in leaf-server/minecraft-patches/features leaf-server/paper-patches/features leaf-api/paper-patches/features; do
             ls "$dir" | cut -d- -f1 | sort | uniq -d | sed "s|^|$dir/|"
