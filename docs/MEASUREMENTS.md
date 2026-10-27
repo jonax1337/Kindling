@@ -184,7 +184,7 @@ The flight ticks get more expensive because the players now fly over chunks that
 
 ## Pregeneration
 
-The pregenerator generates a square around a centre in tiles of 16 × 16 chunks: the tiles ring by ring from the centre tile, the chunks of a tile row by row, at `Priority.IDLE`. While the average tick time is above `max-mspt` it halves its chunks in flight; while it stays below three quarters of that, it adds one per second, up to `max-parallel`. The world is the same as without pregeneration (vanilla generator, same seed).
+The pregenerator generates a square around a centre in tiles of 16 × 16 chunks: the tiles ring by ring from the centre tile, the chunks of a tile row by row, at `Priority.IDLE`. While the average tick time is above `max-mspt` it halves its chunks in flight and starts no new chunk (the chunks already in flight finish); while it stays below three quarters of that, it adds one per second, up to `max-parallel`. `/pregen status` names the reason while it waits (`throttled: 43 ms average > 40 ms`). The world is the same as without pregeneration (vanilla generator, same seed).
 
 **Why tiles.** Generating a chunk to `FULL` also generates its neighbours part of the way (up to eleven chunks out, mostly only to the structure stage). The first version went ring by ring and released every chunk right after it was done, so those half-generated neighbours were saved and unloaded, then read back from disk when the next ring needed them, often several times per chunk. The profile showed 14 % of the worker time in parsing such chunks, and 7 % of the main thread in copying chunks for saving while unloading them.
 
@@ -198,6 +198,15 @@ Measured with the pregenerator alone (one player standing at spawn, radius 3 000
 | Kindling 26.3-2, tiles and palette decoder | **30 315 (+59 %)** | **5.1 / 7.8** | **1.9 s** | **28 ms (−41 %)** | 604 MB |
 
 **Resuming.** A run saved by 26.3-1 (no `order` key in `pregeneration.properties`) continues at the first tile ring beyond the rings it had finished; chunks that are generated a second time this way only load from disk. A restart continues at the oldest chunk still in flight instead of at the newest index minus the chunks in flight, which could skip a chunk when chunks finished out of order.
+
+**Safety (behaviour, covered by unit tests, not a measured speed-up).**
+
+- *Border and radius.* The radius is cut to the world border when a run starts, and one tick walks at most 4 096 indices (a whole tile outside the border counts as one): a radius of 30 000 000 blocks next to a 10 000 block border no longer holds the tick for hours.
+- *Failure.* A run that throws is stopped and saved as paused; the other runs and the server tick go on.
+- *Worlds.* A run waits while its world is unloaded and continues when the world is loaded again (also a world that appears later). The saved run carries the world's seed; a run saved for another seed is dropped.
+- *State file.* It is written on a thread of its own from a snapshot (no fsync on the main thread) and once, synchronously, while the server stops, with the exact index. Between those, the saved index steps back over the kept tiles and the chunks in flight, so a crash costs a few chunks that load from disk instead of leaving holes.
+- *Disk.* Before a run starts and every 30 seconds it compares the free space of the world's disk with what the rest of the run needs, estimated from the space the disk lost per delivered chunk since the run (re)started (16 KiB per chunk assumed for the first 2 048 chunks), and stops when less than `min-free-disk-gb` would remain; it continues once there is room again.
+- *Empty server.* While a run is working the server does not pause for lack of players (`pause-when-empty-seconds`); a paused, stopped or finished run does not hold it awake.
 
 **Next to fliers.** With 26.3-1 the pregenerator stepped back almost entirely while five players flew at elytra speed (616 chunks in 90 s, lead 4.1 / min 1, 0 % void, 19.5 / 37 ms per tick); the tile order does not change that throttling.
 

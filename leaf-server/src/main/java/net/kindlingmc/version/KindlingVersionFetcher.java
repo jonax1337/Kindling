@@ -48,7 +48,7 @@ public final class KindlingVersionFetcher implements VersionFetcher {
             return UpdateStatus.compare(runningBuild.getAsInt(), GitHubReleases.buildNumbers(build.minecraftVersionId()));
         } catch (final IOException | JsonParseException e) {
             LOGGER.warn("Could not read the Kindling releases on GitHub: {}", e.toString());
-            return new UpdateStatus.Unavailable();
+            return new UpdateStatus.Unavailable("the releases on GitHub could not be read");
         }
     }
 

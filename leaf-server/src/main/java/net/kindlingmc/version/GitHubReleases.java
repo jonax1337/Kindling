@@ -59,7 +59,15 @@ final class GitHubReleases {
         connection.setRequestProperty("Accept", "application/vnd.github+json");
         connection.setRequestProperty("User-Agent", "Kindling");
         try (final Reader reader = new InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8)) {
-            return GSON.fromJson(reader, JsonArray.class);
+            return parseReleases(reader);
         }
+    }
+
+    static JsonArray parseReleases(final Reader reader) throws IOException {
+        final JsonArray releases = GSON.fromJson(reader, JsonArray.class);
+        if (releases == null) {
+            throw new IOException("GitHub sent an empty response");
+        }
+        return releases;
     }
 }

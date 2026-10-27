@@ -19,6 +19,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Collections;
 import java.util.Optional;
+import java.util.OptionalLong;
 import java.util.Properties;
 import java.util.Set;
 
@@ -46,8 +47,8 @@ final class PregenState {
         }
     }
 
-    /** One world's run; {@code next} counts in the order of {@link TileSpiral}. */
-    record Run(int centerX, int centerZ, int radius, long next, Phase phase) {
+    /** One world's run; {@code next} counts in the order of {@link TileSpiral}; {@code seed} is empty in runs saved before it was recorded. */
+    record Run(int centerX, int centerZ, int radius, long next, Phase phase, OptionalLong seed) {
     }
 
     private static final String HEADER = "Progress of the chunk pregeneration; '/pregen' changes it";
@@ -57,8 +58,9 @@ final class PregenState {
     private static final String NEXT = "next";
     private static final String ORDER = "order";
     private static final String STATE = "state";
+    private static final String SEED = "seed";
     private static final String TILE_ORDER = "tiles-" + TileSpiral.TILE_SIDE;
-    private static final List<String> SUFFIXES = List.of(CENTER_X, CENTER_Z, RADIUS, NEXT, ORDER, STATE);
+    private static final List<String> SUFFIXES = List.of(CENTER_X, CENTER_Z, RADIUS, NEXT, ORDER, STATE, SEED);
 
     private final Map<String, Run> runs = new LinkedHashMap<>();
     private final List<String> problems = new ArrayList<>();
@@ -75,6 +77,13 @@ final class PregenState {
     /** Keeps the unusable file next to the original for diagnosis. */
     static void keepCorrupt(final Path file) throws IOException {
         Files.copy(file, file.resolveSibling(file.getFileName() + ".corrupt"), StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    /** The runs as they are now, independent of later changes, so another thread can write them. */
+    PregenState snapshot() {
+        final PregenState copy = new PregenState();
+        copy.runs.putAll(this.runs);
+        return copy;
     }
 
     Optional<Run> run(final String world) {
@@ -139,6 +148,7 @@ final class PregenState {
             properties.setProperty(prefix + NEXT, Long.toString(run.next()));
             properties.setProperty(prefix + ORDER, TILE_ORDER);
             properties.setProperty(prefix + STATE, run.phase().key());
+            run.seed().ifPresent(seed -> properties.setProperty(prefix + SEED, Long.toString(seed)));
         });
         final StringWriter writer = new StringWriter();
         properties.store(writer, HEADER);
@@ -207,7 +217,8 @@ final class PregenState {
             intOf(properties, prefix, CENTER_Z),
             (int) nonNegative(RADIUS, intOf(properties, prefix, RADIUS)),
             tileOrder ? next : TileSpiral.fromRingIndex(next),
-            Phase.of(valueOf(properties, prefix, STATE)));
+            Phase.of(valueOf(properties, prefix, STATE)),
+            properties.containsKey(prefix + SEED) ? OptionalLong.of(longOf(properties, prefix, SEED)) : OptionalLong.empty());
     }
 
     private static long nonNegative(final String name, final long value) {

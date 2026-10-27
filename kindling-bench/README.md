@@ -179,5 +179,6 @@ A variant is a name. Its JVM arguments come from the `jvm` table in `matrix.sh` 
 | Candidate sets for Kindling's defaults | `cand-a`, `cand-b`, `cand-b-throttle`, `leaf-safe`, `leaf-aggressive` |
 | The Kindling jar without an overlay | `fork` |
 | Used by `elytra.sh` and `pregen.sh` | `workers-5`, `workers-7`, `vd-8` (view distance 8), `pregen-w5` (automatic pregeneration, 5 workers) |
+| Functional check of the pregenerator's disk guard | `pregen-disk-guard` (like `pregen-w5` with `min-free-disk-gb: 100000000`): the run must stop by itself at the first tick and `pregeneration.properties` must stay at `next=0` |
 
 What each variant showed is in [docs/MEASUREMENTS.md](../docs/MEASUREMENTS.md). Results land in `runs/<prefix>-<variant>.json` (a list of runs). `runs/`, `jars/` and `worlds/` are not checked in.

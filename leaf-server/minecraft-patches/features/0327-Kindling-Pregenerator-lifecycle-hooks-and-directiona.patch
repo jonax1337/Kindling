@@ -1,0 +1,136 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Wed, 28 Oct 2026 00:01:56 +0100
+Subject: [PATCH] Kindling: Pregenerator lifecycle hooks and directional
+ look-ahead class
+
+A working pregeneration keeps the server from pausing for lack of players, and the pregenerator saves its exact progress while the server stops. The directional chunk loading maths moved into net.kindlingmc.chunk.LookAheadDirection, which ignores teleports and border hovering, and the concurrent generation limit resolves through ChunkGenerationLimit.resolve.
+
+diff --git a/ca/spottedleaf/moonrise/patches/chunk_system/player/RegionizedPlayerChunkLoader.java b/ca/spottedleaf/moonrise/patches/chunk_system/player/RegionizedPlayerChunkLoader.java
+index 5221294b924cb9bd302c5ae5be57816cedc2a76b..116a66303a1da9a9b5bfc3560d7adb4778c96cbb 100644
+--- a/ca/spottedleaf/moonrise/patches/chunk_system/player/RegionizedPlayerChunkLoader.java
++++ b/ca/spottedleaf/moonrise/patches/chunk_system/player/RegionizedPlayerChunkLoader.java
+@@ -332,14 +332,7 @@ public final class RegionizedPlayerChunkLoader {
+         private int lastChunkX = Integer.MIN_VALUE;
+         private int lastChunkZ = Integer.MIN_VALUE;
+         // Kindling start - load chunks ahead of fast players first
+-        private static final int LOOK_AHEAD_STALE_TICKS = 100;
+-        private static final double MAX_DIRECTION_WEIGHT = 0.75;
+-        // unit vector of the direction of travel, scaled by how strongly it bends the order (0: plain distance)
+-        private double lookAheadX;
+-        private double lookAheadZ;
+-        private int lookAheadFromX = Integer.MIN_VALUE;
+-        private int lookAheadFromZ;
+-        private long lookAheadFromTick;
++        private final net.kindlingmc.chunk.LookAheadDirection lookAhead = new net.kindlingmc.chunk.LookAheadDirection();
+         // Kindling end - load chunks ahead of fast players first
+ 
+         private int lastSendDistance = Integer.MIN_VALUE;
+@@ -413,8 +406,8 @@ public final class RegionizedPlayerChunkLoader {
+ 
+             // Kindling start - load chunks ahead of fast players first
+             return Double.compare(
+-                PlayerChunkLoaderData.this.priority(diff1X, diff1Z),
+-                PlayerChunkLoaderData.this.priority(diff2X, diff2Z)
++                PlayerChunkLoaderData.this.lookAhead.priority(diff1X, diff1Z),
++                PlayerChunkLoaderData.this.lookAhead.priority(diff2X, diff2Z)
+             );
+             // Kindling end - load chunks ahead of fast players first
+         };
+@@ -635,13 +628,9 @@ public final class RegionizedPlayerChunkLoader {
+ 
+         private long getMaxChunkGenerates() {
+             final long radiusChunks = (2L * this.lastLoadDistance + 1L) * (2L * this.lastLoadDistance + 1L);
+-            long configLimit = (long)PlatformHooks.get().configPlayerMaxConcurrentGens();
+-            if (configLimit == 0L) {
+-                // by default, only allow 1/5th of the chunks in the view distance to be concurrently active
+-                configLimit = net.kindlingmc.chunk.ChunkGenerationLimit.automatic(radiusChunks); // Kindling - cap the automatic limit so the directional chunk ordering can still re-sort the queue
+-            } else if (configLimit < 0L) {
+-                configLimit = Integer.MAX_VALUE;
+-            } // else: use the value configured
++            // Kindling start - by default only a fifth of the chunks in the view distance, at most 32, may be generated at once, so the directional chunk ordering can still re-sort the queue
++            long configLimit = net.kindlingmc.chunk.ChunkGenerationLimit.resolve((long)PlatformHooks.get().configPlayerMaxConcurrentGens(), radiusChunks);
++            // Kindling end - by default only a fifth of the chunks in the view distance, at most 32, may be generated at once
+             configLimit = configLimit - this.generatingQueue.size();
+ 
+             return configLimit;
+@@ -939,46 +928,6 @@ public final class RegionizedPlayerChunkLoader {
+             );
+         }
+ 
+-        // Kindling start - load chunks ahead of fast players first
+-        /**
+-         * The queue order of a chunk at the given offset: its squared distance, shrunk ahead of a moving player and grown
+-         * behind it (times {@code 1 - w cos θ}, θ the angle to the direction of travel, w its weight). Along any one direction
+-         * the order stays by distance, so the chunks right in front never wait for farther ones.
+-         */
+-        private double priority(final int diffX, final int diffZ) {
+-            final double squared = (double) diffX * diffX + (double) diffZ * diffZ;
+-            if (this.lookAheadX == 0.0 && this.lookAheadZ == 0.0) {
+-                return squared;
+-            }
+-            return squared - Math.sqrt(squared) * (diffX * this.lookAheadX + diffZ * this.lookAheadZ);
+-        }
+-
+-        /**
+-         * Points the order in the direction between the player's last two chunk crossings, weighted by the share of the
+-         * load distance it covers in {@code look-ahead-ticks} at that pace, at most {@link #MAX_DIRECTION_WEIGHT}.
+-         * Only the order changes: the same chunks load, those in the direction of travel first.
+-         */
+-        private void updateLookAhead(final int chunkX, final int chunkZ, final int loadViewDistance) {
+-            final long now = net.minecraft.server.MinecraftServer.currentTick;
+-            final long elapsed = now - this.lookAheadFromTick;
+-            this.lookAheadX = 0.0;
+-            this.lookAheadZ = 0.0;
+-            final int movedX = chunkX - this.lookAheadFromX;
+-            final int movedZ = chunkZ - this.lookAheadFromZ;
+-            if (org.dreeam.leaf.config.modules.opt.DirectionalChunkLoading.enabled && this.lookAheadFromX != Integer.MIN_VALUE
+-                && elapsed > 0L && elapsed <= LOOK_AHEAD_STALE_TICKS && (movedX != 0 || movedZ != 0)) {
+-                final double moved = Math.sqrt((double) movedX * movedX + (double) movedZ * movedZ);
+-                final double ahead = moved * org.dreeam.leaf.config.modules.opt.DirectionalChunkLoading.lookAheadTicks / elapsed;
+-                final double weight = Math.min(MAX_DIRECTION_WEIGHT, ahead / Math.max(1, loadViewDistance));
+-                this.lookAheadX = movedX / moved * weight;
+-                this.lookAheadZ = movedZ / moved * weight;
+-            }
+-            this.lookAheadFromX = chunkX;
+-            this.lookAheadFromZ = chunkZ;
+-            this.lookAheadFromTick = now;
+-        }
+-        // Kindling end - load chunks ahead of fast players first
+-
+         void update() {
+             TickThread.ensureTickThread(this.player, "Cannot update player asynchronously");
+             if (this.removed) {
+@@ -1046,7 +995,10 @@ public final class RegionizedPlayerChunkLoader {
+             this.loadingQueue.clear();
+             this.loadQueue.clear();
+ 
+-            this.updateLookAhead(currentChunkX, currentChunkZ, loadViewDistance); // Kindling - load chunks ahead of fast players first; the queues are empty here, so the order may change
++            // Kindling start - load chunks ahead of fast players first; the queues are empty here, so the order may change
++            this.lookAhead.update(currentChunkX, currentChunkZ, net.minecraft.server.MinecraftServer.currentTick, loadViewDistance,
++                org.dreeam.leaf.config.modules.opt.DirectionalChunkLoading.enabled ? org.dreeam.leaf.config.modules.opt.DirectionalChunkLoading.lookAheadTicks : 0);
++            // Kindling end - load chunks ahead of fast players first
+             this.lastChunkX = currentChunkX;
+             this.lastChunkZ = currentChunkZ;
+             this.lastSendDistance = sendViewDistance;
+diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
+index cbc0568ff72b9933778d7d5b2a1b023119a87bab..d5c470d61823034fb88d731d3fedbe822d7d242a 100644
+--- a/net/minecraft/server/MinecraftServer.java
++++ b/net/minecraft/server/MinecraftServer.java
+@@ -1115,6 +1115,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+             this.waitUntilNextTick();
+         }
+ 
++        net.kindlingmc.pregen.Pregenerator.shutdown(); // Kindling - save the exact progress of the pregenerations and release their kept chunks before the tickets close
+         // Paper start - rewrite chunk system
+         // note: make sure we call deactivateTicketsOnClosing
+         for (final ServerLevel world : this.getAllLevels()) {
+@@ -1667,7 +1668,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+         int emptyTickThreshold = this.pauseWhenEmptySeconds() * 20;
+         this.removeDisabledPluginsBlockingSleep(); // Paper - API to allow/disallow tick sleeping
+         if (emptyTickThreshold > 0) {
+-            if (this.playerList.getPlayerCount() == 0 && !this.tickRateManager.isSprinting() && this.pluginsBlockingSleep.isEmpty()) { // Paper - API to allow/disallow tick sleeping
++            if (this.playerList.getPlayerCount() == 0 && !this.tickRateManager.isSprinting() && this.pluginsBlockingSleep.isEmpty() && !net.kindlingmc.pregen.Pregenerator.keepsServerAwake()) { // Paper - API to allow/disallow tick sleeping // Kindling - a working pregeneration keeps the server from pausing
+                 this.emptyTicks++;
+             } else {
+                 this.emptyTicks = 0;

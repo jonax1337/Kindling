@@ -11,7 +11,8 @@ package net.kindlingmc.pregen;
 final class TileSpiral {
 
     static final int TILE_SIDE = 16;
-    private static final int TILE_CHUNKS = TILE_SIDE * TILE_SIDE;
+    static final int TILE_CHUNKS = TILE_SIDE * TILE_SIDE;
+    static final int BLOCKS_PER_CHUNK = 16;
     private static final int HALF_TILE = TILE_SIDE / 2;
 
     private TileSpiral() {

@@ -3,15 +3,15 @@ package net.kindlingmc.doctor;
 import java.util.Locale;
 
 /** Binary sizes as an operator writes them in JVM flags. */
-final class ByteSize {
+public final class ByteSize {
 
-    static final long MIB = 1024L * 1024L;
-    static final long GIB = 1024L * MIB;
+    public static final long MIB = 1024L * 1024L;
+    public static final long GIB = 1024L * MIB;
 
     private ByteSize() {
     }
 
-    static String format(final long bytes) {
+    public static String format(final long bytes) {
         return bytes >= GIB
             ? String.format(Locale.ROOT, "%.1f GiB", (double) bytes / GIB)
             : String.format(Locale.ROOT, "%d MiB", bytes / MIB);

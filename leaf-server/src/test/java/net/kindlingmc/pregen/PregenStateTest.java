@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.OptionalLong;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -15,7 +16,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class PregenStateTest {
 
     private static final String WORLD = "minecraft:overworld";
-    private static final PregenState.Run RUN = new PregenState.Run(-3, 7, 500, 1234L, PregenState.Phase.PAUSED);
+    private static final PregenState.Run RUN = new PregenState.Run(-3, 7, 500, 1234L, PregenState.Phase.PAUSED, OptionalLong.of(-8123L));
 
     @TempDir
     Path folder;
@@ -24,7 +25,7 @@ class PregenStateTest {
     void aSavedStateIsReadBackUnchanged() throws IOException {
         final PregenState saved = new PregenState();
         saved.put(WORLD, RUN);
-        saved.put("minecraft:the_nether", new PregenState.Run(0, 0, 10, 0L, PregenState.Phase.DONE));
+        saved.put("minecraft:the_nether", new PregenState.Run(0, 0, 10, 0L, PregenState.Phase.DONE, OptionalLong.empty()));
         saved.save(file());
 
         final PregenState loaded = PregenState.load(file());
@@ -39,7 +40,7 @@ class PregenStateTest {
         final PregenState state = new PregenState();
         state.put(WORLD, RUN);
         state.save(file());
-        state.put(WORLD, new PregenState.Run(1, 2, 3, 4L, PregenState.Phase.RUNNING));
+        state.put(WORLD, new PregenState.Run(1, 2, 3, 4L, PregenState.Phase.RUNNING, OptionalLong.empty()));
         state.save(file());
 
         assertEquals(List.of("pregeneration.properties"), fileNames());
@@ -182,7 +183,7 @@ class PregenStateTest {
         state.put(WORLD, RUN);
         state.save(file());
         Files.createDirectory(folder.resolve("pregeneration.properties.tmp"));
-        state.put(WORLD, new PregenState.Run(1, 2, 3, 4L, PregenState.Phase.RUNNING));
+        state.put(WORLD, new PregenState.Run(1, 2, 3, 4L, PregenState.Phase.RUNNING, OptionalLong.empty()));
 
         assertThrows(IOException.class, () -> state.save(file()));
 
@@ -225,6 +226,37 @@ class PregenStateTest {
 
         assertEquals("garbage", Files.readString(folder.resolve("pregeneration.properties.corrupt")));
         assertTrue(Files.exists(file()));
+    }
+
+    @Test
+    void aRunSavedWithoutASeedHasNone() throws IOException {
+        Files.writeString(file(), run(WORLD, "5", "1"));
+
+        final PregenState loaded = PregenState.load(file());
+
+        assertTrue(loaded.problems().isEmpty());
+        assertTrue(loaded.run(WORLD).orElseThrow().seed().isEmpty());
+    }
+
+    @Test
+    void aSeedThatIsNoNumberDropsThatWorld() throws IOException {
+        Files.writeString(file(), run(WORLD, "5", "1") + escaped(WORLD) + ".seed=abc\n");
+
+        final PregenState loaded = PregenState.load(file());
+
+        assertEquals(1, loaded.problems().size());
+        assertTrue(loaded.run(WORLD).isEmpty());
+    }
+
+    @Test
+    void aSnapshotDoesNotFollowLaterChanges() {
+        final PregenState state = new PregenState();
+        state.put(WORLD, RUN);
+
+        final PregenState snapshot = state.snapshot();
+        state.remove(WORLD);
+
+        assertEquals(RUN, snapshot.run(WORLD).orElseThrow());
     }
 
     private Path file() {

@@ -47,7 +47,7 @@ final class VersionMessage {
             case UpdateStatus.Latest _ -> text("You are running the latest build.", NamedTextColor.GREEN);
             case UpdateStatus.Behind behind -> behind(behind);
             case UpdateStatus.DevelopmentBuild _ -> text("Development builds are not checked for updates.", NamedTextColor.GRAY);
-            case UpdateStatus.Unavailable _ -> text("Could not check for updates.", NamedTextColor.RED);
+            case UpdateStatus.Unavailable unavailable -> text("Could not check for updates: " + unavailable.reason() + ".", NamedTextColor.RED);
         };
     }
 

@@ -56,13 +56,13 @@ public final class PregenCommand extends Command {
 
     private static String start(final ServerLevel level, final String[] args) {
         try {
-            final int radius = Integer.parseInt(args[2]);
-            final BlockPos center = args.length >= 5
-                ? new BlockPos(Integer.parseInt(args[3]), 0, Integer.parseInt(args[4]))
-                : level.getRespawnData().pos();
-            return "Started: " + Pregenerator.start(level, center, radius);
-        } catch (final ArrayIndexOutOfBoundsException | NumberFormatException e) {
-            return "Usage: " + USAGE;
+            final StartArguments arguments = StartArguments.parse(args);
+            final BlockPos center = arguments.center()
+                .map(position -> new BlockPos(position.x(), 0, position.z()))
+                .orElseGet(() -> level.getRespawnData().pos());
+            return "Started: " + Pregenerator.start(level, center, arguments.radiusBlocks());
+        } catch (final IllegalArgumentException e) {
+            return e.getMessage() + "\nUsage: " + USAGE;
         }
     }
 

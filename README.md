@@ -99,8 +99,9 @@ Measured with `kindling-bench` against Leaf `4c3d5689` on Java 25, the elytra an
 ```yaml
 performance:
   pregeneration:
-    max-mspt: 40.0        # slows down whenever the average tick takes longer
+    max-mspt: 40.0        # while the average tick takes longer: halves its chunks in flight, starts none
     max-parallel: 32      # upper bound for chunks in flight
+    min-free-disk-gb: 2   # stops by itself when finishing would leave less free on the world's disk
     automatic:
       enabled: false      # true: start the radii below on every startup until done
       overworld-radius: 5000   # blocks around the world spawn, 0 for none
@@ -108,7 +109,7 @@ performance:
       end-radius: 3000
 ```
 
-`/pregen start` centres on the world spawn unless `<x> <z>` are given. Progress is kept in `<world>/pregeneration.properties`. Permission: `kindling.command.pregen` (operators by default).
+`/pregen start` centres on the world spawn unless both `<x> <z>` are given, rounds the radius down to whole chunks, cuts it to the world border and says what it started. Progress is kept in `<world>/pregeneration.properties` and belongs to the world's seed: a world regenerated under the same name starts over. `/pregen status` shows why a run is slow or waiting (`throttled: 43 ms average > 40 ms`, `paused`, `paused: the disk would run out`) and the free disk space against what the rest of the run still needs (an estimate from the space the disk lost per chunk so far). While a run is working, `pause-when-empty-seconds` does not pause the server. Permission: `kindling.command.pregen` (operators by default).
 
 ### Doctor (`config/leaf-global.yml`)
 

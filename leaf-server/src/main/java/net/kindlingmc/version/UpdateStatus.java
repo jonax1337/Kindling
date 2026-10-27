@@ -12,9 +12,13 @@ sealed interface UpdateStatus {
 
     record DevelopmentBuild() implements UpdateStatus {}
 
-    record Unavailable() implements UpdateStatus {}
+    record Unavailable(String reason) implements UpdateStatus {}
 
+    /** @param publishedBuilds the builds published for the running Minecraft version; none means nothing to compare with */
     static UpdateStatus compare(final int runningBuild, final List<Integer> publishedBuilds) {
+        if (publishedBuilds.isEmpty()) {
+            return new Unavailable("no build is published for this Minecraft version");
+        }
         final int newerBuilds = (int) publishedBuilds.stream().filter(build -> build > runningBuild).count();
         if (newerBuilds == 0) {
             return new Latest();
