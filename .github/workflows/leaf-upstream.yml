@@ -1,7 +1,9 @@
 name: Leaf upstream
 
-# Once a week: merge Leaf's new commits on ver/26.3 into a branch auto/leaf-<commit>, apply the patches, build and run
-# Kindling's tests. One issue labelled "upstream" says how it went: a link to open the pull request, or what failed.
+# Once a week: merge Leaf's new commits on ver/26.3 into a branch auto/leaf-<commit>, apply the patches, build, run
+# Kindling's tests and the parity check (kindling-bench/parity). One issue labelled "upstream" says how it went: a link
+# to open the pull request, or what failed. A failed parity check does not stop the branch: it is pushed and the issue
+# lists the counters that differ.
 on:
   schedule:
     - cron: "0 6 * * 1"
@@ -28,6 +30,14 @@ jobs:
           distribution: 'temurin'
           java-version: '25'
           cache: gradle
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Install psutil
+        run: python -m pip install psutil
 
       - name: Configure Git
         run: |
@@ -70,10 +80,20 @@ jobs:
           ./gradlew applyAllPatches --no-daemon > apply.log 2>&1 || report "Applying the patches failed after the merge." apply.log
           ./gradlew createPaperclipJar --no-daemon > build.log 2>&1 || report "The build failed after the merge." build.log
           ./gradlew :leaf-server:test --tests org.bukkit.support.suite.KindlingTestSuite --no-daemon > test.log 2>&1 || report "Kindling's tests failed after the merge." test.log
+          PARITY_LOG=""
+          if ! ./gradlew :kindling-bench:jar --no-configuration-cache --no-daemon > bench-build.log 2>&1; then
+            PARITY_LOG=bench-build.log
+            PARITY="The parity check could not run: the bench plugin did not build."
+          elif kindling-bench/parity/run.sh "$(ls leaf-server/build/libs/leaf-paperclip-*.jar | head -n 1)" > parity.log 2>&1; then
+            PARITY="The parity check passed: the bases scenario counted exactly what bases-ci.json says."
+          else
+            PARITY_LOG=parity.log
+            PARITY="The parity check FAILED: counters differ from bases-ci.json, or the run did not finish (see the log below; if the bench itself changed, see kindling-bench/README.md)."
+          fi
           if ! git ls-remote --exit-code --heads origin "$BRANCH" > /dev/null; then
             git push origin "$BRANCH" > push.log 2>&1 || report "Pushing $BRANCH failed." push.log
           fi
-          report "The merge applies, builds and passes Kindling's tests. Open the pull request: https://github.com/${{ github.repository }}/compare/ver/26.3...$BRANCH?expand=1 and measure with kindling-bench before releasing (docs/UPSTREAM.md)."
+          report "The merge applies, builds and passes Kindling's tests. $PARITY Open the pull request: https://github.com/${{ github.repository }}/compare/ver/26.3...$BRANCH?expand=1 and measure with kindling-bench before releasing (docs/UPSTREAM.md)." "$PARITY_LOG"
 
       - name: Report
         if: steps.merge.outputs.behind != ''
