@@ -40,6 +40,8 @@ The run waits until no chunk has been generated for 5 s and every plot ticks, re
 
 Hopper events are not used for counting: Paper skips them when no plugin listens, and a listener would change the code path being measured. The counters read the barrels instead; only piston extensions are counted through their event, which Paper creates either way.
 
+`hopper-guard-seconds=10` adds a stand-in protection plugin that holds every hopper back for the first 10 seconds after the build (it hides their sources and cancels transfers and pickups, as a claim plugin does until its claims are loaded) and then lets everything through. Its counters compare only with other guarded runs: a server whose hoppers stay stuck after the release reports far lower counters than one without sleeping hoppers.
+
 ## Building and running
 
 ```bash

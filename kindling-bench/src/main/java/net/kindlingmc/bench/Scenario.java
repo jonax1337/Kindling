@@ -9,7 +9,7 @@ import java.util.Properties;
 /**
  * What one benchmark run does, read from {@code plugins/KindlingBench/scenario.properties}; every key has a default.
  * The {@link ScenarioType#BASES bases} run uses only {@code players}, {@code plots-per-player}, {@code warmup-seconds},
- * {@code steady-seconds} and {@code client-view-distance}.
+ * {@code steady-seconds}, {@code client-view-distance} and {@code hopper-guard-seconds}.
  *
  * @param type which load the run puts on the server
  * @param players fake players that join, spread on a circle around the world origin
@@ -23,11 +23,13 @@ import java.util.Properties;
  * @param idleSeconds time the server runs empty after everyone left, before what it still holds is measured
  * @param clientViewDistance the view distance the fake clients ask for (a vanilla client defaults to 12)
  * @param plotsPerPlayer plots of hoppers, furnaces and redstone around each player in a bases run
+ * @param hopperGuardSeconds in a bases run, how long after the build a stand-in protection plugin holds every hopper
+ *        back ({@link HopperGuard}); 0 for no such plugin
  * @throws IllegalArgumentException for an unknown type, a value that is not a number or too many plots per player
  */
 record Scenario(ScenarioType type, int players, int circleRadius, int warmupSeconds, int travelSeconds, double blocksPerTick,
                 int mobsPerPlayer, int settleSeconds, int steadySeconds, int idleSeconds, int clientViewDistance,
-                int plotsPerPlayer) {
+                int plotsPerPlayer, int hopperGuardSeconds) {
 
     static final String FILE_NAME = "scenario.properties";
 
@@ -60,7 +62,8 @@ record Scenario(ScenarioType type, int players, int circleRadius, int warmupSeco
                 intOf(properties, "steady-seconds", 90),
                 intOf(properties, "idle-seconds", 60),
                 intOf(properties, "client-view-distance", 12),
-                intOf(properties, "plots-per-player", 4));
+                intOf(properties, "plots-per-player", 4),
+                intOf(properties, "hopper-guard-seconds", 0));
     }
 
     private static int intOf(Properties properties, String key, int fallback) {

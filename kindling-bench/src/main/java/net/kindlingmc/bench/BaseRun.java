@@ -108,9 +108,18 @@ final class BaseRun {
         // All boards before all workshops: taking turns, each kind would step on every other tick only.
         clocks.addAll(workshops);
         contraptions.forEach(Contraption::build);
+        startHopperGuard();
         Bukkit.getPluginManager().registerEvents(pistons, plugin);
         Bukkit.getScheduler().runTaskTimer(plugin, this::tickClocks, 1, 1);
         afterTicks((long) scenario.warmupSeconds() * TICKS_PER_SECOND, this::measure);
+    }
+
+    /** The stand-in protection plugin, if the scenario asks for one. */
+    private void startHopperGuard() {
+        if (scenario.hopperGuardSeconds() > 0) {
+            int releaseTick = Bukkit.getCurrentTick() + scenario.hopperGuardSeconds() * TICKS_PER_SECOND;
+            Bukkit.getPluginManager().registerEvents(new HopperGuard(releaseTick), plugin);
+        }
     }
 
     /**
