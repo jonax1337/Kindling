@@ -1,0 +1,179 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Tue, 27 Oct 2026 23:15:22 +0100
+Subject: [PATCH] Kindling: Skip needless spawn cost biome lookups
+
+
+diff --git a/net/minecraft/world/attribute/EnvironmentAttributeSystem.java b/net/minecraft/world/attribute/EnvironmentAttributeSystem.java
+index 7d4707bea911e6cd2f9e7fd35204435a1cc5ed66..db9a75057cc3b3b385faaebb412ee031e37af50d 100644
+--- a/net/minecraft/world/attribute/EnvironmentAttributeSystem.java
++++ b/net/minecraft/world/attribute/EnvironmentAttributeSystem.java
+@@ -129,7 +129,28 @@ public class EnvironmentAttributeSystem implements EnvironmentAttributeReader {
+     }
+     // Leaf end - Pufferfish - async mob spawning
+ 
++    // Kindling start - one natural spawn try resolves the same position up to three times
++    private final net.kindlingmc.spawn.BlockPositionMemo<net.minecraft.world.level.biome.MobSpawnSettings> naturalMobSpawnsMemo = new net.kindlingmc.spawn.BlockPositionMemo<>();
++
++    public net.minecraft.world.level.biome.MobSpawnSettings getNaturalMobSpawnsMemoized(final net.minecraft.core.BlockPos pos) {
++        final int x = pos.getX();
++        final int y = pos.getY();
++        final int z = pos.getZ();
++        net.minecraft.world.level.biome.MobSpawnSettings settings = this.naturalMobSpawnsMemo.get(x, y, z);
++        if (settings == null) {
++            settings = this.getValue(EnvironmentAttributes.NATURAL_MOB_SPAWNS, pos);
++            this.naturalMobSpawnsMemo.put(x, y, z, settings);
++        }
++        return settings;
++    }
++
++    public void clearNaturalMobSpawnsMemo() {
++        this.naturalMobSpawnsMemo.clear();
++    }
++    // Kindling end - one natural spawn try resolves the same position up to three times
++
+     public void invalidateTickCache() {
++        this.clearNaturalMobSpawnsMemo(); // Kindling - the memo never outlives a tick
+         this.attributeSamplers.values().forEach(EnvironmentAttributeSystem.ValueSampler::invalidateTickCache);
+     }
+ 
+diff --git a/net/minecraft/world/entity/EntityType.java b/net/minecraft/world/entity/EntityType.java
+index af7ae155a43f20d48538aa82053f6b9f3781c620..9a4d19e62e8695369935ee7e4b9e7bb2ca001660 100644
+--- a/net/minecraft/world/entity/EntityType.java
++++ b/net/minecraft/world/entity/EntityType.java
+@@ -76,6 +76,17 @@ public class EntityType<T extends Entity> implements EntityTypeTest<Entity, T>,
+     private final FeatureFlagSet requiredFeatures;
+     private final boolean allowedInPeaceful;
+     private final boolean trackDeltas;
++    // Kindling start - know which types have a biome spawn cost at all
++    private volatile boolean hasAnyBiomeSpawnCost;
++
++    public boolean hasAnyBiomeSpawnCost() {
++        return this.hasAnyBiomeSpawnCost;
++    }
++
++    public void markHasBiomeSpawnCost() {
++        this.hasAnyBiomeSpawnCost = true;
++    }
++    // Kindling end - know which types have a biome spawn cost at all
+ 
+     // Purpur start - PlayerSetSpawnerTypeWithEggEvent
+     public static EntityType<?> getFromBukkitType(org.bukkit.entity.EntityType bukkitType) {
+diff --git a/net/minecraft/world/level/NaturalSpawner.java b/net/minecraft/world/level/NaturalSpawner.java
+index f9c12fbb316a190880f5ed4b5531243b0e956368..d799eaa15d4d0278154069ce800d4d560c493331 100644
+--- a/net/minecraft/world/level/NaturalSpawner.java
++++ b/net/minecraft/world/level/NaturalSpawner.java
+@@ -98,8 +98,7 @@ public final class NaturalSpawner {
+                     // Paper end - Only count natural spawns
+                     BlockPos pos = entity.blockPosition();
+                     chunkGetter.query(ChunkPos.pack(pos), chunk -> {
+-                        MobSpawnSettings naturalMobSpawns = level.environmentAttributes().getValue(EnvironmentAttributes.NATURAL_MOB_SPAWNS, pos);
+-                        MobSpawnSettings.MobSpawnCost mobSpawnCost = naturalMobSpawns.getMobSpawnCost(entity.getType());
++                        MobSpawnSettings.MobSpawnCost mobSpawnCost = biomeSpawnCost(level.environmentAttributes(), entity.getType(), pos); // Kindling - skip the biome lookup for types without any spawn cost
+                         if (mobSpawnCost != null) {
+                             spawnPotential.addCharge(entity.blockPosition(), mobSpawnCost.charge());
+                         }
+@@ -146,8 +145,7 @@ public final class NaturalSpawner {
+             long chunkKey = ChunkPos.pack(pos);
+             LevelChunk chunk = level.getChunkSource().fullChunks.get(chunkKey);
+             if (chunk != null) {
+-                MobSpawnSettings naturalMobSpawns = environmentAttributes.getValue(EnvironmentAttributes.NATURAL_MOB_SPAWNS, pos);
+-                MobSpawnSettings.MobSpawnCost cost = naturalMobSpawns.getMobSpawnCost(entity.getType());
++                MobSpawnSettings.MobSpawnCost cost = biomeSpawnCost(environmentAttributes, entity.getType(), pos); // Kindling - skip the biome lookup for types without any spawn cost
+                 if (cost != null) {
+                     spawnPotential.addCharge(pos, cost.charge());
+                 }
+@@ -158,6 +156,16 @@ public final class NaturalSpawner {
+         return new SpawnState(spawnableChunkCount, mobCounts, spawnPotential, null, chunkCap);
+     }
+ 
++    // Kindling start - skip the biome lookup for types without any spawn cost
++    private static MobSpawnSettings.@Nullable MobSpawnCost biomeSpawnCost(final EnvironmentAttributeReader attributes, final EntityType<?> type, final BlockPos pos) {
++        if (!type.hasAnyBiomeSpawnCost()) {
++            return null;
++        }
++
++        return attributes.getValue(EnvironmentAttributes.NATURAL_MOB_SPAWNS, pos).getMobSpawnCost(type);
++    }
++    // Kindling end - skip the biome lookup for types without any spawn cost
++
+     public static final class AsyncSpawnCostSampler {
+         private final ServerLevel level;
+         private final net.minecraft.world.level.biome.BiomeManager biomeManager;
+@@ -377,6 +385,7 @@ public final class NaturalSpawner {
+     ) {
+         // Leaf start - optimize mob spawning
+         LevelChunk levelChunk = (LevelChunk) chunk;
++        level.environmentAttributes().clearNaturalMobSpawnsMemo(); // Kindling - a try starts without a remembered position
+         // Paper end - Optional per player mob spawns
+         StructureManager structureManager = level.structureManager();
+         //ChunkGenerator generator = level.getChunkSource().getGenerator();
+@@ -479,6 +488,7 @@ public final class NaturalSpawner {
+                                     // CraftBukkit start
+                                     // SPIGOT-7045: Give ocelot babies back their special spawn reason. Note: This is the only modification required as ocelots count as monsters which means they only spawn during normal chunk ticking and do not spawn during chunk generation as starter mobs.
+                                     level.addFreshEntityWithPassengers(mob, (mob instanceof net.minecraft.world.entity.animal.feline.Ocelot && !((org.bukkit.entity.Ageable) mob.getBukkitEntity()).isAdult()) ? org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.OCELOT_BABY : org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.NATURAL);
++                                    level.environmentAttributes().clearNaturalMobSpawnsMemo(); // Kindling - the spawn events may have changed the world
+                                     if (!mob.isRemoved()) {
+                                         clusterSize++;
+                                         groupSize++;
+@@ -792,6 +802,7 @@ public final class NaturalSpawner {
+         // Leaf start - Skip PreCreatureSpawnEvent if no listeners
+         final boolean hasPreSpawnEventListeners = com.destroystokyo.paper.event.entity.PreCreatureSpawnEvent.getHandlerList().getRegisteredListeners().length != 0;
+         if (hasPreSpawnEventListeners) {
++        level.environmentAttributes().clearNaturalMobSpawnsMemo(); // Kindling - a listener may change the world before the next lookup
+         com.destroystokyo.paper.event.entity.PreCreatureSpawnEvent event = new com.destroystokyo.paper.event.entity.PreCreatureSpawnEvent(
+             org.bukkit.craftbukkit.util.CraftLocation.toBukkit(pos, level),
+             org.bukkit.craftbukkit.entity.CraftEntityType.minecraftToBukkit(type), org.bukkit.event.entity.CreatureSpawnEvent.SpawnReason.NATURAL
+@@ -904,8 +915,11 @@ public final class NaturalSpawner {
+         private boolean canSpawn(final EntityType<?> type, final Level level, final BlockPos testPos, final ChunkAccess chunk) {
+             this.lastCheckedPos = testPos;
+             this.lastCheckedType = type;
+-            MobSpawnSettings naturalMobSpawns = level.environmentAttributes().getValue(EnvironmentAttributes.NATURAL_MOB_SPAWNS, testPos);
+-            MobSpawnSettings.MobSpawnCost mobSpawnCost = naturalMobSpawns.getMobSpawnCost(type);
++            // Kindling start - skip the biome lookup for types without any spawn cost, and reuse the one this try already made
++            MobSpawnSettings.MobSpawnCost mobSpawnCost = type.hasAnyBiomeSpawnCost()
++                ? level.environmentAttributes().getNaturalMobSpawnsMemoized(testPos).getMobSpawnCost(type)
++                : null;
++            // Kindling end - skip the biome lookup for types without any spawn cost, and reuse the one this try already made
+             if (mobSpawnCost == null) {
+                 this.lastCharge = 0.0;
+                 return true;
+@@ -924,8 +938,7 @@ public final class NaturalSpawner {
+             if (pos.equals(this.lastCheckedPos) && type == this.lastCheckedType) {
+                 charge = this.lastCharge;
+             } else {
+-                MobSpawnSettings naturalMobSpawns = mob.level().environmentAttributes().getValue(EnvironmentAttributes.NATURAL_MOB_SPAWNS, pos);
+-                MobSpawnSettings.MobSpawnCost mobSpawnCost = naturalMobSpawns.getMobSpawnCost(type);
++                MobSpawnSettings.MobSpawnCost mobSpawnCost = biomeSpawnCost(mob.level().environmentAttributes(), type, pos); // Kindling - skip the biome lookup for types without any spawn cost
+                 if (mobSpawnCost != null) {
+                     charge = mobSpawnCost.charge();
+                 } else {
+diff --git a/net/minecraft/world/level/biome/MobSpawnSettings.java b/net/minecraft/world/level/biome/MobSpawnSettings.java
+index f697d10f00c430e04bc974055977dfd3d9b3a043..5b7aaaac2b891f45c40aeb06748a9441c536fe21 100644
+--- a/net/minecraft/world/level/biome/MobSpawnSettings.java
++++ b/net/minecraft/world/level/biome/MobSpawnSettings.java
+@@ -62,6 +62,11 @@ public class MobSpawnSettings {
+     ) {
+         this.spawnsByCategory = com.google.common.collect.Maps.immutableEnumMap(spawnsByCategory); // Leaf - optimize mob spawning
+         this.mobSpawnCosts = ImmutableMap.copyOf(mobSpawnCosts);
++        // Kindling start - flag every type with a cost, so natural spawning can skip the lookup for all others
++        for (EntityType<?> type : this.mobSpawnCosts.keySet()) {
++            type.markHasBiomeSpawnCost();
++        }
++        // Kindling end - flag every type with a cost, so natural spawning can skip the lookup for all others
+     }
+ 
+     public WeightedList<MobSpawnSettings.SpawnerData> getMobsToSpawn(final MobCategory category) {
+diff --git a/net/minecraft/world/level/chunk/ChunkGenerator.java b/net/minecraft/world/level/chunk/ChunkGenerator.java
+index b4fd47238f2efed3a9fb9ff881cdcd5d8658e8c3..38358cdd4bad71c8864bc9311674039e199ed8e2 100644
+--- a/net/minecraft/world/level/chunk/ChunkGenerator.java
++++ b/net/minecraft/world/level/chunk/ChunkGenerator.java
+@@ -614,7 +614,7 @@ public abstract class ChunkGenerator {
+             }
+         }
+ 
+-        return level.environmentAttributes().getValue(EnvironmentAttributes.NATURAL_MOB_SPAWNS, pos).getMobsToSpawn(mobCategory);
++        return level.environmentAttributes().getNaturalMobSpawnsMemoized(pos).getMobsToSpawn(mobCategory); // Kindling - the same position is resolved up to three times per spawn try
+     }
+     // Leaf end - optimize mob spawning
+ 
