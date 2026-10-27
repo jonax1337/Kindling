@@ -61,7 +61,7 @@ jobs:
           archive: false
 
       - name: Release
-        if: github.event_name == 'push' && github.repository == 'jonax1337/KindlingMC'
+        if: github.event_name == 'push' && github.repository == 'jonax1337/Kindling'
         uses: softprops/action-gh-release@v3
         with:
           name: "Kindling ${{ env.MC_VERSION }} build ${{ env.BUILD }}"

@@ -11,7 +11,7 @@ concurrency: leaf-upstream
 
 jobs:
   merge:
-    if: github.repository == 'jonax1337/KindlingMC'
+    if: github.repository == 'jonax1337/Kindling'
     runs-on: ubuntu-latest
     permissions:
       contents: write
