@@ -25,7 +25,7 @@ const STEPS: Step[] = [
     mode: "directional",
     label: "Kindling",
     title: "Ahead first.",
-    body: "Directional loading weights each chunk by its angle to the flight path. The same chunks load, in a better order: five fliers on eight cores went from 9 % to 0 % of their time in the void.",
+    body: "Directional loading weights each chunk by its angle to the flight path, and each player's generation queue stays short enough to keep re-sorting toward it. The same chunks load, in a better order: eight fliers on a four-core i7-7700 went from 38 % to under 1 % of their time in the void, at the same CPU time. Flight ticks rise from 15 to 24 ms, because the main thread now handles terrain the players actually reach.",
   },
   {
     mode: "tiles",
@@ -57,7 +57,7 @@ function Heading({ className }: { className?: string }) {
 
 function StepExtra({ mode }: { mode: LoadingMode }) {
   if (mode === "directional")
-    return <TextLink href={links.elytraTest}>Read the elytra test</TextLink>;
+    return <TextLink href={links.generationLimit}>Read the measurements</TextLink>;
   if (mode === "tiles") {
     return (
       <code className="w-fit rounded-lg border bg-muted px-4 py-2 font-mono text-[13px]">

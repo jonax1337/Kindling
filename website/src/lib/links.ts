@@ -6,6 +6,7 @@ export const links = {
   releases: `${REPOSITORY}/releases`,
   measurements: `${DOCS}/MEASUREMENTS.md`,
   elytraTest: `${DOCS}/MEASUREMENTS.md#elytra-test-new-chunks-ahead-of-fast-players`,
+  generationLimit: `${DOCS}/MEASUREMENTS.md#concurrent-generations-per-player`,
   roadmap: `${DOCS}/ROADMAP.md`,
   license: `${REPOSITORY}/blob/ver/26.3/LICENSE.md`,
   leaf: "https://github.com/Winds-Studio/Leaf",
