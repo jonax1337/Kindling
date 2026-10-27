@@ -1,0 +1,28 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Wed, 28 Oct 2026 00:37:41 +0100
+Subject: [PATCH] Kindling: Optional lower OS priority for chunk workers
+
+
+diff --git a/src/main/java/ca/spottedleaf/moonrise/common/util/MoonriseCommon.java b/src/main/java/ca/spottedleaf/moonrise/common/util/MoonriseCommon.java
+index 4b749918aae800d6761e60f0893ad4e8ee60d309..e92241f667f95f11a18d3b536d6afeb56de27450 100644
+--- a/src/main/java/ca/spottedleaf/moonrise/common/util/MoonriseCommon.java
++++ b/src/main/java/ca/spottedleaf/moonrise/common/util/MoonriseCommon.java
+@@ -25,7 +25,7 @@ public final class MoonriseCommon {
+ 
+             @Override
+             public Thread newThread(final Runnable run) {
+-                final Thread thread = new Thread(run, PlatformHooks.get().getBrand() + " Common Worker #" + this.idGenerator.getAndIncrement());
++                final Thread thread = new Thread(net.kindlingmc.os.LowerPriority.onStart(run), PlatformHooks.get().getBrand() + " Common Worker #" + this.idGenerator.getAndIncrement()); // Kindling - optional lower OS priority for chunk workers
+ 
+                 thread.setDaemon(true);
+                 thread.setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {
+@@ -76,7 +76,7 @@ public final class MoonriseCommon {
+ 
+                 @Override
+                 public Thread newThread(final Runnable run) {
+-                    final Thread thread = new Thread(run, PlatformHooks.get().getBrand() + " I/O Worker #" + this.idGenerator.getAndIncrement());
++                    final Thread thread = new Thread(net.kindlingmc.os.LowerPriority.onStart(run), PlatformHooks.get().getBrand() + " I/O Worker #" + this.idGenerator.getAndIncrement()); // Kindling - optional lower OS priority for chunk workers
+ 
+                     thread.setDaemon(true);
+                     thread.setUncaughtExceptionHandler(new Thread.UncaughtExceptionHandler() {

@@ -8,5 +8,6 @@ import java.util.Optional;
  * @param worldDisk  the file store of the worlds, when it could be read
  * @param live       what the host monitor measured; empty loads when it is not running
  */
-public record DoctorFacts(MachineFacts machine, JvmFacts jvm, ServerSettings server, Optional<DiskSpace> worldDisk, HostLoads live) {
+public record DoctorFacts(MachineFacts machine, JvmFacts jvm, ServerSettings server, Optional<DiskSpace> worldDisk, HostLoads live,
+                          WorkerPriorityFacts workerPriority) {
 }

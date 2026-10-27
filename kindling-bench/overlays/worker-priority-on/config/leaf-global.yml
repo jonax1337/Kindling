@@ -1,0 +1,4 @@
+performance:
+  worker-priority:
+    enabled: true
+    nice: 10

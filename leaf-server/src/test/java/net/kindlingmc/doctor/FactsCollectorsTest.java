@@ -29,7 +29,8 @@ class FactsCollectorsTest {
     @Test
     void checkingTheRealMachineNeverThrows() {
         final DoctorFacts facts = new DoctorFacts(
-            MachineFactsCollector.collect(), JvmFactsCollector.collect(), new Scenario().server(), Optional.empty(), HostLoads.NONE);
+            MachineFactsCollector.collect(), JvmFactsCollector.collect(), new Scenario().server(), Optional.empty(), HostLoads.NONE,
+            new Scenario().workerPriority);
 
         assertTrue(Doctor.examine(facts).size() >= 5);
     }

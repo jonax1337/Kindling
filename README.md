@@ -102,6 +102,7 @@ performance:
     max-mspt: 40.0        # while the average tick takes longer: halves its chunks in flight, starts none
     max-parallel: 32      # upper bound for chunks in flight
     min-free-disk-gb: 2   # stops by itself when finishing would leave less free on the world's disk
+    max-main-thread-wait: 0.10  # Linux: throttles the same way while the main thread waited for a CPU longer than this share of the last minute; 0 turns it off
     automatic:
       enabled: false      # true: start the radii below on every startup until done
       overworld-radius: 5000   # blocks around the world spawn, 0 for none
@@ -109,13 +110,13 @@ performance:
       end-radius: 3000
 ```
 
-`/pregen start` centres on the world spawn unless both `<x> <z>` are given, rounds the radius down to whole chunks, cuts it to the world border and says what it started. Progress is kept in `<world>/pregeneration.properties` and belongs to the world's seed: a world regenerated under the same name starts over. `/pregen status` shows why a run is slow or waiting (`throttled: 43 ms average > 40 ms`, `paused`, `paused: the disk would run out`) and the free disk space against what the rest of the run still needs (an estimate from the space the disk lost per chunk so far). While a run is working, `pause-when-empty-seconds` does not pause the server. Permission: `kindling.command.pregen` (operators by default).
+`/pregen start` centres on the world spawn unless both `<x> <z>` are given, rounds the radius down to whole chunks, cuts it to the world border and says what it started. Progress is kept in `<world>/pregeneration.properties` and belongs to the world's seed: a world regenerated under the same name starts over. `/pregen status` shows why a run is slow or waiting (`throttled: 43 ms average > 40 ms`, `throttled: the main thread waited for a CPU 18 % of the last minute > 10 %`, `paused`, `paused: the disk would run out`) and the free disk space against what the rest of the run still needs (an estimate from the space the disk lost per chunk so far). While a run is working, `pause-when-empty-seconds` does not pause the server. The main thread's wait for a CPU comes from the doctor's host monitor (below); where it has no data (Windows, `host-monitor: false`) only `max-mspt` throttles. Permission: `kindling.command.pregen` (operators by default).
 
 ### Doctor (`config/leaf-global.yml`)
 
 `/kindling doctor` (permission `kindling.command.doctor`, operators by default) reads this machine and server and lists what costs performance or memory: processors and container CPU limit, `-Xmx` against the memory (heap plus about 600 MB must fit), the garbage collector, `-XX:+UseCompactObjectHeaders`, the AOT cache, chunk worker threads, the malloc arena limit (`MALLOC_ARENA_MAX` or `GLIBC_TUNABLES`), `-XX:TrimNativeHeapInterval`, transparent huge pages, view and simulation distance against the processors, network compression behind a proxy (a warning when the proxy runs on this machine or its place is unknown, a hint when it runs elsewhere), free disk space of the worlds (a warning below 5 GiB or 10 %), and Kindling's recommended options in `leaf-global.yml` (a fresh file has them on, an older file keeps its values). The output is grouped into `WARN`, `INFO` and `OK`; every `WARN` and `INFO` that has something to change names its fix and says whether the advice rests on a Kindling measurement or is general advice. Anything the system cannot tell (for example the Linux-only values on Windows) is skipped instead of guessed.
 
-On Linux the doctor also answers "is the lag my server or my host?" in a `LIVE` section, in plain sentences over the last minute (with the last 15 minutes in brackets): how long the main thread waited for a CPU (a warning above 10 % of the time it had work to do: other threads or processes on the machine compete with it), how long the chunk workers waited, how much CPU time the host took from this virtual machine (steal, a warning above 5 %) and whether a container CPU limit throttled the server (a warning from 1 % of the periods). A background thread samples these every 5 seconds from `/proc` and the cgroup files; it needs a minute to say something about the last minute.
+On Linux the doctor also answers "is the lag my server or my host?" in a `LIVE` section, in plain sentences over the last minute (with the last 15 minutes in brackets): how long the main thread waited for a CPU (a warning above 10 % of the time it had work to do: other threads or processes on the machine compete with it), how long the chunk workers waited, how much CPU time the host took from this virtual machine (steal, a warning above 5 %) and whether a container CPU limit throttled the server (a warning from 1 % of the periods). It also reads the nice value of a chunk worker thread back and says whether `worker-priority` (below) is on and took effect. A background thread samples these every 5 seconds from `/proc` and the cgroup files; it needs a minute to say something about the last minute.
 
 ```yaml
 performance:
@@ -125,6 +126,19 @@ performance:
 ```
 
 With `startup-check` the server logs each `WARN` of that report (one line with its fix) on its first tick. Hints and OK lines only show in the command.
+
+### Worker priority (`config/leaf-global.yml`)
+
+```yaml
+performance:
+  worker-priority:
+    enabled: false   # true: chunk and I/O worker threads lower their own priority when they start
+    nice: 10         # 0 to 19, higher is lower priority
+```
+
+Paper raises the main thread's Java priority and lowers its own workers', but HotSpot ignores Java thread priorities on Linux (with the default `-XX:ThreadPriorityPolicy=0`), so there the chunk workers compete with the main thread on equal terms. With `enabled`, each chunk and I/O worker thread gives itself the nice value `nice` through the C library (`setpriority` with its thread id from `gettid`, which needs glibc 2.30 or musl 1.2.2); on Windows and macOS it lowers its Java thread priority instead. A priority is never raised: a thread that already runs at a higher nice value keeps it. If the call fails, the server logs it once and the workers keep their priority. Threads that a worker starts inherit its nice value. The setting applies to threads started after it is read, so restart the server after changing it. It is off until the bench shows that it helps.
+
+The call is a restricted method of the Foreign Function & Memory API. The Paperclip jar's manifest carries `Enable-Native-Access: ALL-UNNAMED`, which also covers the server classes Paperclip loads, so `java -jar` prints no warning. Started any other way (for example `java -cp … io.papermc.paperclip.Main`), Java prints a "restricted method" warning the first time; `--enable-native-access=ALL-UNNAMED` silences it.
 
 ### Directional chunk loading
 

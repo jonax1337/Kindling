@@ -1,5 +1,6 @@
 package net.kindlingmc.pregen;
 
+import java.util.OptionalDouble;
 import java.util.OptionalLong;
 import net.kindlingmc.doctor.ByteSize;
 import net.kindlingmc.pregen.PregenState.Phase;
@@ -15,7 +16,9 @@ class PregenTaskTest {
     private static final long CALM_NANOS = 10_000_000L;
     private static final long BUSY_NANOS = 43_000_000L;
     private static final long RESERVE_BYTES = 2 * ByteSize.GIB;
-    private static final PregenLimits LIMITS = new PregenLimits(BUDGET_NANOS, 32, RESERVE_BYTES);
+    private static final double MAX_MAIN_THREAD_WAIT = 0.10;
+    private static final PregenLimits LIMITS = new PregenLimits(BUDGET_NANOS, 32, RESERVE_BYTES, MAX_MAIN_THREAD_WAIT);
+    private static final OptionalDouble NOT_MEASURED = OptionalDouble.empty();
     private static final int ANY_RADIUS = 40;
 
     private final FakeWorld world = new FakeWorld();
@@ -185,6 +188,34 @@ class PregenTaskTest {
     }
 
     @Test
+    void aMainThreadThatWaitsTooLongForACpuHalvesTheChunksInFlightAndSaysWhy() {
+        final PregenTask task = this.task(ANY_RADIUS, 0L);
+        for (int i = 0; i < 6; i++) {
+            this.pump(task, CALM_NANOS);
+        }
+        final int requested = this.world.requests.size();
+
+        this.pump(task, CALM_NANOS, OptionalDouble.of(0.18));
+
+        assertEquals(requested, this.world.requests.size());
+        assertTrue(task.describe().contains("up to 3)"), task.describe());
+        assertTrue(task.describe().endsWith(", throttled: the main thread waited for a CPU 18 % of the last minute > 10 %"), task.describe());
+    }
+
+    @Test
+    void aMainThreadWaitBetweenRelaxedAndTheLimitKeepsTheChunksInFlight() {
+        final PregenTask task = this.task(ANY_RADIUS, 0L);
+        this.pump(task, CALM_NANOS);
+        final String before = task.describe();
+
+        this.pump(task, CALM_NANOS, OptionalDouble.of(0.09));
+
+        assertTrue(before.contains("up to 2)"), before);
+        assertTrue(task.describe().contains("up to 2)"), task.describe());
+        assertFalse(task.describe().contains("throttled"), task.describe());
+    }
+
+    @Test
     void aThrottledTaskStillKeepsTheServerAwake() {
         final PregenTask task = this.task(ANY_RADIUS, 0L);
         this.pump(task, BUSY_NANOS);
@@ -270,10 +301,10 @@ class PregenTaskTest {
         this.world.freeBytes = ByteSize.GIB;
 
         for (int pumps = 0; pumps < 599; pumps++) {
-            task.pump(++this.tick, CALM_NANOS, LIMITS);
+            task.pump(++this.tick, CALM_NANOS, NOT_MEASURED, LIMITS);
         }
         assertTrue(task.active());
-        task.pump(++this.tick, CALM_NANOS, LIMITS);
+        task.pump(++this.tick, CALM_NANOS, NOT_MEASURED, LIMITS);
 
         assertFalse(task.active());
     }
@@ -297,10 +328,14 @@ class PregenTaskTest {
         return new PregenTask(this.world, 0, 0, radius, next);
     }
 
-    /** One server tick of a second's worth, so the chunks in flight grow as they do over time. */
     private void pump(final PregenTask task, final long averageNanos) {
+        this.pump(task, averageNanos, NOT_MEASURED);
+    }
+
+    /** One server tick of a second's worth, so the chunks in flight grow as they do over time. */
+    private void pump(final PregenTask task, final long averageNanos, final OptionalDouble mainThreadWait) {
         this.tick += 20;
-        task.pump(this.tick, averageNanos, LIMITS);
+        task.pump(this.tick, averageNanos, mainThreadWait, LIMITS);
     }
 
     private void runToTheEnd(final PregenTask task) {

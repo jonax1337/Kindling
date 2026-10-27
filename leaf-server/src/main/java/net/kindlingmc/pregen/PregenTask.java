@@ -4,6 +4,7 @@ import com.mojang.logging.LogUtils;
 import it.unimi.dsi.fastutil.longs.LongRBTreeSet;
 import it.unimi.dsi.fastutil.longs.LongSortedSet;
 import java.util.Locale;
+import java.util.OptionalDouble;
 import java.util.OptionalLong;
 import java.util.concurrent.atomic.AtomicLong;
 import net.kindlingmc.pregen.PregenState.Phase;
@@ -13,8 +14,8 @@ import org.slf4j.Logger;
 /**
  * Generates every chunk of a square around a centre, tile by tile from the centre outwards ({@link TileSpiral}), at the
  * chunk system's lowest priority: chunks players ask for always come first. Runs with as many chunks in flight as the
- * tick time allows: while the average tick takes longer than the budget it halves them and schedules nothing, while it
- * stays well below the budget it adds one a second. It also stops by itself when the disk would run out ({@link DiskGuard}).
+ * tick time allows: while the average tick takes longer than the budget, or the main thread waits too long for a CPU, it
+ * halves them and schedules nothing; while both stay well below their limits it adds one a second. It also stops by itself when the disk would run out ({@link DiskGuard}).
  * The last tiles stay in memory ({@link KeptTiles}), so their neighbours are not generated halfway, saved and loaded
  * again. Runs on the main thread, where the chunk system also completes full chunk loads.
  */
@@ -26,9 +27,9 @@ final class PregenTask {
     private static final Logger LOGGER = LogUtils.getClassLogger();
     private static final int TICKS_PER_SECOND = 20;
     private static final int DISK_CHECK_TICKS = 30 * TICKS_PER_SECOND;
-    private static final double RELAXED_SHARE_OF_BUDGET = 0.75;
     private static final int RATE_WINDOW_SECONDS = 60;
     private static final double NANOS_PER_MILLI = 1e6;
+    private static final double PERCENT = 100;
 
     private final PregenWorld world;
     final int centerX;
@@ -51,9 +52,10 @@ final class PregenTask {
     private boolean diskFull;
     private int ticksSinceDiskCheck = DISK_CHECK_TICKS;
     private @Nullable DiskForecast forecast;
-    private boolean throttled;
-    private long throttledAverageNanos;
-    private long throttledBudgetNanos;
+    private Throttle throttle = Throttle.NONE;
+    /** What the throttle measured and the limit it went over, in the unit of its message. */
+    private double throttleMeasured;
+    private double throttleLimit;
 
     /** @param next the {@link TileSpiral} index to continue from, 0 for a new run */
     PregenTask(final PregenWorld world, final int centerX, final int centerZ, final int radius, final long next) {
@@ -72,7 +74,8 @@ final class PregenTask {
         return this.world;
     }
 
-    void pump(final long tick, final long averageTickNanos, final PregenLimits limits) {
+    /** @param mainThreadWait the main thread's share of waiting for a CPU over the last minute; empty when not measured */
+    void pump(final long tick, final long averageTickNanos, final OptionalDouble mainThreadWait, final PregenLimits limits) {
         if (tick % TICKS_PER_SECOND == 0) {
             this.deliveryRate.sample(System.nanoTime(), this.delivered.get());
         }
@@ -83,22 +86,26 @@ final class PregenTask {
             return;
         }
         this.kept.releaseBefore(TileSpiral.tileOf(this.resumeIndex()));
-        if (averageTickNanos > limits.budgetNanos()) {
-            this.throttle(averageTickNanos, limits.budgetNanos());
+        if (limits.tickTooSlow(averageTickNanos)) {
+            this.throttle(Throttle.TICK_TIME, averageTickNanos / NANOS_PER_MILLI, limits.budgetNanos() / NANOS_PER_MILLI);
             return;
         }
-        this.throttled = false;
-        if (tick % TICKS_PER_SECOND == 0 && averageTickNanos < limits.budgetNanos() * RELAXED_SHARE_OF_BUDGET) {
+        if (limits.mainThreadWaitsTooLong(mainThreadWait)) {
+            this.throttle(Throttle.MAIN_THREAD_WAIT, mainThreadWait.getAsDouble() * PERCENT, limits.maxMainThreadWait() * PERCENT);
+            return;
+        }
+        this.throttle = Throttle.NONE;
+        if (tick % TICKS_PER_SECOND == 0 && limits.relaxed(averageTickNanos, mainThreadWait)) {
             this.parallel = Math.min(limits.maxParallel(), this.parallel + 1);
         }
         this.scheduleUpTo(this.world.border());
     }
 
-    private void throttle(final long averageTickNanos, final long budgetNanos) {
+    private void throttle(final Throttle cause, final double measured, final double limit) {
         this.parallel = Math.max(1, this.parallel / 2);
-        this.throttled = true;
-        this.throttledAverageNanos = averageTickNanos;
-        this.throttledBudgetNanos = budgetNanos;
+        this.throttle = cause;
+        this.throttleMeasured = measured;
+        this.throttleLimit = limit;
     }
 
     private void scheduleUpTo(final ChunkBorder border) {
@@ -251,14 +258,27 @@ final class PregenTask {
         if (this.diskFull) {
             return ", paused: the disk would run out";
         }
-        if (this.throttled) {
-            return String.format(Locale.ROOT, ", throttled: %.0f ms average > %.0f ms",
-                this.throttledAverageNanos / NANOS_PER_MILLI, this.throttledBudgetNanos / NANOS_PER_MILLI);
-        }
-        return "";
+        return this.throttle.describe(this.throttleMeasured, this.throttleLimit);
     }
 
     String describeDisk() {
         return this.forecast == null ? "disk: not checked yet" : "disk: " + this.forecast.describe();
+    }
+
+    /** Why a task schedules nothing for now, as the status line says it. */
+    private enum Throttle {
+        NONE(""),
+        TICK_TIME(", throttled: %.0f ms average > %.0f ms"),
+        MAIN_THREAD_WAIT(", throttled: the main thread waited for a CPU %.0f %% of the last minute > %.0f %%");
+
+        private final String format;
+
+        Throttle(final String format) {
+            this.format = format;
+        }
+
+        String describe(final double measured, final double limit) {
+            return this == NONE ? "" : String.format(Locale.ROOT, this.format, measured, limit);
+        }
     }
 }

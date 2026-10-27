@@ -5,13 +5,13 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashMap;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.OptionalLong;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import net.kindlingmc.os.OperatingSystem;
 
 /** Reads the few {@code /proc} and {@code /sys} files the doctor needs and understands their formats. */
 final class LinuxFiles {
@@ -29,7 +29,7 @@ final class LinuxFiles {
     }
 
     static boolean runsOnLinux() {
-        return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("linux");
+        return OperatingSystem.isLinux();
     }
 
     /** The content of a small text file; empty when it does not exist or cannot be read. */

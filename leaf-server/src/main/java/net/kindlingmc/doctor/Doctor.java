@@ -13,7 +13,7 @@ public final class Doctor {
     /** Reads the facts of this machine and server, then runs the checks over them. */
     public static List<Finding> examineThisServer() {
         return examine(new DoctorFacts(MachineFactsCollector.collect(), JvmFactsCollector.collect(), ServerSettingsCollector.collect(),
-            DiskSpaceCollector.collect(), HostMonitor.loads()));
+            DiskSpaceCollector.collect(), HostMonitor.loads(), WorkerPriorityCollector.collect()));
     }
 
     public static List<Finding> examine(final DoctorFacts facts) {
@@ -40,7 +40,8 @@ public final class Doctor {
                 HostChecks.mainThreadWait(live),
                 HostChecks.chunkWorkerWait(live),
                 HostChecks.hostSteal(live),
-                HostChecks.cpuThrottling(live))
+                HostChecks.cpuThrottling(live),
+                ThreadChecks.workerPriority(facts.workerPriority()))
             .flatMap(Optional::stream)
             .toList();
     }

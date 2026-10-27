@@ -9,8 +9,11 @@ import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalDouble;
 import java.util.Set;
 import java.util.function.Consumer;
+import net.kindlingmc.doctor.HostMonitor;
+import net.kindlingmc.doctor.HostWindow;
 import net.kindlingmc.pregen.PregenState.Phase;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
@@ -34,6 +37,7 @@ public final class Pregenerator {
     private static final int SAVE_EVERY_TICKS = 600;
     private static final int WORLD_SYNC_TICKS = 20;
     private static final long NANOS_PER_MILLI = 1_000_000L;
+    private static final int TICKS_PER_SECOND = 20;
 
     private static final Map<String, PregenTask> TASKS = new LinkedHashMap<>();
     // the worlds seen at the last sync: only a world that appears gets its saved or automatic run
@@ -43,6 +47,8 @@ public final class Pregenerator {
     private static MinecraftServer server;
     private static StateWriter writer;
     private static boolean started;
+    /** Read once a second: the host monitor publishes a new value every few seconds. */
+    private static OptionalDouble mainThreadWait = OptionalDouble.empty();
 
     private Pregenerator() {
     }
@@ -108,9 +114,12 @@ public final class Pregenerator {
     }
 
     private static void pumpTasks(final long tick) {
-        final PregenLimits limits = new PregenLimits(
-            (long) (Pregeneration.maxMspt * NANOS_PER_MILLI), Pregeneration.maxParallel, Pregeneration.minFreeDiskBytes());
+        final PregenLimits limits = new PregenLimits((long) (Pregeneration.maxMspt * NANOS_PER_MILLI), Pregeneration.maxParallel,
+            Pregeneration.minFreeDiskBytes(), Pregeneration.maxMainThreadWait);
         final long average = server.getAverageTickTimeNanos();
+        if (tick % TICKS_PER_SECOND == 0) {
+            mainThreadWait = HostMonitor.mainThreadWaitShare(HostWindow.LAST_MINUTE);
+        }
         for (final Iterator<PregenTask> tasks = TASKS.values().iterator(); tasks.hasNext(); ) {
             if (!pumpOrRetire(tasks.next(), tick, average, limits)) {
                 tasks.remove();
@@ -125,7 +134,7 @@ public final class Pregenerator {
                 parkUnloaded(task);
                 return false;
             }
-            task.pump(tick, average, limits);
+            task.pump(tick, average, mainThreadWait, limits);
             if (task.finished()) {
                 finish(task);
                 return false;
