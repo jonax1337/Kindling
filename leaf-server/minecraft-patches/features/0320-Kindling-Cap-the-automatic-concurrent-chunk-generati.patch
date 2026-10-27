@@ -1,0 +1,20 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Tue, 27 Oct 2026 17:07:29 +0100
+Subject: [PATCH] Kindling: Cap the automatic concurrent chunk generations per
+ player
+
+
+diff --git a/ca/spottedleaf/moonrise/patches/chunk_system/player/RegionizedPlayerChunkLoader.java b/ca/spottedleaf/moonrise/patches/chunk_system/player/RegionizedPlayerChunkLoader.java
+index 752ad85f461d9dff5cebbe36ff9c31b12caae294..5221294b924cb9bd302c5ae5be57816cedc2a76b 100644
+--- a/ca/spottedleaf/moonrise/patches/chunk_system/player/RegionizedPlayerChunkLoader.java
++++ b/ca/spottedleaf/moonrise/patches/chunk_system/player/RegionizedPlayerChunkLoader.java
+@@ -638,7 +638,7 @@ public final class RegionizedPlayerChunkLoader {
+             long configLimit = (long)PlatformHooks.get().configPlayerMaxConcurrentGens();
+             if (configLimit == 0L) {
+                 // by default, only allow 1/5th of the chunks in the view distance to be concurrently active
+-                configLimit = Math.max(5L, radiusChunks / 5L);
++                configLimit = net.kindlingmc.chunk.ChunkGenerationLimit.automatic(radiusChunks); // Kindling - cap the automatic limit so the directional chunk ordering can still re-sort the queue
+             } else if (configLimit < 0L) {
+                 configLimit = Integer.MAX_VALUE;
+             } // else: use the value configured
