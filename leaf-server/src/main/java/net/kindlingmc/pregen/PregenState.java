@@ -3,16 +3,21 @@ package net.kindlingmc.pregen;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
+import java.nio.ByteBuffer;
+import java.nio.channels.FileChannel;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Collections;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
@@ -86,16 +91,33 @@ final class PregenState {
 
     /** What could not be used when reading, one line each; empty if the file was fine. */
     List<String> problems() {
-        return this.problems;
+        return Collections.unmodifiableList(this.problems);
     }
 
+    /** Writes the file; a state without any run deletes it, because a file without runs counts as damaged. */
     void save(final Path file) throws IOException {
+        if (this.runs.isEmpty()) {
+            Files.deleteIfExists(file);
+            return;
+        }
         final Path temporary = file.resolveSibling(file.getFileName() + ".tmp");
         try {
-            Files.writeString(temporary, serialize());
+            writeDurably(temporary, serialize());
             replace(temporary, file);
         } finally {
             Files.deleteIfExists(temporary);
+        }
+    }
+
+    /** Forces the bytes to disk, so a power loss after the move cannot leave an empty or truncated file. */
+    private static void writeDurably(final Path file, final String text) throws IOException {
+        try (FileChannel channel = FileChannel.open(file, StandardOpenOption.CREATE, StandardOpenOption.WRITE,
+            StandardOpenOption.TRUNCATE_EXISTING)) {
+            final ByteBuffer bytes = ByteBuffer.wrap(text.getBytes(StandardCharsets.UTF_8));
+            while (bytes.hasRemaining()) {
+                channel.write(bytes);
+            }
+            channel.force(true);
         }
     }
 
@@ -142,7 +164,16 @@ final class PregenState {
             this.problems.add("is not a properties file: " + e.getMessage());
             return;
         }
-        for (final String world : worldsIn(properties)) {
+        final Set<String> worlds = worldsIn(properties);
+        if (worlds.isEmpty()) {
+            this.problems.add("contains no pregeneration run");
+        }
+        for (final String key : properties.stringPropertyNames()) {
+            if (SUFFIXES.stream().noneMatch(suffix -> key.endsWith("." + suffix))) {
+                this.problems.add("unknown key: '" + key + "'");
+            }
+        }
+        for (final String world : worlds) {
             try {
                 this.runs.put(world, parseRun(properties, world + "."));
             } catch (final IllegalArgumentException e) {
@@ -166,17 +197,17 @@ final class PregenState {
     private static Run parseRun(final Properties properties, final String prefix) {
         final long next = nonNegative(NEXT, longOf(properties, prefix, NEXT));
         // Runs saved before the tile order count rings and are converted.
-        final boolean tileOrder = TILE_ORDER.equals(properties.getProperty(prefix + ORDER));
+        final String order = properties.getProperty(prefix + ORDER);
+        if (order != null && !TILE_ORDER.equals(order)) {
+            throw new IllegalArgumentException("order is unknown: '" + order + "'");
+        }
+        final boolean tileOrder = order != null;
         return new Run(
             intOf(properties, prefix, CENTER_X),
             intOf(properties, prefix, CENTER_Z),
-            nonNegative(RADIUS, intOf(properties, prefix, RADIUS)),
+            (int) nonNegative(RADIUS, intOf(properties, prefix, RADIUS)),
             tileOrder ? next : TileSpiral.fromRingIndex(next),
             Phase.of(valueOf(properties, prefix, STATE)));
-    }
-
-    private static int nonNegative(final String name, final int value) {
-        return (int) nonNegative(name, (long) value);
     }
 
     private static long nonNegative(final String name, final long value) {

@@ -9,6 +9,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PregenStateTest {
@@ -120,6 +121,72 @@ class PregenStateTest {
         Files.writeString(file(), run(WORLD, "5", "1").replace("running", "exploding"));
 
         assertEquals(1, PregenState.load(file()).problems().size());
+    }
+
+    @Test
+    void garbageWithoutAnyRunIsAProblem() throws IOException {
+        Files.writeString(file(), "garbage");
+
+        assertFalse(PregenState.load(file()).problems().isEmpty());
+    }
+
+    @Test
+    void aHeaderOnlyFileIsAProblem() throws IOException {
+        Files.writeString(file(), "#Progress of the chunk pregeneration\n#Mon Oct 27 10:00:00 CET 2026\n");
+
+        assertFalse(PregenState.load(file()).problems().isEmpty());
+    }
+
+    @Test
+    void aFileCutInTheMiddleOfTheFirstKeyIsAProblem() throws IOException {
+        Files.writeString(file(), "minecraft\\:overwor");
+
+        assertFalse(PregenState.load(file()).problems().isEmpty());
+    }
+
+    @Test
+    void aPartlyWrittenSuffixIsAProblemEvenIfTheWorldSurvives() throws IOException {
+        Files.writeString(file(), run(WORLD, "5", "1") + escaped(WORLD) + ".stat");
+
+        final PregenState loaded = PregenState.load(file());
+
+        assertEquals(1, loaded.problems().size());
+        assertTrue(loaded.run(WORLD).isPresent());
+    }
+
+    @Test
+    void anUnknownOrderIsAProblem() throws IOException {
+        Files.writeString(file(), run(WORLD, "5", "1").replace("tiles-16", "tiles-32"));
+
+        final PregenState loaded = PregenState.load(file());
+
+        assertEquals(1, loaded.problems().size());
+        assertTrue(loaded.run(WORLD).isEmpty());
+    }
+
+    @Test
+    void aStateWithoutRunsDeletesTheFile() throws IOException {
+        final PregenState state = new PregenState();
+        state.put(WORLD, RUN);
+        state.save(file());
+        state.remove(WORLD);
+        state.save(file());
+
+        assertFalse(Files.exists(file()));
+        assertTrue(PregenState.load(file()).problems().isEmpty());
+    }
+
+    @Test
+    void aFailedWriteLeavesThePreviousFileIntact() throws IOException {
+        final PregenState state = new PregenState();
+        state.put(WORLD, RUN);
+        state.save(file());
+        Files.createDirectory(folder.resolve("pregeneration.properties.tmp"));
+        state.put(WORLD, new PregenState.Run(1, 2, 3, 4L, PregenState.Phase.RUNNING));
+
+        assertThrows(IOException.class, () -> state.save(file()));
+
+        assertEquals(RUN, PregenState.load(file()).run(WORLD).orElseThrow());
     }
 
     @Test
