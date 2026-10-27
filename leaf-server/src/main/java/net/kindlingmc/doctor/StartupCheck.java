@@ -27,12 +27,19 @@ public final class StartupCheck {
             return;
         }
         done = true;
-        logWarnings(Doctor.examineThisServer());
+        try {
+            warningLines(Doctor.examineThisServer()).forEach(LOGGER::warn);
+        } catch (final RuntimeException | LinkageError e) {
+            // A diagnostic must never stop the server.
+            LOGGER.warn("Kindling doctor: the start-up check could not run", e);
+        }
     }
 
-    private static void logWarnings(final List<Finding> findings) {
-        findings.stream()
+    /** One log line per WARN finding; findings of other severities are left to {@code /kindling doctor}. */
+    static List<String> warningLines(final List<Finding> findings) {
+        return findings.stream()
             .filter(finding -> finding.severity() == Severity.WARN)
-            .forEach(finding -> LOGGER.warn("Kindling doctor: {} [{}] Fix: {}", finding.what(), finding.basis().label(), finding.fix()));
+            .map(finding -> "Kindling doctor: " + finding.what() + " [" + finding.basis().label() + "] Fix: " + finding.fix())
+            .toList();
     }
 }

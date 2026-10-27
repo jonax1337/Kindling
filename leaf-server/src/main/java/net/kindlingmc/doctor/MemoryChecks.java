@@ -1,5 +1,6 @@
 package net.kindlingmc.doctor;
 
+import java.util.List;
 import java.util.Optional;
 
 /** Checks of the heap size and of the memory the JVM uses outside the heap. */
@@ -14,6 +15,9 @@ final class MemoryChecks {
     private static final int MIN_JAVA_WITH_TRIM = 25;
     private static final int GLIBC_ARENAS_PER_CORE = 8;
     private static final String HUGE_PAGES_ALWAYS = "always";
+    /** Runtime.maxMemory() is one survivor space below -Xmx with the Parallel and Serial collectors. */
+    private static final double HEAP_REPORTING_TOLERANCE = 0.95;
+    private static final List<String> ALTERNATIVE_ALLOCATORS = List.of("jemalloc", "tcmalloc");
 
     private MemoryChecks() {
     }
@@ -38,7 +42,7 @@ final class MemoryChecks {
         final long heap = jvm.maxHeapBytes();
         final boolean demanding = server.viewDistance() >= DEMANDING_VIEW_DISTANCE || server.maxPlayers() >= DEMANDING_PLAYER_SLOTS;
         final long wanted = demanding ? COMFORTABLE_HEAP_BYTES : MIN_HEAP_BYTES;
-        if (heap >= wanted) {
+        if (heap >= wanted * HEAP_REPORTING_TOLERANCE) {
             return Optional.of(Finding.ok("-Xmx " + ByteSize.format(heap) + " is enough for view distance "
                 + server.viewDistance() + " and " + server.maxPlayers() + " player slots"));
         }
@@ -50,7 +54,7 @@ final class MemoryChecks {
     }
 
     static Optional<Finding> mallocArenas(final MachineFacts machine) {
-        if (!machine.glibc().orElse(false)) {
+        if (!machine.glibc().orElse(false) || usesAlternativeAllocator(machine)) {
             return Optional.empty();
         }
         if (machine.mallocArenaMax().isPresent()) {
@@ -61,6 +65,10 @@ final class MemoryChecks {
                 + " malloc arenas (" + GLIBC_ARENAS_PER_CORE + " per processor) that each keep freed memory, so the process grows beyond the heap",
             "Set the environment variable MALLOC_ARENA_MAX=2 in the script that starts the server",
             Basis.GENERAL_ADVICE));
+    }
+
+    private static boolean usesAlternativeAllocator(final MachineFacts machine) {
+        return machine.preloadedLibraries().filter(libraries -> ALTERNATIVE_ALLOCATORS.stream().anyMatch(libraries::contains)).isPresent();
     }
 
     static Optional<Finding> trimNativeHeap(final JvmFacts jvm, final MachineFacts machine) {

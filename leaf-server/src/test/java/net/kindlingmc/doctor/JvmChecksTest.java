@@ -56,7 +56,8 @@ class JvmChecksTest {
 
         assertEquals(Severity.INFO, finding.severity());
         assertEquals(Basis.KINDLING_MEASUREMENT, finding.basis());
-        assertTrue(finding.what().contains("-29 %"));
+        assertTrue(finding.what().contains("-5 %"));
+        assertTrue(finding.what().contains("-17 %"));
         assertEquals("Add -XX:+UseCompactObjectHeaders", finding.fix());
     }
 

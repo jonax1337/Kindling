@@ -43,8 +43,9 @@ final class JvmFactsCollector {
     /** The value of a HotSpot flag; empty when this JVM does not have it. */
     private static Optional<String> vmOption(final String name) {
         try {
-            return Optional.of(ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean.class).getVMOption(name).getValue());
-        } catch (final IllegalArgumentException e) {
+            final HotSpotDiagnosticMXBean diagnostics = ManagementFactory.getPlatformMXBean(HotSpotDiagnosticMXBean.class);
+            return diagnostics == null ? Optional.empty() : Optional.of(diagnostics.getVMOption(name).getValue());
+        } catch (final IllegalArgumentException | LinkageError e) {
             return Optional.empty();
         }
     }

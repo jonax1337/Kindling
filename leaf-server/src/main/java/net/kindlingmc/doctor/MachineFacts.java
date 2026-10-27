@@ -13,6 +13,7 @@ import java.util.OptionalLong;
  * @param memoryBytes           physical memory, or the container limit when that is smaller
  * @param glibc                 whether the C library is glibc (as opposed to musl)
  * @param mallocArenaMax        the environment variable {@code MALLOC_ARENA_MAX}
+ * @param preloadedLibraries    the environment variable {@code LD_PRELOAD}, where an alternative allocator shows up
  * @param transparentHugePages  the selected mode of {@code /sys/kernel/mm/transparent_hugepage/enabled}
  */
 public record MachineFacts(
@@ -21,6 +22,7 @@ public record MachineFacts(
     OptionalLong memoryBytes,
     Optional<Boolean> glibc,
     Optional<String> mallocArenaMax,
+    Optional<String> preloadedLibraries,
     Optional<String> transparentHugePages
 ) {
 

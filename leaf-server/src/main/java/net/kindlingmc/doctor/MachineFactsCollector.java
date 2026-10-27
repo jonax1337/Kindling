@@ -30,6 +30,7 @@ final class MachineFactsCollector {
             memoryBytes(linux),
             linux ? Optional.of(!usesMusl()) : Optional.empty(),
             Optional.ofNullable(System.getenv("MALLOC_ARENA_MAX")),
+            Optional.ofNullable(System.getenv("LD_PRELOAD")),
             linux ? transparentHugePages() : Optional.empty());
     }
 
@@ -38,7 +39,7 @@ final class MachineFactsCollector {
     }
 
     private static OptionalLong memoryBytes(final boolean linux) {
-        final long physical = ((OperatingSystemMXBean) ManagementFactory.getOperatingSystemMXBean()).getTotalMemorySize();
+        final long physical = ManagementFactory.getOperatingSystemMXBean() instanceof OperatingSystemMXBean os ? os.getTotalMemorySize() : 0;
         final OptionalLong containerLimit = linux
             ? LinuxFiles.read(CGROUP_MEMORY_MAX).map(LinuxFiles::parseMemoryMax).orElse(OptionalLong.empty())
             : OptionalLong.empty();

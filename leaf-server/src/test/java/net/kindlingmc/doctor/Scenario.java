@@ -17,6 +17,7 @@ final class Scenario {
     OptionalLong memoryBytes = OptionalLong.of(16 * ByteSize.GIB);
     Optional<Boolean> glibc = Optional.of(true);
     Optional<String> mallocArenaMax = Optional.of("2");
+    Optional<String> preloadedLibraries = Optional.empty();
     Optional<String> transparentHugePages = Optional.of("madvise");
 
     int javaFeatureVersion = 25;
@@ -34,7 +35,7 @@ final class Scenario {
     int compressionThreshold = 256;
 
     MachineFacts machine() {
-        return new MachineFacts(processors, cgroupCpuLimit, memoryBytes, glibc, mallocArenaMax, transparentHugePages);
+        return new MachineFacts(processors, cgroupCpuLimit, memoryBytes, glibc, mallocArenaMax, preloadedLibraries, transparentHugePages);
     }
 
     JvmFacts jvm() {

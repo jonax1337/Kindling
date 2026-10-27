@@ -62,6 +62,15 @@ class ServerSettingChecksTest {
     }
 
     @Test
+    void theVanillaDefaultsAreFineOnFewProcessors() {
+        scenario.processors = 2;
+        scenario.viewDistance = 10;
+        scenario.simulationDistance = 10;
+
+        assertSeverity(Severity.OK, ServerSettingChecks.viewDistance(scenario.machine(), scenario.server()));
+    }
+
+    @Test
     void aHighViewDistanceOnFewProcessorsIsAWarning() {
         scenario.processors = 4;
         scenario.viewDistance = 20;

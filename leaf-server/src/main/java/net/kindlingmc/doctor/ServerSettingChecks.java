@@ -5,6 +5,8 @@ import java.util.Optional;
 /** Checks of server settings against the machine. */
 final class ServerSettingChecks {
 
+    /** Both distances default to 10; a default server must not be warned about on a small machine. */
+    private static final int VANILLA_DISTANCE = 10;
     private static final int VIEW_DISTANCE_BASE = 6;
     private static final int VIEW_DISTANCE_PER_PROCESSOR = 2;
     private static final int SIMULATION_DISTANCE_BASE = 4;
@@ -39,8 +41,8 @@ final class ServerSettingChecks {
 
     static Optional<Finding> viewDistance(final MachineFacts machine, final ServerSettings server) {
         final int processors = machine.usableProcessors();
-        final int viewLimit = VIEW_DISTANCE_BASE + VIEW_DISTANCE_PER_PROCESSOR * processors;
-        final int simulationLimit = SIMULATION_DISTANCE_BASE + processors;
+        final int viewLimit = Math.max(VANILLA_DISTANCE, VIEW_DISTANCE_BASE + VIEW_DISTANCE_PER_PROCESSOR * processors);
+        final int simulationLimit = Math.max(VANILLA_DISTANCE, SIMULATION_DISTANCE_BASE + processors);
         if (server.viewDistance() <= viewLimit && server.simulationDistance() <= simulationLimit) {
             return Optional.of(Finding.ok("View distance " + server.viewDistance() + " and simulation distance "
                 + server.simulationDistance() + " fit " + processors + " processors"));

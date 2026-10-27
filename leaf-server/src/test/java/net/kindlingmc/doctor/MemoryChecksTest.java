@@ -92,6 +92,22 @@ class MemoryChecksTest {
     }
 
     @Test
+    void mallocArenasAreSkippedWithAnAlternativeAllocator() {
+        scenario.mallocArenaMax = Optional.empty();
+        scenario.preloadedLibraries = Optional.of("/usr/lib/x86_64-linux-gnu/libjemalloc.so.2");
+
+        assertSkipped(MemoryChecks.mallocArenas(scenario.machine()));
+    }
+
+    @Test
+    void aHeapReportedSlightlyBelowTheWantedSizeIsStillEnough() {
+        scenario.maxHeapBytes = 2 * ByteSize.GIB - 100 * ByteSize.MIB;
+        scenario.viewDistance = 16;
+
+        assertSeverity(Severity.OK, MemoryChecks.heapSize(scenario.jvm(), scenario.server()));
+    }
+
+    @Test
     void aDisabledNativeHeapTrimIsAMeasuredHint() {
         scenario.trimNativeHeapIntervalMillis = OptionalLong.of(0);
 

@@ -39,7 +39,7 @@ final class JvmChecks {
             return Optional.of(Finding.ok("Compact object headers are on"));
         }
         return Optional.of(Finding.info(
-            "Compact object headers are off: with G1 and a 2 GB heap Kindling measured -29 % resident memory and -17 % GC time, with no tick cost",
+            "Compact object headers are off: Kindling measured live heap -5 % and GC time -17 % with the flag, and no tick cost (with G1)",
             "Add -XX:+UseCompactObjectHeaders",
             Basis.KINDLING_MEASUREMENT));
     }

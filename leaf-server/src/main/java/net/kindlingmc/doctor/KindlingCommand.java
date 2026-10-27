@@ -15,23 +15,24 @@ public final class KindlingCommand extends Command {
     private static final String DOCTOR = "doctor";
     private static final String DOCTOR_PERMISSION = "kindling.command.doctor";
     private static final String USAGE = "/kindling doctor";
-    private static final String NO_PERMISSION = "You do not have permission to use this command.";
 
     public KindlingCommand() {
         super(LABEL);
         this.description = "Kindling's tools";
         this.usageMessage = USAGE;
+        this.setPermission(DOCTOR_PERMISSION);
         Bukkit.getServer().getPluginManager().addPermission(new Permission(DOCTOR_PERMISSION, PermissionDefault.OP));
     }
 
     @Override
     public boolean execute(final CommandSender sender, final String label, final String[] args) {
+        if (!this.testPermission(sender)) {
+            return true;
+        }
         if (args.length == 0 || !args[0].equalsIgnoreCase(DOCTOR)) {
             sender.sendPlainMessage("Usage: " + USAGE);
-        } else if (sender.hasPermission(DOCTOR_PERMISSION)) {
-            sender.sendPlainMessage(String.join("\n", DoctorReport.lines(Doctor.examineThisServer())));
         } else {
-            sender.sendPlainMessage(NO_PERMISSION);
+            sender.sendPlainMessage(String.join("\n", DoctorReport.lines(Doctor.examineThisServer())));
         }
         return true;
     }
