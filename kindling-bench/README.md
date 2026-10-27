@@ -8,7 +8,7 @@
 
 | # | Phase | Key (default) | What happens | Measured |
 | :-: | --- | --- | --- | --- |
-| 1 | **Warm-up** | `warmup-seconds` (30) | `players` (8) fake players join on a circle of radius `circle-radius` (512) around the origin, in creative mode, flying at height 160 | |
+| 1 | **Warm-up** | `warmup-seconds` (30) | `players` (8) fake players join on a circle of radius `circle-radius` (512) around the origin, in creative mode (`gamemode`), flying at height 160. The warm-up lasts at least `warmup-seconds`, then until no chunk was generated for `warmup-quiet-seconds` (5), at most `warmup-max-seconds` (120, or `warmup-seconds` if that is longer) | `join_full_view_ms`, warm-up length |
 | 2 | **Flight** | `travel-seconds` (90) | All fly straight outward at `blocks-per-tick` (1.0, roughly an elytra). The server keeps generating, loading, sending and unloading chunks | tick times, chunk lead |
 | 3 | **Landing** | | Every player lands; around each, `mobs-per-player` (150) animals, villagers, zombies and skeletons appear (fixed random seed). It stays night | |
 | 4 | **Settle**, then **standing** | `settle-seconds` (15), `steady-seconds` (90) | The players stand between the mobs | tick times |
@@ -19,11 +19,36 @@ Then the plugin writes `bench-result.json` and stops the server. The script adds
 
 ### Chunk lead
 
-During the flight, `chunk_lead` samples every 5 ticks per player how many chunks in flight direction, gap-free from the player, have already reached the client (`Player#isChunkSent`): average, minimum, 5th percentile, the share with lead 0 (`hole_pct`, the player flies into the void) and with lead at most 2 (`close_pct`), plus newly generated chunks per second.
+During the flight, `chunk_lead` samples every 5 ticks per player how many chunks along a line from the player have already reached the client (`Player#isChunkSent`). The fields of the first versions are kept, so old runs stay comparable: `samples`, `lead_avg`, `lead_min`, `lead_p5`, `hole_pct` (lead 0: the player flies into the void), `close_pct` (lead at most 2) and `new_chunks`. They follow one line straight ahead in 16-block steps, which can skip a chunk on a diagonal, and never look at the player's own chunk. Added next to them:
+
+| Field | Meaning |
+| --- | --- |
+| `rays` | The same figures for five lines, at -90, -45, 0 (straight ahead), 45 and 90 degrees to the flight direction. Each line is followed chunk by chunk, so no chunk it crosses is skipped, up to the send distance |
+| `own_chunk_missing_pct` | Share of samples in which the chunk the player stands in has not been sent; the lead is then 0 on every line |
+| `worst_ray_lead_avg`, `worst_ray_hole_pct` | Mean of the lowest lead of the five lines per sample, and the share where one of the lines has lead 0 |
+| `wall_seconds`, `new_chunks_per_second` | The measured wall time of the flight and the newly generated chunks per second of it (earlier versions divided by the nominal `travel-seconds`, which differs when the server falls behind) |
+| `windows` | One entry per 10 seconds of the flight (`start_s`): `wall_seconds`, `samples`, `lead_avg` and `hole_pct` straight ahead, `worst_ray_lead_avg`, `worst_ray_hole_pct`, `own_chunk_missing_pct`, `new_chunks`, `new_chunks_per_second`; shows when the lead broke down |
+
+### More figures per run
+
+| Field | Meaning |
+| --- | --- |
+| `warmup_seconds`, `warmup_wall_seconds`, `warmup_settled` | How long the warm-up of a mixed run took (server time and wall time) and whether generation had calmed down by its end |
+| `join_full_view_ms`, `join_full_view_ms_avg` | From the joins until every chunk within the send distance of a player had reached it: the slowest player (-1 if one never got its view during the warm-up) and the mean |
+| `chunk_packets_warmup`, `chunk_packets_travel`, `chunk_batches_travel` | Chunk packets the fake players received during the warm-up and the flight, summed over the players, and the chunk batches of the flight (0 as long as the server does not send chunks in batches) |
+| `travel`, `steady`, `bases`: `wall_seconds`, `gc_count`, `gc_pause_millis` | Wall time of the phase and the garbage collection pauses in it, as the change over the phase. Only stop-the-world pauses count: ZGC and Shenandoah report their concurrent cycles as collectors of their own ("... Cycles"), which are left out; G1's "Concurrent GC" bean counts the remark and cleanup pauses and is included |
+| `travel`, `steady`, `bases`: `main_run_ms`, `main_wait_ms` | Linux only: how long the server main thread ran and how long it waited in the run queue for a CPU (`/proc/self/task/<tid>/schedstat`). A high wait is a machine that is too busy, not a slow server |
+| `travel`, `steady`, `bases`: `cpu_steal_pct`, `cpu_idle_pct` | Linux only: the share of CPU time of the whole machine that was stolen by the hypervisor or idle during the phase (`/proc/stat`) |
+| `gc_pause_millis` | Pause time over the whole run, next to the older `gc_count` and `gc_millis`, which add up every collector bean including the overlapping cycles of ZGC and Shenandoah |
+
+Where `/proc` is missing (Windows), the Linux figures are left out; `compare.py` leaves out the rows of figures no run has.
 
 ### Fake players
 
 The fake players request view distance 12 like a vanilla client (`client-view-distance`); the server sends up to the smaller of that and its own. They join through `PlayerList.placeNewPlayer` and move through the same packets as a client (movement, tick end, teleport and keep-alive answers). Their connection discards all outgoing packets, so everything up to the network is measured, but not encoding and compressing packets on the Netty threads. `flown_blocks_avg` in the result shows whether the flight really happened (expected: `travel-seconds × 20 × blocks-per-tick`).
+
+- **`gamemode=survival`** (default `creative`, which keeps runs comparable): the players are survival players that mobs target and path to; the bench heals them and refills their food every 5 ticks, so they stay alive and in the game. Only the mixed scenario uses it; the bases players are always creative.
+- **`chunk-acks=<chunks per tick>`** (default 0, off): the connection counts the chunk packets it is sent and, when the server sends a chunk batch (`ClientboundChunkBatchStart` and `Finished`), answers like a client that processes that many chunks per tick: after `batch size / chunk-acks` ticks it sends `ServerboundChunkBatchReceived` with `chunk-acks` as the desired rate. With the default the fake players never answer, as before. Use it to emulate fast (`chunk-acks=10`) and slow (`chunk-acks=0.5`) clients once the server paces its chunks by those answers.
 
 ## The bases scenario
 
@@ -69,7 +94,7 @@ git diff kindling-bench/parity/bases-ci.json
 ./gradlew :kindling-bench:jar --no-configuration-cache      # kindling-bench/build/libs/kindling-bench.jar
 python -I kindling-bench/run_bench.py --jar <server.jar> --plugin kindling-bench/build/libs/kindling-bench.jar \
     --label probe --jvm="-XX:+UseCompactObjectHeaders" --repeat 2
-bash kindling-bench/matrix.sh <server.jar> <prefix> [variant ...]   # all variants in turn, two runs each
+bash kindling-bench/matrix.sh <server.jar> <prefix> [variant ...]   # all variants in turn, three runs each (RUNS=n)
 ```
 
 | Option of `run_bench.py` | Effect |
@@ -78,23 +103,27 @@ bash kindling-bench/matrix.sh <server.jar> <prefix> [variant ...]   # all varian
 | `--overlay <folder>` | Copies files over the server folder before the start, for example `overlays/leaf-safe/config/leaf-global.yml`. Leaf fills in missing keys, so an overlay only needs the keys it changes |
 | `--world <folder>` | Copies a world in as `world` before the start |
 | `--scenario "players=4,travel-seconds=30"` | Overrides single scenario keys |
-| `--cpus N` | Pins the server to the first N logical cores as a stand-in for a smaller machine (pair it with `-XX:ActiveProcessorCount=N` in `--jvm`, so the JVM sizes its thread pools accordingly) |
+| `--cpus N` | Pins the server to the first N logical cores as a stand-in for a smaller machine (pair it with `-XX:ActiveProcessorCount=N` in `--jvm`, so the JVM sizes its thread pools accordingly). On Linux the server starts under `taskset -c 0-(N-1)`, so every thread inherits the mask; on Windows the affinity is set after the start |
 
 | Script | Measures |
 | --- | --- |
-| `bash kindling-bench/elytra.sh <kindling.jar> <leaf.jar> <prefix>` | The elytra test from [docs/MEASUREMENTS.md](../docs/MEASUREMENTS.md), including the pregenerated world (`worlds/`, not checked in) |
+| `bash kindling-bench/elytra.sh <kindling.jar> <leaf.jar> <prefix>` | The elytra test from [docs/MEASUREMENTS.md](../docs/MEASUREMENTS.md), including the pregenerated world (`worlds/`, not checked in). Both jars run with the same JVM flags (2G heap, compact object headers), which the script prints; three runs per variant (`RUNS=n`) |
 | `bash kindling-bench/pregen.sh <kindling.jar> <prefix>` | The built-in pregenerator alone and during an elytra flight |
 | `python -I kindling-bench/compare.py <label> …` | Not a run: puts finished runs side by side |
 
+### Comparing runs
+
+`compare.py` prints per figure the mean, the half range (half the gap between the highest and the lowest run) and the number of runs, as `12.3 ±0.4 n3`. Every label after the first also gets the p-value of Welch's t-test against the first label. **A difference counts as real only if it is marked `*`: p < 0.05 and the means more than twice the larger half range apart.** Both conditions are needed; a small p from two runs that happen to agree closely is not enough, and a big gap with a wide spread is not either. Zero spread in both labels makes any difference significant, so read a gap of a few MB with that in mind. With a single run in a label there is no p-value (`p=n/a`) and nothing is significant. That is why the matrices run three runs per variant.
+
 > [!WARNING]
-> Never run two benchmarks at once, and do not build anything heavy during a measurement: the runs would share the CPU and the numbers would be worthless. Run every variant twice and only trust differences larger than the gap between the two runs.
+> Never run two benchmarks at once, and do not build anything heavy during a measurement: the runs would share the CPU and the numbers would be worthless. Run every variant three times and only trust differences that `compare.py` marks with `*`.
 
 > [!TIP]
 > Every run leaves a full server with its world under `runs/`. Delete the run folders once the results are read; they fill a disk quickly.
 
 ## Variants
 
-`bash kindling-bench/options-matrix.sh <server.jar> <prefix>` runs `fork` and the `opt-*` variants in the mixed load, two runs each (8 variants x 2 runs x about 6 minutes, so about 100 minutes), and prints the `compare.py` table.
+`bash kindling-bench/options-matrix.sh <server.jar> <prefix>` runs `fork` and the `opt-*` variants in the mixed load, three runs each (8 variants x 3 runs x about 6 minutes, so about 145 minutes), and prints the `compare.py` table.
 
 `SCENARIO=type=bases bash kindling-bench/matrix.sh <server.jar> <prefix> fork sleeping-be` runs the variants in the bases scenario instead; `sleeping-be` switches on Leaf's sleeping block entities.
 

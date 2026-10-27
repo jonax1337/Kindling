@@ -32,13 +32,18 @@ final class ServerState {
                 Collectors.groupingBy(entity -> entity.getType().key().asString(), TreeMap::new, Collectors.counting()));
     }
 
-    /** The heap and the garbage collector at the end of a loaded phase; collects twice to read off the live heap. */
+    /**
+     * The heap and the garbage collector at the end of a loaded phase; collects twice to read off the live heap.
+     * {@code gc_count} and {@code gc_millis} add up every collector bean, including the cycles of ZGC and Shenandoah, which
+     * overlap the pauses; {@code gc_pause_millis} counts the pauses only.
+     */
     static Map<String, Object> memoryUnderLoad() {
         MemoryMXBean memory = ManagementFactory.getMemoryMXBean();
         Map<String, Object> figures = new LinkedHashMap<>();
         figures.put("heap_used_before_gc_mb", memory.getHeapMemoryUsage().getUsed() / BYTES_PER_MB);
         figures.put("gc_count", gcTotal(GarbageCollectorMXBean::getCollectionCount));
         figures.put("gc_millis", gcTotal(GarbageCollectorMXBean::getCollectionTime));
+        figures.put("gc_pause_millis", GcTotals.ofPauses().millis());
         System.gc();
         System.gc();
         figures.put("heap_used_after_gc_mb", memory.getHeapMemoryUsage().getUsed() / BYTES_PER_MB);

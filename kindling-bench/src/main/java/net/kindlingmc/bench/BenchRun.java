@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import org.bukkit.Bukkit;
+import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
@@ -36,18 +37,21 @@ final class BenchRun {
 
     private final Plugin plugin;
     private final Scenario scenario;
-    private final TickRecorder ticks;
+    private final MeasuredPhase phase;
     private final FakePlayers fakePlayers;
     private final RunResult result = new RunResult();
     private final List<Player> players = new ArrayList<>();
     private World world;
     private ChunkLead lead;
+    private Warmup warmup;
+    private ViewArrival viewArrival;
+    private ChunkTraffic trafficAtTravelStart = ChunkTraffic.NONE;
     private int flightTicks;
 
-    BenchRun(Plugin plugin, Scenario scenario, TickRecorder ticks, FakePlayers fakePlayers) {
+    BenchRun(Plugin plugin, Scenario scenario, MeasuredPhase phase, FakePlayers fakePlayers) {
         this.plugin = plugin;
         this.scenario = scenario;
-        this.ticks = ticks;
+        this.phase = phase;
         this.fakePlayers = fakePlayers;
     }
 
@@ -59,12 +63,17 @@ final class BenchRun {
         Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "gamerule advance_time false");
         result.put("scenario", scenario);
         joinPlayers();
-        later(scenario.warmupSeconds(), this::travel);
+        if (scenario.gameMode() == GameMode.SURVIVAL) {
+            Healer.keepAlive(plugin, players);
+        }
+        viewArrival = new ViewArrival(plugin, players, players.getFirst().getSendViewDistance());
+        warmup = new Warmup(plugin, scenario, this::travel);
+        warmup.start();
     }
 
     private void joinPlayers() {
         for (int i = 0; i < scenario.players(); i++) {
-            players.add(fakePlayers.joinFlying("bench" + i, startOf(i)));
+            players.add(fakePlayers.joinFlying("bench" + i, startOf(i), scenario.gameMode()));
         }
     }
 
@@ -79,18 +88,31 @@ final class BenchRun {
     }
 
     private void travel() {
+        viewArrival.stop();
+        result.putAll(warmup.summary());
+        result.putAll(viewArrival.summary());
+        trafficAtTravelStart = fakePlayers.chunkTraffic(players);
         lead = new ChunkLead(players.getFirst().getSendViewDistance());
         Bukkit.getPluginManager().registerEvents(lead, plugin);
-        ticks.start();
+        phase.start();
         BukkitTask flight = Bukkit.getScheduler().runTaskTimer(plugin, this::flyOneTick, 1, 1);
         later(scenario.travelSeconds(), () -> {
             flight.cancel();
             HandlerList.unregisterAll(lead);
-            result.put("chunk_lead", lead.summary(scenario.travelSeconds()));
-            result.put("travel", ticks.stop());
+            result.put("chunk_lead", lead.summary());
+            result.put("travel", phase.stop());
+            putChunkTraffic();
             result.put("flown_blocks_avg", averageFlownBlocks());
             land();
         });
+    }
+
+    /** The chunk packets the players received during the warm-up and during the flight, and the batches in the flight. */
+    private void putChunkTraffic() {
+        ChunkTraffic flight = fakePlayers.chunkTraffic(players).minus(trafficAtTravelStart);
+        result.put("chunk_packets_warmup", trafficAtTravelStart.chunkPackets());
+        result.put("chunk_packets_travel", flight.chunkPackets());
+        result.put("chunk_batches_travel", flight.batches());
     }
 
     private void flyOneTick() {
@@ -143,9 +165,9 @@ final class BenchRun {
     }
 
     private void steady() {
-        ticks.start();
+        phase.start();
         later(scenario.steadySeconds(), () -> {
-            result.put("steady", ticks.stop());
+            result.put("steady", phase.stop());
             result.put("chunks_loaded", ServerState.loadedChunks());
             result.put("entities", ServerState.entities());
             result.putAll(ServerState.memoryUnderLoad());

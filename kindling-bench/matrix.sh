@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Runs benchmark variants against one server jar, twice each, one after another (never in parallel: they would share
-# the CPU and skew each other). Usage: [SCENARIO=type=bases] matrix.sh <server.jar> <label prefix> [variant ...]
+# the CPU and skew each other). Usage: [RUNS=3] [SCENARIO=type=bases] matrix.sh <server.jar> <label prefix> [variant ...]
+# Three runs per variant by default: compare.py needs at least two per label for a p-value and trusts a difference
+# only if it is significant and larger than twice the spread of the runs.
 set -euo pipefail
 jar=$(realpath "$1")
 prefix=$2
@@ -8,6 +10,7 @@ shift 2
 cd "$(dirname "$0")"
 mkdir -p runs
 plugin=build/libs/kindling-bench.jar
+runs=${RUNS:-3}
 coh="-XX:+UseCompactObjectHeaders"
 elastic="-Xms256M -XX:G1PeriodicGCInterval=15000 -XX:+UseStringDeduplication"
 tight="-Xms256M -XX:G1PeriodicGCInterval=15000 -XX:MinHeapFreeRatio=10 -XX:MaxHeapFreeRatio=30"
@@ -43,7 +46,7 @@ if [ ${#variants[@]} -eq 0 ]; then
 fi
 
 for variant in "${variants[@]}"; do
-    args=(--jar "$jar" --plugin "$plugin" --label "$prefix-$variant" --repeat 2 "--jvm=${jvm[$variant]:-}"
+    args=(--jar "$jar" --plugin "$plugin" --label "$prefix-$variant" --repeat "$runs" "--jvm=${jvm[$variant]:-}"
           "--scenario=${SCENARIO:-}")
     # Every folder under overlays/ is a Leaf configuration variant of the same name.
     if [ -d "overlays/$variant" ]; then

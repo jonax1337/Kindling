@@ -4,17 +4,20 @@ import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Locale;
 import java.util.Properties;
+import org.bukkit.GameMode;
 
 /**
  * What one benchmark run does, read from {@code plugins/KindlingBench/scenario.properties}; every key has a default.
  * The {@link ScenarioType#BASES bases} run uses only {@code players}, {@code plots-per-player}, {@code warmup-seconds},
- * {@code steady-seconds}, {@code client-view-distance} and {@code hopper-guard-seconds}.
+ * {@code steady-seconds}, {@code client-view-distance}, {@code chunk-acks} and {@code hopper-guard-seconds}; its players
+ * are always in creative mode.
  *
  * @param type which load the run puts on the server
  * @param players fake players that join, spread on a circle around the world origin
  * @param circleRadius blocks from the origin to each player's start
- * @param warmupSeconds time after the joins before anything is measured, so the JIT and the spawn chunks settle
+ * @param warmupSeconds shortest time after the joins before anything is measured, so the JIT and the spawn chunks settle
  * @param travelSeconds time the players fly straight outward, which makes the server generate and send chunks
  * @param blocksPerTick flying speed; 1.0 is about an elytra in level flight
  * @param mobsPerPlayer mobs spawned around each player after the flight, a mix of farm animals, villagers and zombies
@@ -25,18 +28,36 @@ import java.util.Properties;
  * @param plotsPerPlayer plots of hoppers, furnaces and redstone around each player in a bases run
  * @param hopperGuardSeconds in a bases run, how long after the build a stand-in protection plugin holds every hopper
  *        back ({@link HopperGuard}); 0 for no such plugin
- * @throws IllegalArgumentException for an unknown type, a value that is not a number or too many plots per player
+ * @param gameMode the mode of the fake players in a mixed run: creative (the default, they cannot be hurt) or survival
+ *        (mobs target them; the bench keeps them healed)
+ * @param chunkAcks how many chunks per tick the simulated client processes, which it reports to the server after each
+ *        chunk batch; 0 for a client that never answers
+ * @param warmupQuietSeconds after the shortest warm-up, how long no chunk may have been generated before the flight
+ *        starts; 0 for a fixed warm-up
+ * @param warmupMaxSeconds the longest warm-up; the flight starts then even if chunks are still being generated
+ * @throws IllegalArgumentException for an unknown type or game mode, a value that is not a number, too many plots per
+ *         player or a negative wait
  */
 record Scenario(ScenarioType type, int players, int circleRadius, int warmupSeconds, int travelSeconds, double blocksPerTick,
                 int mobsPerPlayer, int settleSeconds, int steadySeconds, int idleSeconds, int clientViewDistance,
-                int plotsPerPlayer, int hopperGuardSeconds) {
+                int plotsPerPlayer, int hopperGuardSeconds, GameMode gameMode, double chunkAcks, int warmupQuietSeconds,
+                int warmupMaxSeconds) {
 
     static final String FILE_NAME = "scenario.properties";
+    private static final int DEFAULT_WARMUP_SECONDS = 30;
+    private static final int DEFAULT_WARMUP_MAX_SECONDS = 120;
 
     Scenario {
         if (plotsPerPlayer < 1 || plotsPerPlayer > PlotGrid.MAX_PLOTS_PER_PLAYER) {
             throw new IllegalArgumentException(
                     "plots-per-player must be 1 to " + PlotGrid.MAX_PLOTS_PER_PLAYER + ", not " + plotsPerPlayer);
+        }
+        if (gameMode != GameMode.CREATIVE && gameMode != GameMode.SURVIVAL) {
+            throw new IllegalArgumentException("gamemode must be creative or survival, not " + gameMode);
+        }
+        if (chunkAcks < 0 || warmupQuietSeconds < 0 || warmupMaxSeconds < warmupSeconds) {
+            throw new IllegalArgumentException("chunk-acks and warmup-quiet-seconds must not be negative and "
+                    + "warmup-max-seconds not below warmup-seconds");
         }
     }
 
@@ -50,11 +71,12 @@ record Scenario(ScenarioType type, int players, int circleRadius, int warmupSeco
                 throw new IllegalStateException("cannot read " + file, e);
             }
         }
+        int warmupSeconds = intOf(properties, "warmup-seconds", DEFAULT_WARMUP_SECONDS);
         return new Scenario(
                 ScenarioType.named(properties.getProperty("type", "mixed")),
                 intOf(properties, "players", 8),
                 intOf(properties, "circle-radius", 512),
-                intOf(properties, "warmup-seconds", 30),
+                warmupSeconds,
                 intOf(properties, "travel-seconds", 90),
                 Double.parseDouble(properties.getProperty("blocks-per-tick", "1.0")),
                 intOf(properties, "mobs-per-player", 150),
@@ -63,7 +85,11 @@ record Scenario(ScenarioType type, int players, int circleRadius, int warmupSeco
                 intOf(properties, "idle-seconds", 60),
                 intOf(properties, "client-view-distance", 12),
                 intOf(properties, "plots-per-player", 4),
-                intOf(properties, "hopper-guard-seconds", 0));
+                intOf(properties, "hopper-guard-seconds", 0),
+                GameMode.valueOf(properties.getProperty("gamemode", "creative").trim().toUpperCase(Locale.ROOT)),
+                Double.parseDouble(properties.getProperty("chunk-acks", "0").trim()),
+                intOf(properties, "warmup-quiet-seconds", 5),
+                intOf(properties, "warmup-max-seconds", Math.max(DEFAULT_WARMUP_MAX_SECONDS, warmupSeconds)));
     }
 
     private static int intOf(Properties properties, String key, int fallback) {

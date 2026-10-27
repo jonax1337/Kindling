@@ -5,6 +5,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.TreeMap;
 import org.bukkit.Bukkit;
+import org.bukkit.GameMode;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Item;
@@ -31,7 +32,7 @@ final class BaseRun {
 
     private final Plugin plugin;
     private final Scenario scenario;
-    private final TickRecorder ticks;
+    private final MeasuredPhase phase;
     private final FakePlayers fakePlayers;
     private final RunResult result = new RunResult();
     private final List<Plot> plots = new ArrayList<>();
@@ -44,10 +45,10 @@ final class BaseRun {
     private int clearedPlots;
     private int clockTicks;
 
-    BaseRun(Plugin plugin, Scenario scenario, TickRecorder ticks, FakePlayers fakePlayers) {
+    BaseRun(Plugin plugin, Scenario scenario, MeasuredPhase phase, FakePlayers fakePlayers) {
         this.plugin = plugin;
         this.scenario = scenario;
-        this.ticks = ticks;
+        this.phase = phase;
         this.fakePlayers = fakePlayers;
     }
 
@@ -59,7 +60,7 @@ final class BaseRun {
         PlotGrid grid = new PlotGrid(world, scenario.plotsPerPlayer());
         for (int i = 0; i < scenario.players(); i++) {
             plots.addAll(grid.plotsOf(i));
-            fakePlayers.joinFlying("bench" + i, grid.standingSpot(i));
+            fakePlayers.joinFlying("bench" + i, grid.standingSpot(i), GameMode.CREATIVE);
         }
         startTick = Bukkit.getCurrentTick();
         Bukkit.getScheduler().runTaskTimer(plugin, this::prepare, 1, 1);
@@ -152,12 +153,12 @@ final class BaseRun {
     private void measure() {
         Map<String, Long> before = totals();
         long measuredTicks = (long) scenario.steadySeconds() * TICKS_PER_SECOND;
-        afterTicks(1, ticks::start);
+        afterTicks(1, phase::start);
         afterTicks(1 + measuredTicks, () -> finish(before));
     }
 
     private void finish(Map<String, Long> before) {
-        result.put("bases", ticks.stop());
+        result.put("bases", phase.stop());
         result.put("counters", growth(before, totals()));
         result.put("chunks_loaded", ServerState.loadedChunks());
         result.put("entities", ServerState.entities());

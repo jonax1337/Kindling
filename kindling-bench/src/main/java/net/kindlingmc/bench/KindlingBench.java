@@ -25,11 +25,13 @@ public final class KindlingBench extends JavaPlugin implements Listener {
     }
 
     private void run(Scenario scenario) {
-        FakePlayers fakePlayers = new ServerFakePlayers(action -> Bukkit.getScheduler().runTask(this, action),
-                scenario.clientViewDistance());
+        FakePlayers fakePlayers = new ServerFakePlayers(
+                (delayTicks, action) -> Bukkit.getScheduler().runTaskLater(this, action, delayTicks),
+                scenario.clientViewDistance(), scenario.chunkAcks());
+        MeasuredPhase phase = new MeasuredPhase(ticks, new PhaseMeter(SchedulerStats.ofCurrentThread()));
         Runnable run = switch (scenario.type()) {
-            case MIXED -> () -> new BenchRun(this, scenario, ticks, fakePlayers).start();
-            case BASES -> () -> new BaseRun(this, scenario, ticks, fakePlayers).start();
+            case MIXED -> () -> new BenchRun(this, scenario, phase, fakePlayers).start();
+            case BASES -> () -> new BaseRun(this, scenario, phase, fakePlayers).start();
         };
         Bukkit.getScheduler().runTask(this, run);
     }

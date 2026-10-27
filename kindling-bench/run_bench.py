@@ -60,7 +60,9 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("--world", type=Path, help="world folder copied in as 'world' before the start")
     parser.add_argument("--scenario", default="", help="key=value pairs for the plugin, comma separated")
     parser.add_argument("--repeat", type=int, default=1)
-    parser.add_argument("--cpus", type=int, help="pin the server to the first N logical CPUs, to stand in for a smaller machine")
+    parser.add_argument("--cpus", type=int,
+                        help="pin the server to the first N logical CPUs, as a stand-in for a smaller machine "
+                             "(taskset on Linux, psutil elsewhere)")
     return parser.parse_args()
 
 
@@ -69,9 +71,9 @@ def run_once(args: argparse.Namespace, attempt: int) -> dict:
     command = java_command(args)
     started = time.monotonic()
     with open(folder / "console.log", "w", encoding="utf-8") as console:
-        process = subprocess.Popen(command, cwd=folder, stdin=subprocess.DEVNULL, stdout=console,
-                                   stderr=subprocess.STDOUT)
-        if args.cpus:
+        process = subprocess.Popen(launch_command(args, command), cwd=folder, stdin=subprocess.DEVNULL,
+                                   stdout=console, stderr=subprocess.STDOUT)
+        if args.cpus and not sys.platform.startswith("linux"):
             psutil.Process(process.pid).cpu_affinity(list(range(args.cpus)))
         memory = watch(process, folder / "bench-result.json")
     result_file = folder / "bench-result.json"
@@ -108,6 +110,17 @@ def java_command(args: argparse.Namespace) -> list[str]:
     if not any(flag.startswith("-Xms") for flag in extra):
         heap.append(f"-Xms{args.heap}")
     return ["java", *heap, *extra, "-jar", str(args.jar.resolve()), "--nogui"]
+
+
+def launch_command(args: argparse.Namespace, java: list[str]) -> list[str]:
+    """The command that starts the server. On Linux a pinned run starts under taskset, so that every thread of the JVM
+    inherits the mask; setting the affinity after the start would only move the main thread. Elsewhere run_once() pins
+    the process after the start."""
+    if args.cpus and sys.platform.startswith("linux"):
+        if shutil.which("taskset") is None:
+            raise RuntimeError("--cpus needs taskset on Linux (util-linux)")
+        return ["taskset", "-c", f"0-{args.cpus - 1}", *java]
+    return java
 
 
 def watch(process: subprocess.Popen, result_file: Path) -> dict:
