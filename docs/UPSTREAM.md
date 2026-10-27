@@ -11,7 +11,7 @@ Kindling is a GitHub fork of [Leaf](https://github.com/Winds-Studio/Leaf): Leaf'
 
 | Path | What Kindling changes there |
 | --- | --- |
-| `leaf-server/minecraft-patches/features/0316-…` to `0318-…` | Kindling's own Minecraft patches (directional chunk loading, pregenerator, palette decoder), appended after Leaf's; their subject starts with `Kindling:` |
+| `leaf-server/minecraft-patches/features/0316-…` to `0319-…` | Kindling's own Minecraft patches (directional chunk loading, pregenerator, palette decoder, sleeping hoppers that keep asking plugins), appended after Leaf's; their subject starts with `Kindling:` |
 | `leaf-server/minecraft-patches/features/0066-5-second-TPS-average.patch` | The lagging check computes only the 5-second average. The same change as Leaf pull request [#970](https://github.com/Winds-Studio/Leaf/pull/970), without a `Kindling` marker, so the patch matches Leaf's once Leaf has merged it |
 | `leaf-server/paper-patches/features/0069-…` to `0070-…` | Kindling's own Paper patches (default number of chunk workers, `/version` message), appended after Leaf's |
 | `leaf-server/src/main/java/net/kindlingmc/` | Kindling's own server code: `pregen` (pregenerator), `chunk` (palette decoder), `version` (`/version` text and the update check against Kindling's GitHub releases) |

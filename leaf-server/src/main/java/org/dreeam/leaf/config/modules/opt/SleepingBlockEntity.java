@@ -9,7 +9,7 @@ public class SleepingBlockEntity extends ConfigModule {
         return ConfigCategory.PERF.basePath();
     }
 
-    public static boolean enabled = false;
+    public static boolean enabled = true; // Kindling - on by default: measured faster, vanilla behaviour kept
     private static boolean sleepingBlockEntityInitialized;
 
     @Override

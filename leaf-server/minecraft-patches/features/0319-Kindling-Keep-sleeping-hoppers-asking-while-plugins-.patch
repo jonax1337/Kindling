@@ -1,0 +1,149 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Tue, 27 Oct 2026 12:07:23 +0100
+Subject: [PATCH] Kindling: Keep sleeping hoppers asking while plugins hold
+ transfers back
+
+
+diff --git a/net/minecraft/world/level/block/entity/HopperBlockEntity.java b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
+index 4e8098cecc173d1ea6e97a6c67e0bbfd1ffdd86a..612273553c3ec334ffbdb9ef09c52fecfc107b6b 100644
+--- a/net/minecraft/world/level/block/entity/HopperBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
+@@ -134,6 +134,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+         entity.tickedGameTime = level.getGameTime();
+         if (!entity.isOnCooldown()) {
+             entity.setCooldown(0);
++            entity.pluginHeldBack = false; // Kindling - Keep hoppers asking while plugins hold transfers back
+             // Spigot start
+             boolean result = tryMoveItems(level, pos, state, entity, () -> suckInItems(level, entity));
+             if (org.dreeam.leaf.config.modules.opt.SleepingBlockEntity.enabled) entity.checkSleepingConditions(); // Leaves - Lithium Sleeping Block Entity
+@@ -235,6 +236,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+     private static boolean hopperPush(final Level level, final Container destination, final Direction direction, final HopperBlockEntity hopper) {
+         skipPushModeEventFire = skipHopperEvents;
+         final long disallowedSlots = callPrepareTransferEvent(level, hopper, destination, true); // Paper - Add PrepareHopperTransferEvent
++        if (disallowedSlots != 0) hopper.pluginHeldBack = true; // Kindling - Keep hoppers asking while plugins hold transfers back
+         boolean foundItem = false;
+         for (int i = 0; i < hopper.getContainerSize(); ++i) {
+             if (isSlotDisallowed(disallowedSlots, i)) continue; // Paper - Add PrepareHopperTransferEvent
+@@ -464,7 +466,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+ 
+         Direction direction = self.facing.getOpposite();
+         // Leaves start - Lithium Sleeping Block Entity
+-        if (org.dreeam.leaf.config.modules.opt.SleepingBlockEntity.enabled) {
++        if (org.dreeam.leaf.config.modules.opt.SleepingBlockEntity.enabled && !hasPrepareTransferListeners()) { // Kindling - Paper's path asks PrepareHopperTransferEvent, Lithium's does not
+             Boolean res = lithiumInsert(level, blockPos, self, container);
+             if (res != null) {
+                 return res;
+@@ -562,8 +564,9 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+             Direction direction = Direction.DOWN;
+             skipPullModeEventFire = skipHopperEvents; // Paper - Perf: Optimize Hoppers
+             final long disallowedSlots = callPrepareTransferEvent(level, container, hopper, false); // Paper - Add PrepareHopperTransferEvent
++            if (disallowedSlots != 0 && hopper instanceof HopperBlockEntity held) held.pluginHeldBack = true; // Kindling - Keep hoppers asking while plugins hold transfers back
+             // Leaves start - Lithium Sleeping Block Entity
+-            if (org.dreeam.leaf.config.modules.opt.SleepingBlockEntity.enabled) {
++            if (org.dreeam.leaf.config.modules.opt.SleepingBlockEntity.enabled && disallowedSlots == 0) { // Kindling - Lithium's extraction does not skip disallowed slots
+                 Boolean res = lithiumExtract(level, hopper, container);
+                 if (res != null) {
+                     return res;
+@@ -612,6 +615,12 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+             getInventory(container), (org.bukkit.entity.Item) entity.getBukkitEntity() // Paper - Perf: Optimize Hoppers; use getInventory() to avoid snapshot creation
+         );
+         if (!event.callEvent()) {
++            // Kindling start - Keep hoppers asking while plugins hold transfers back: a cancelled pickup moves nothing, so look at the items again next time
++            if (container instanceof HopperBlockEntity held) {
++                held.pluginHeldBack = true;
++                held.collectItemEntityAttemptTime = Long.MIN_VALUE;
++            }
++            // Kindling end - Keep hoppers asking while plugins hold transfers back
+             return false;
+         }
+         // CraftBukkit end
+@@ -917,9 +926,20 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+     private long insertInventoryEntityFailedSearchTime;
+ 
+     private boolean shouldCheckSleep;
++    // Kindling start - Keep hoppers asking while plugins hold transfers back
++    /**
++     * A plugin cancelled, hid or limited this hopper's last transfer. Sleeping would only wake the hopper when an
++     * inventory changes, so it keeps asking every tick, as on Paper, until the plugin lets the transfer through.
++     */
++    private boolean pluginHeldBack;
++
++    private static boolean hasPrepareTransferListeners() {
++        return io.papermc.paper.event.inventory.PrepareHopperTransferEvent.getHandlerList().getRegisteredListeners().length != 0;
++    }
++    // Kindling end - Keep hoppers asking while plugins hold transfers back
+ 
+     private void checkSleepingConditions() {
+-        if (this.cooldownTime > 0 || this.getLevel() == null || skipNextSleepCheckAfterCooldown) {
++        if (this.cooldownTime > 0 || this.getLevel() == null || skipNextSleepCheckAfterCooldown || this.pluginHeldBack) { // Kindling - Keep hoppers asking while plugins hold transfers back
+             return;
+         }
+         if (isSleeping()) {
+@@ -1207,12 +1227,19 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+         if (blockInventory == null) {
+             blockInventory = hopperBlockEntity.lithium$getExtractEntityInventory(world);
+         }
+-        return org.bukkit.event.inventory.HopperInventorySearchEvent.getHandlerList().getRegisteredListeners().length == 0 ? blockInventory : runHopperInventorySearchEvent(
++        // Kindling start - Keep hoppers asking while plugins hold transfers back
++        if (org.bukkit.event.inventory.HopperInventorySearchEvent.getHandlerList().getRegisteredListeners().length == 0) {
++            return blockInventory;
++        }
++        Container searched = runHopperInventorySearchEvent(
+             blockInventory,
+             org.bukkit.craftbukkit.block.CraftBlock.at(world, hopperBlockEntity.getBlockPos()),
+             org.bukkit.craftbukkit.block.CraftBlock.at(world, extractBlockPos),
+             org.bukkit.event.inventory.HopperInventorySearchEvent.ContainerType.SOURCE
+         );
++        if (searched != blockInventory) hopperBlockEntity.pluginHeldBack = true;
++        return searched;
++        // Kindling end - Keep hoppers asking while plugins hold transfers back
+     }
+ 
+     public @Nullable Container lithium$getExtractBlockInventory(final Level world, final BlockPos extractBlockPos, final BlockState extractBlockState) {
+@@ -1293,12 +1320,19 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+ 
+     public @Nullable Container getInsertInventory(final Level world) {
+         Container blockInventory = getInsertInventory0(world);
+-        return org.bukkit.event.inventory.HopperInventorySearchEvent.getHandlerList().getRegisteredListeners().length == 0 ? blockInventory : runHopperInventorySearchEvent(
++        // Kindling start - Keep hoppers asking while plugins hold transfers back
++        if (org.bukkit.event.inventory.HopperInventorySearchEvent.getHandlerList().getRegisteredListeners().length == 0) {
++            return blockInventory;
++        }
++        Container searched = runHopperInventorySearchEvent(
+             blockInventory,
+             org.bukkit.craftbukkit.block.CraftBlock.at(world, this.getBlockPos()),
+             org.bukkit.craftbukkit.block.CraftBlock.at(world, this.getBlockPos().relative(this.facing)),
+             org.bukkit.event.inventory.HopperInventorySearchEvent.ContainerType.DESTINATION
+         );
++        if (searched != blockInventory) this.pluginHeldBack = true;
++        return searched;
++        // Kindling end - Keep hoppers asking while plugins hold transfers back
+     }
+ 
+     public @Nullable Container getInsertInventory0(final Level world) {
+@@ -1550,7 +1584,10 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+                     if (!skipPushModeEventFire && canTakeItemFromContainer(insertInventory, hopperBlockEntity, transferStack, i, Direction.DOWN)) {
+                         transferStack = callPushMoveEvent(insertInventory, transferStack, hopperBlockEntity);
+                         if (transferStack == null) { // cancelled
+-                            break;
++                            // Kindling start - Keep hoppers asking while plugins hold transfers back: ask again after the cooldown, as Paper does, instead of waiting for an inventory to change
++                            hopperBlockEntity.pluginHeldBack = true;
++                            return false;
++                            // Kindling end - Keep hoppers asking while plugins hold transfers back
+                         }
+                     }
+                     boolean transferSuccess = net.caffeinemc.mods.lithium.common.hopper.HopperHelper.tryMoveSingleItem(insertInventory, transferStack, fromDirection);
+@@ -1572,10 +1609,12 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+                 }
+             }
+         }
++        if (insertInventory == hopperBlockEntity.insertInventory) { // Kindling - Keep hoppers asking while plugins hold transfers back: a failed push into an inventory a plugin redirected to says nothing about the cached destination
+         hopperBlockEntity.myModCountAtLastInsert = hopperStackList.getModCount();
+         if (hopperBlockEntity.insertStackList != null) {
+             hopperBlockEntity.insertStackListModCount = hopperBlockEntity.insertStackList.getModCount();
+         }
++        } // Kindling - Keep hoppers asking while plugins hold transfers back
+         return false;
+     }
+ 

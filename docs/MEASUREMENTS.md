@@ -8,6 +8,7 @@ Why each Kindling change exists, and what was tried and left out.
 **Contents**
 
 - [Mixed load](#mixed-load) · [not adopted, although Leaf offers them](#not-adopted-although-leaf-offers-them)
+- [Survival bases: sleeping block entities](#survival-bases-sleeping-block-entities)
 - [JVM and heap](#jvm-and-heap)
 - [Elytra test: new chunks ahead of fast players](#elytra-test-new-chunks-ahead-of-fast-players)
 - [Default number of chunk workers](#default-number-of-chunk-workers)
@@ -38,12 +39,45 @@ Tick times in milliseconds. Raw data lands in `kindling-bench/runs/` after a run
 | Option | Why not |
 | --- | --- |
 | `performance.faster-random-generator` | **Slower** than vanilla's random in this test (flight +14 % tick time; the profile shows 18 % instead of 10 % of the main thread in the generator during natural spawning). |
-| Leaf's other synchronous optimisations together (`cache-biome`, `optimize-mob-spawning`, `optimize-entity-activation`, `optimize-mob-despawn`, `sleeping-block-entity`, …) | Standing −5 %, but flight +15 %. Which of them slows chunk generation is still open. |
+| Leaf's other synchronous optimisations together (`cache-biome`, `optimize-mob-spawning`, `optimize-entity-activation`, `optimize-mob-despawn`, …) | Standing −5 %, but flight +15 %. Which of them slows chunk generation is still open; `sleeping-block-entity` alone does not ([survival bases](#survival-bases-sleeping-block-entities)) and is a default now. |
 | `performance.dab` | No gain in this test, and it changes how distant mobs behave. |
 | `performance.throttle-mob-spawning` | The biggest single gain (flight −26 %, standing −5 %), but it skips 75 % of spawn attempts in chunks whose last 8 attempts failed. That changes spawn rates (mob farms with many failed attempts yield less), so it is a per-server decision, not a default. |
 
 > [!IMPORTANT]
-> Defaults only apply when Leaf writes `config/leaf-global.yml` fresh. A server with an existing file keeps its values; set `async.async-entity-tracker.enabled`, `async.async-pathfinding.enabled` and `async.async-playerdata-save.enabled` to `true` there.
+> Defaults only apply when Leaf writes `config/leaf-global.yml` fresh. A server with an existing file keeps its values; set `async.async-entity-tracker.enabled`, `async.async-pathfinding.enabled`, `async.async-playerdata-save.enabled` and `performance.sleeping-block-entity` to `true` there.
+
+## Survival bases: sleeping block entities
+
+`performance.sleeping-block-entity` is Leaf's port of Lithium's sleeping block entities: a hopper, furnace, brewing stand, crafter or chest that cannot do anything stops ticking and is woken by exactly what lets it act again (an inventory change, an item or a minecart arriving, a redstone change). The mixed load above has hardly any block entities, so this was measured in the `kindling-bench` bases scenario: 8 players among 32 plots of hopper chains, furnace rows, redstone boards and a workshop of item sorters, minecarts, a composter, a double chest, brewing stands and a crafter ([how it works](../kindling-bench/README.md#the-bases-scenario)). Measured on 2026-10-27 on the same machine, Kindling 26.3-4 against this build, two runs each.
+
+| Variant | Tick time avg | p95 | p99 |
+| --- | ---: | ---: | ---: |
+| Kindling 26.3-4, option off | 9.3 | 12.2 | 13.9 |
+| option on | 8.0 | 10.9 | 12.4 |
+| **this build, on by default** | **8.2** | **11.8** | **14.7** |
+
+Tick times in milliseconds; for "off" only the undisturbed run of the two (the other ran at 11.1 ms while something else used the machine). An earlier version of the scenario without the workshop gave 8.5 → 7.2 ms. All 16 counters of the scenario (items carried, sorted, caught, smelted, brewed, crafted, composted, redstone pulses, piston moves) are identical in every run with and without the option: it changes how fast, not what happens.
+
+Mixed load (flight and mobs, Kindling 26.3-4, the option alone; not comparable with the table further up, which was measured on another day with other defaults):
+
+| Variant | Flight avg / p95 | Standing avg / p95 | Chunk lead avg | CPU |
+| --- | ---: | ---: | ---: | ---: |
+| option off | 29.1 / 46.8 | 31.7 / 41.4 | 6.4 | 1 108 s |
+| option on | 29.7 / 42.4 | **28.2 / 36.4** | 7.3 | 1 123 s |
+
+The flight does not get slower (the difference is within two runs of the same build); standing among 1 200 mobs gets 11 % faster.
+
+**Plugins.** Leaf's port wakes a hopper only when one of its inventories changes. A plugin that holds a transfer back, such as a claim plugin cancelling `InventoryMoveItemEvent` or a shop plugin hiding a chest through `HopperInventorySearchEvent` until its data has loaded, therefore left the hopper asleep until someone touched the chest, while Paper asks the plugin again on every attempt. Kindling's patch keeps such a hopper awake and asking, as on Paper, and honours Paper's `PrepareHopperTransferEvent`, which the port skipped. `hopper-guard-seconds=10` in the bench is a stand-in plugin that holds every hopper back for the first 10 seconds after the build and then lets everything through:
+
+| Variant (with the stand-in plugin) | Hopper chains, furnaces, minecarts, composter, double chest, crafter, brewing stands |
+| --- | --- |
+| option off | run normally |
+| Leaf's port | **0**: stuck for good after the plugin let go |
+| **Kindling** | identical to option off |
+
+Where dropped items pile up on hoppers while they are held back, the order they are picked up in afterwards is not fixed: two runs of this build differed by 10 of 12 140 sorter items and 1 of 30 266 caught items, and the second matched option off exactly.
+
+A plugin that starts redirecting a hopper while the hopper sleeps with nothing to do is asked once one of the hopper's inventories changes, not every tick.
 
 ## JVM and heap
 

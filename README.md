@@ -32,7 +32,7 @@ Vanilla behaviour, the full vanilla world, and every change measured.
 
 Kindling makes the parts that hurt on a cheap VPS cheaper: fast players outrunning world generation, pregeneration, loading chunks from disk, and memory.
 
-Every change had to win against a reproducible load test ([`kindling-bench`](kindling-bench/README.md): fake players flying, landing between mobs, idling). Changes that only win by altering gameplay (mob spawn throttling, distant entity tick skipping) are not defaults.
+Every change had to win against a reproducible load test ([`kindling-bench`](kindling-bench/README.md): fake players flying, landing between mobs, idling, standing in survival bases full of hoppers and redstone). Changes that only win by altering gameplay (mob spawn throttling, distant entity tick skipping) are not defaults.
 
 > [!WARNING]
 > Kindling is young and has one production user so far; every build is published as a pre-release. Take a backup of your worlds before switching, as with any server software.
@@ -47,6 +47,7 @@ Every change had to win against a reproducible load test ([`kindling-bench`](kin
 | 📦 **Chunk loading without DataFixerUpper** | Block and biome palettes of saved chunks are read straight from NBT instead of through Mojang's codec library | Same result (anything unusual still goes through the codec; check it with `-Dkindling.verifyPaletteDecoder=true`), a smaller share of the chunk workers' time ([details](docs/MEASUREMENTS.md#loading-chunks-from-disk)). |
 | ⏱️ **Cheaper lagging check** | The tick loop's lagging check computes only the 5-second TPS average it uses | Same value; on an idle server the TPS averaging fell from 13.6 % to 3.4 % of the main thread ([details](docs/MEASUREMENTS.md#the-lagging-check-of-the-tick-loop)). Also proposed to Leaf as [#970](https://github.com/Winds-Studio/Leaf/pull/970). |
 | 🧵 **Async defaults** | Leaf's async entity tracker, async pathfinding and async player data saving are on by default | −3 to −13 % tick time under load, same behaviour as vanilla ([details](docs/MEASUREMENTS.md#mixed-load)). |
+| 💤 **Sleeping block entities** | Leaf's sleeping block entities (from Lithium) are on by default: idle hoppers, furnaces, brewing stands, crafters and chests stop ticking until something can happen. Kindling keeps a hopper that a plugin holds back asking that plugin, as on Paper | −12 to −15 % tick time in survival bases with identical results (items, smelting, brewing, crafting, redstone), −11 % standing among mobs ([details](docs/MEASUREMENTS.md#survival-bases-sleeping-block-entities)). |
 | 🧠 **Measured JVM advice** | G1 + `-XX:+UseCompactObjectHeaders`, right-sized heap | −29 % resident memory at the same tick time ([details](docs/MEASUREMENTS.md#jvm-and-heap)). |
 | 🏷️ **Own `/version`** | Shows the Kindling build, commit and date, and checks Kindling's GitHub releases for a newer build | Tells at a glance whether the server is up to date, with a download link. |
 
@@ -71,6 +72,13 @@ Measured with `kindling-bench` against Leaf `4c3d5689` on Java 25, the elytra an
 | Kindling 26.3-1 (ring by ring) | 19 040 | 7.2 / 13.8 ms | 47 ms | 8.0 s |
 | Kindling since 26.3-2 (tiles, palette decoder) | **30 315** | **5.1 / 7.8 ms** | **28 ms** | **1.9 s** |
 
+**Survival bases, 8 players among 32 bases of hoppers, furnaces, redstone, sorters, minecarts and brewing stands** (against Kindling 26.3-4, 12 cores)
+
+| Variant | Tick time avg / p95 | Items moved, smelted, brewed, crafted |
+| --- | ---: | --- |
+| Kindling 26.3-4 | 9.3 / 12.2 ms | |
+| Kindling with sleeping block entities on by default | **8.2 / 11.8 ms** | identical |
+
 ## Getting started
 
 1. Download the newest `kindling-26.3-<build>.jar` from [Releases](https://github.com/jonax1337/KindlingMC/releases).
@@ -82,7 +90,7 @@ Measured with `kindling-bench` against Leaf `4c3d5689` on Java 25, the elytra an
 4. Pregenerate the area your players will use: `/pregen start world 5000`. Watch it with `/pregen status`.
 
 > [!TIP]
-> Kindling's defaults only apply when Leaf writes `config/leaf-global.yml` fresh. Coming from Leaf with an existing file, set `async.async-entity-tracker.enabled`, `async.async-pathfinding.enabled` and `async.async-playerdata-save.enabled` to `true` yourself.
+> Kindling's defaults only apply when Leaf writes `config/leaf-global.yml` fresh. Coming from Leaf with an existing file, set `async.async-entity-tracker.enabled`, `async.async-pathfinding.enabled`, `async.async-playerdata-save.enabled` and `performance.sleeping-block-entity` to `true` yourself.
 
 ## Configuration
 
