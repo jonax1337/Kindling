@@ -47,7 +47,8 @@ def problems_of(run: dict, golden: dict) -> list[str]:
     if run.get("settled") is not True:
         return ["built its bases before world generation settled, so its counters mean nothing"]
     if run.get("scenario") != golden["scenario"]:
-        return [f"ran another scenario than the golden file\n    golden: {golden['scenario']}\n    run:    {run.get('scenario')}"]
+        differences = counter_differences(golden["scenario"], run.get("scenario", {}))
+        return ["ran another scenario than the golden file"] + [f"  scenario {line}" for line in differences]
     return counter_differences(golden["counters"], run.get("counters", {}))
 
 
