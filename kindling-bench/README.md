@@ -73,7 +73,7 @@ bash kindling-bench/matrix.sh <server.jar> <prefix> [variant ...]   # all varian
 
 ## Variants
 
-`bash kindling-bench/options-matrix.sh <server.jar> <prefix>` runs `fork` and the `opt-*` variants in the mixed load, two runs each (about 85 minutes), and prints the `compare.py` table.
+`bash kindling-bench/options-matrix.sh <server.jar> <prefix>` runs `fork` and the `opt-*` variants in the mixed load, two runs each (8 variants x 2 runs x about 6 minutes, so about 100 minutes), and prints the `compare.py` table.
 
 `SCENARIO=type=bases bash kindling-bench/matrix.sh <server.jar> <prefix> fork sleeping-be` runs the variants in the bases scenario instead; `sleeping-be` switches on Leaf's sleeping block entities.
 
@@ -83,7 +83,7 @@ A variant is a name. Its JVM arguments come from the `jvm` table in `matrix.sh` 
 | --- | --- |
 | JVM only (`matrix.sh`) | `coh` (compact object headers), `g1-2g`, `elastic`, `g1-tight`, `zgc`, `zgc-free`, `shenandoah` |
 | One Leaf feature each | `only-tracker`, `only-pathfinding`, `only-cheap` (Leaf's synchronous optimisations), `only-dab`, `only-throttle` |
-| One synchronous Leaf option each (`options-matrix.sh`) | `opt-cache-biome`, `opt-mob-spawning`, `opt-mob-despawn`, `opt-entity-activation`, `opt-waypoint`, and `opt-all` (the five together) |
+| One synchronous Leaf option each (`options-matrix.sh`) | `opt-cache-biome`, `opt-mob-spawning`, `opt-mob-despawn`, `opt-entity-activation`, `opt-waypoint`, `opt-powered-rails`, and `opt-all` (the five without `opt-powered-rails`). Left out: `reuse-random-ticking-blockpos` (shares one mutable position across calls) and `faster-random-generator` (changes the random sequence, already measured slower) |
 | Candidate sets for Kindling's defaults | `cand-a`, `cand-b`, `cand-b-throttle`, `leaf-safe`, `leaf-aggressive` |
 | The Kindling jar without an overlay | `fork` |
 | Used by `elytra.sh` and `pregen.sh` | `workers-5`, `workers-7`, `vd-8` (view distance 8), `pregen-w5` (automatic pregeneration, 5 workers) |
