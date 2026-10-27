@@ -1,11 +1,17 @@
 <div align="center">
 
-# 🔥 Kindling
+<h1>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/branding/holzschnitt/banner-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/branding/holzschnitt/banner-light.svg">
+    <img alt="Kindling" src="docs/branding/holzschnitt/banner-light.svg" width="1280">
+  </picture>
+</h1>
 
 **A [Leaf](https://github.com/Winds-Studio/Leaf) fork for small and mid-sized survival servers on shared hardware.**<br>
 Vanilla behaviour, the full vanilla world, and every change measured.
 
-[![Release](https://img.shields.io/github/v/release/jonax1337/KindlingMC?include_prereleases&label=release&color=e8590c)](https://github.com/jonax1337/KindlingMC/releases)
+[![Release](https://img.shields.io/github/v/release/jonax1337/KindlingMC?include_prereleases&label=release&color=f56b27)](https://github.com/jonax1337/KindlingMC/releases)
 [![Build](https://img.shields.io/github/actions/workflow/status/jonax1337/KindlingMC/build.yml?branch=ver%2F26.3&label=build)](https://github.com/jonax1337/KindlingMC/actions/workflows/build.yml)
 ![Minecraft](https://img.shields.io/badge/Minecraft-26.3-62b47a)
 ![Java](https://img.shields.io/badge/Java-25-b07219)
@@ -121,6 +127,7 @@ Java 25 and Git are required (on Windows also `git config --global core.longpath
 | How Kindling follows Leaf | [docs/UPSTREAM.md](docs/UPSTREAM.md) |
 | How to contribute | [CONTRIBUTING.md](CONTRIBUTING.md) |
 | How to measure a change | [kindling-bench/README.md](kindling-bench/README.md) |
+| Logos, banners and brand assets | [Brand kit](docs/branding/README.md) |
 
 ## License and credits
 

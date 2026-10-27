@@ -1,0 +1,18 @@
+{
+  "light": {
+    "bg": "#FAF7EF",
+    "fg": "#19291F",
+    "ember": "#F56B27",
+    "leaf": "#4C7E35",
+    "muted": "#556457",
+    "line": "#DDDCCF"
+  },
+  "dark": {
+    "bg": "#101A14",
+    "fg": "#FAF7EF",
+    "ember": "#FF823F",
+    "leaf": "#82B65F",
+    "muted": "#ACB9AA",
+    "line": "#2C3E30"
+  }
+}
