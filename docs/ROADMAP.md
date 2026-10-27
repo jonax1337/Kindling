@@ -9,16 +9,20 @@ What Kindling works on next. Kindling has one maintainer, so an item stays on th
 3. **No new patch where a setting, a plugin or upstream does the job.** Every Kindling patch is rebased on every Leaf merge.
 4. **Bugs go upstream, features stay.** A fix for something that is broken in plain Leaf too goes to Leaf as a pull request (like Leaf#970). Kindling's own features stay in Kindling.
 
-## Items
+## Next
 
-| # | Item | Score | Content | Done when |
-| --- | --- | --- | --- | --- |
-| 1 | **Pregenerator resume fix** | 9.5 | `saveState()` writes `pregeneration.properties` in place and `parseLong`/`parseInt` (`Pregenerator.java:154/195`) have no fallback: a corrupt file crashes the server on every start. Write atomically (temp file + move), parse with a fallback that logs and starts the radius anew | unit test with a corrupt and a truncated file; the server starts |
-| 2 | **Test Leaf's synchronous options one by one** | 8.5 | Together they measured standing −5 % but flight +15 %, culprit unknown ([MEASUREMENTS](MEASUREMENTS.md)). Bench each option alone (`cache-biome`, `optimize-mob-spawning`, `optimize-entity-activation`, `optimize-mob-despawn`, …); every vanilla-identical winner becomes a Kindling default. Configuration only, no patch | each option measured alone, winners set as defaults |
-| 3 | **`/kindling doctor` and start-up check** | 8.0 | Pure `net.kindlingmc` code, no patch. Checks: cores and container limits, heap vs RAM, GC and `UseCompactObjectHeaders`, chunk worker count, glibc arenas (`MALLOC_ARENA_MAX`), `-XX:TrimNativeHeapInterval` (about −100 MB per JVM measured with a one-off trim), transparent huge pages, AOT cache, view distance vs cores, backend compression behind a proxy. Every finding comes with the concrete fix | findings tested on Linux and Windows; README links it |
-| 4 | **Parity CI** | 7.8 | The short, deterministic `bases` run on every Leaf merge (weekly workflow) and on every Kindling patch change; protects the sleeping block entity default and catches Leaf regressions. Optional: start the server once with a common plugin set | a deliberately broken counter fails the run |
+| Item | Content | Done when |
+| --- | --- | --- |
+| **Fast fliers on modest hardware** | On a 4-core, 8-thread machine (i7-7700) eight players flying outward spend 30–40 % of the time over chunks that have not reached them yet; on 12 threads it is 0 %. Find out what limits it there (CPU, worker scheduling, generation order) and fix it without changing world generation | under 5 % void on the 8-thread bench host, tick time not worse |
 
-Order: 1 → 4 → 2 → 3.
+## Done (2026-10-27)
+
+| Item | Score | Result |
+| --- | --- | --- |
+| Pregenerator resume fix | 9.5 | State written atomically and durably; a damaged file is kept as `.corrupt` and only the affected worlds start over |
+| Leaf's synchronous options one by one | 8.5 | Measured; none is both faster and the same behaviour, so no new default ([MEASUREMENTS](MEASUREMENTS.md#leafs-options-one-by-one)) |
+| `/kindling doctor` and start-up check | 8.0 | Command plus start-up warnings, setting `performance.doctor.startup-check` |
+| Parity CI | 7.8 | `parity.yml` and the weekly Leaf merge run the bases scenario and compare 15 counters with `kindling-bench/parity/bases-ci.json`; identical on Windows and Linux |
 
 ## Reviewed and dropped
 

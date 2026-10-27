@@ -39,9 +39,32 @@ Tick times in milliseconds. Raw data lands in `kindling-bench/runs/` after a run
 | Option | Why not |
 | --- | --- |
 | `performance.faster-random-generator` | **Slower** than vanilla's random in this test (flight +14 % tick time; the profile shows 18 % instead of 10 % of the main thread in the generator during natural spawning). |
-| Leaf's other synchronous optimisations together (`cache-biome`, `optimize-mob-spawning`, `optimize-entity-activation`, `optimize-mob-despawn`, …) | Standing −5 %, but flight +15 %. Which of them slows chunk generation is still open; `sleeping-block-entity` alone does not ([survival bases](#survival-bases-sleeping-block-entities)) and is a default now. |
+| `performance.optimize-entity-activation` | Standing −4.6 % ([one by one](#leafs-options-one-by-one)), but not the same behaviour: it activates entities within a circle of the activation range around each player, Paper within a square of bounding boxes. That is about 21 % less area; at the default monster range of 32 a zombie 30 blocks away on both axes stays inactive. Part of the gain is simply fewer active mobs. |
+| `performance.optimize-mob-despawn` | Standing −2 %, flight −4 %: barely above the gap between two runs. |
+| `performance.cache-biome` | Standing −2 % for 112 MB more memory. |
+| `performance.optimize-mob-spawning` | No effect; spawns use a different random sequence. |
+| `performance.optimize-waypoint` | Flight +3 %, garbage collection time +18 %. |
+| `performance.optimized-powered-rails` | No effect in a load without rails. |
+| `performance.reuse-random-ticking-blockpos` | Hands one shared, mutable position to every random tick, which plugins can keep and see change. |
 | `performance.dab` | No gain in this test, and it changes how distant mobs behave. |
 | `performance.throttle-mob-spawning` | The biggest single gain (flight −26 %, standing −5 %), but it skips 75 % of spawn attempts in chunks whose last 8 attempts failed. That changes spawn rates (mob farms with many failed attempts yield less), so it is a per-server decision, not a default. |
+
+### Leaf's options one by one
+
+The group above (standing −5 %, flight +15 % together) hid which option did what, so each one ran alone on top of the Kindling defaults. Measured on 2026-10-27 on the bench host, not the machine of the other tables: Linux (WSL 2) on an Intel i7-7700 (4 cores, 8 threads), 16 GB, Java 25.0.5, two runs each (± is half the gap between them).
+
+| Variant | Tick time flight | Tick time standing | Peak RSS | Time in the void |
+| --- | ---: | ---: | ---: | ---: |
+| Kindling defaults | 15.1 ±0.5 | 37.2 ±0.3 | 2 792 MB | 40 % |
+| `cache-biome` | 14.9 | 36.3 ±0.6 | 2 904 MB | 32 % |
+| `optimize-mob-spawning` | 15.1 | 36.9 | 2 842 MB | 31 % |
+| `optimize-mob-despawn` | 14.5 ±0.6 | 36.5 ±0.2 | 2 851 MB | 33 % |
+| `optimize-entity-activation` | 15.2 | **35.5 ±0.3** | 2 812 MB | 32 % |
+| `optimize-waypoint` | 15.6 ±0.4 | 36.7 | 2 848 MB | 29 % |
+| `optimized-powered-rails` | 15.2 | 37.4 | 2 812 MB | 34 % |
+| all six together | 16.1 | 35.5 | 2 833 MB | 29 % |
+
+No option is both faster and the same behaviour, so none became a default. Together they still cost the flight 6.6 %; the rest of the earlier +15 % is not explained by these six (that group also had `reuse-random-ticking-blockpos`, and it ran on the other machine). The time in the void varies a lot between runs (±5 points) and says more about this machine than about the options: see [the elytra test](#elytra-test-new-chunks-ahead-of-fast-players).
 
 > [!IMPORTANT]
 > Defaults only apply when Leaf writes `config/leaf-global.yml` fresh. A server with an existing file keeps its values; set `async.async-entity-tracker.enabled`, `async.async-pathfinding.enabled`, `async.async-playerdata-save.enabled` and `performance.sleeping-block-entity` to `true` there.
