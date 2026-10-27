@@ -1,0 +1,828 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Tue, 27 Oct 2026 23:00:04 +0100
+Subject: [PATCH] Kindling: Fix async pathfinding and tracker behaviour
+ differences
+
+
+diff --git a/net/minecraft/server/level/ServerEntity.java b/net/minecraft/server/level/ServerEntity.java
+index edad1bd673c5913e2339cfa830b6684e21b091e2..2f5b6d08d9e22d906837accbd8d35fcb6dd32ee7 100644
+--- a/net/minecraft/server/level/ServerEntity.java
++++ b/net/minecraft/server/level/ServerEntity.java
+@@ -522,7 +522,8 @@ public class ServerEntity {
+             this.tickCount = this.updateInterval.nextInterval(this.tickCount);
+             input.syncPosition = false;
+         }
+-        if (force || this.entity.needsSync || this.updateInterval.test(this.tickCount) || this.entity.getEntityData().isDirty()) { // Paper - fix desync when a player is added to the tracker
++        final boolean needsSync = net.kindlingmc.tracker.TrackerFlags.takeNeedsSync(this.entity); // Kindling - take the sync flags atomically, the main thread may set them meanwhile
++        if (force || needsSync || this.updateInterval.test(this.tickCount) || this.entity.getEntityData().isDirty()) { // Paper - fix desync when a player is added to the tracker // Kindling - take the sync flags atomically, the main thread may set them meanwhile
+             byte yRotn = Mth.packDegrees(this.entity.getYRot());
+             byte xRotn = Mth.packDegrees(this.entity.getXRot());
+             boolean shouldSendRotation = Math.abs(yRotn - this.lastSentYRot) >= 1 || Math.abs(xRotn - this.lastSentXRot) >= 1;
+@@ -560,7 +561,7 @@ public class ServerEntity {
+ 
+                 if (org.dreeam.leaf.config.modules.opt.ReduceUselessPackets.reduceUselessEntityMovePackets && isUselessMoveEntityPacket(packet, shouldSendRotation)) packet = null; // Leaf - Dont send useless entity packets
+ 
+-                if (this.entity.needsSync || this.trackDelta || this.entity instanceof LivingEntity && ((LivingEntity)this.entity).isFallFlying()) {
++                if (needsSync || this.trackDelta || this.entity instanceof LivingEntity && ((LivingEntity)this.entity).isFallFlying()) { // Kindling - take the sync flags atomically, the main thread may set them meanwhile
+                     Vec3 movement = this.entity.getDeltaMovement();
+                     if (movement != this.lastSentMovement) { // SparklyPaper start - skip distanceToSqr call in ServerEntity#sendChanges if the delta movement hasn't changed
+                         double diff = movement.distanceToSqr(this.lastSentMovement);
+@@ -608,13 +609,11 @@ public class ServerEntity {
+                 this.lastSentYHeadRot = yHeadRot;
+             }
+ 
+-            this.entity.needsSync = false;
+             //this.forceStateResync = false; // Paper - fix desync when a player is added to the tracker // move up
+         }
+ 
+         this.tickCount++;
+-        if (this.entity.syncVelocity && !(this.entity instanceof ServerPlayer)) {
+-            this.entity.syncVelocity = false;
++        if (!(this.entity instanceof ServerPlayer) && net.kindlingmc.tracker.TrackerFlags.takeSyncVelocity(this.entity)) { // Kindling - take the sync flags atomically, the main thread may set them meanwhile
+             ctx.sendToTrackingPlayersAndSelf(tracker, new ClientboundSetEntityMotionPacket(this.entity));
+         }
+     }
+diff --git a/net/minecraft/world/entity/ai/behavior/AcquirePoi.java b/net/minecraft/world/entity/ai/behavior/AcquirePoi.java
+index 19993d944b471dc1b23793ddc17cca11fa3a05e7..2e3a7e4e4d1b3b182b2a4db33dbf4821ccd5348c 100644
+--- a/net/minecraft/world/entity/ai/behavior/AcquirePoi.java
++++ b/net/minecraft/world/entity/ai/behavior/AcquirePoi.java
+@@ -86,26 +86,33 @@ public class AcquirePoi {
+ 
+                     @Override
+                     public boolean trigger(final ServerLevel level, final PathfinderMob body, final long timestamp) {
++                        // Kindling start - claim only a POI the villager really took, and only once its path is processed
+                         if (!body.getBrain().checkMemory(memoryToValidate, net.minecraft.world.entity.ai.memory.MemoryStatus.VALUE_ABSENT)) {
++                            this.forgetPendingPath();
+                             return false;
+                         }
+                         if (memoryToValidate != memoryToAcquire) {
+                             if (!body.getBrain().checkMemory(memoryToAcquire, net.minecraft.world.entity.ai.memory.MemoryStatus.VALUE_ABSENT)) {
++                                this.forgetPendingPath();
+                                 return false;
+                             }
+                         }
+-                        RandomSource random = level.getRandom();
+-                        if (pending != null && stateSet != null) {
+-                            pending.process();
+-                            processPath(poiType, onPoiAcquisitionEvent, batchCache, level, body, memoryToAcquire, timestamp, level.getPoiManager(), stateSet, pending, random);
+-                            pending = null;
+-                            stateSet = null;
+-                        }
+-
+                         if (onlyIfAdult && body.isBaby()) {
++                            this.forgetPendingPath();
+                             return false;
+                         }
+ 
++                        RandomSource random = level.getRandom();
++                        if (pending != null && stateSet != null) {
++                            if (!pending.isProcessed()) {
++                                return false;
++                            }
++                            processPath(poiType, onPoiAcquisitionEvent, batchCache, level, body, memoryToAcquire, timestamp, level.getPoiManager(), stateSet, pending, random, validPoi);
++                            this.forgetPendingPath();
++                            return true;
++                        }
++                        // Kindling end - claim only a POI the villager really took, and only once its path is processed
++
+                         if (nextScheduledStart == 0L) {
+                             nextScheduledStart = level.getGameTime() + random.nextInt(20);
+                             return false;
+@@ -148,11 +155,18 @@ public class AcquirePoi {
+                             this.pending = path1;
+                             this.stateSet = poiPositions;
+                         } else {
+-                            processPath(poiType, onPoiAcquisitionEvent, batchCache, level, body, memoryToAcquire, timestamp, poiManager, poiPositions, path, random);
++                            processPath(poiType, onPoiAcquisitionEvent, batchCache, level, body, memoryToAcquire, timestamp, poiManager, poiPositions, path, random, validPoi); // Kindling - claim only a POI the villager really took, and only once its path is processed
+                         }
+                         // Kaiiju end - petal - async path processing
+                         return true;
+                     }
++
++                    // Kindling start - claim only a POI the villager really took, and only once its path is processed
++                    private void forgetPendingPath() {
++                        this.pending = null;
++                        this.stateSet = null;
++                    }
++                    // Kindling end - claim only a POI the villager really took, and only once its path is processed
+                 }
+     // Kaiiju end - petal - async path processing
+ 
+@@ -168,22 +182,38 @@ public class AcquirePoi {
+                                     final PoiManager poiManager,
+                                     final Set<Pair<Holder<PoiType>, BlockPos>> poiPositions,
+                                     final @org.jspecify.annotations.Nullable Path path,
+-                                    final RandomSource random) {
+-        if (path != null && path.canReach()) {
++                                    final RandomSource random,
++                                    final BiPredicate<ServerLevel, BlockPos> validPoi) { // Kindling - claim only a POI the villager really took, and only once its path is processed
++        // Kindling start - claim only a POI the villager really took, and only once its path is processed
++        if (path != null && path.canReach() && takePoi(poiType, level, poiManager, path.getTarget(), validPoi)) {
+             BlockPos targetPos = path.getTarget();
+-            poiManager.getType(targetPos).ifPresent(type -> {
+-                poiManager.take(poiType, (t, poiPos) -> poiPos.equals(targetPos), targetPos, 1);
+-                walkTarget.getBrain().setMemory(memoryToAcquire, GlobalPos.of(level.dimension(), targetPos));
+-                onPoiAcquisitionEvent.ifPresent(event -> level.broadcastEntityEvent(walkTarget, event));
+-                batchCache.clear();
+-                level.debugSynchronizers().updatePoi(targetPos);
+-            });
++            walkTarget.getBrain().setMemory(memoryToAcquire, GlobalPos.of(level.dimension(), targetPos));
++            onPoiAcquisitionEvent.ifPresent(event -> level.broadcastEntityEvent(walkTarget, event));
++            batchCache.clear();
++            level.debugSynchronizers().updatePoi(targetPos);
+         } else {
++        // Kindling end - claim only a POI the villager really took, and only once its path is processed
+             for (Pair<Holder<PoiType>, BlockPos> p : poiPositions) {
+                 batchCache.computeIfAbsent(p.getSecond().asLong(), key -> new AcquirePoi.JitteredLinearRetry(random, timestamp));
+             }
+         }
+     }
++
++    // Kindling start - claim only a POI the villager really took, and only once its path is processed
++    /**
++     * Vanilla takes the POI in the tick its search found it free. An async path arrives later, when another villager
++     * may have taken the POI or it may have stopped being valid; then the search counts as failed.
++     */
++    private static boolean takePoi(final Predicate<Holder<PoiType>> poiType,
++                                   final ServerLevel level,
++                                   final PoiManager poiManager,
++                                   final BlockPos targetPos,
++                                   final BiPredicate<ServerLevel, BlockPos> validPoi) {
++        return poiManager.getType(targetPos).isPresent()
++            && validPoi.test(level, targetPos)
++            && poiManager.take(poiType, (t, poiPos) -> poiPos.equals(targetPos), targetPos, 1).isPresent();
++    }
++    // Kindling end - claim only a POI the villager really took, and only once its path is processed
+     // Kaiiju end - petal - async path processing
+ 
+     public static @Nullable Path findPathToPois(final Mob body, final Set<Pair<Holder<PoiType>, BlockPos>> pois) {
+diff --git a/net/minecraft/world/entity/ai/behavior/MoveToTargetSink.java b/net/minecraft/world/entity/ai/behavior/MoveToTargetSink.java
+index bf7dc0f29e452d878756a10d97475721fd6a5747..9586616cc17d7ece3a4c765d88b03514bbe3bb4c 100644
+--- a/net/minecraft/world/entity/ai/behavior/MoveToTargetSink.java
++++ b/net/minecraft/world/entity/ai/behavior/MoveToTargetSink.java
+@@ -21,6 +21,7 @@ public class MoveToTargetSink extends Behavior<Mob> {
+     private int remainingCooldown;
+     private @Nullable Path path;
+     private boolean finishedProcessing; // Kaiiju - petal - async path processing - track when path is processed
++    private boolean fallbackPath; // Kindling - keep partial paths and the brain's PATH in step with the navigation (Leaf PR 943)
+     private @Nullable BlockPos lastTargetPos;
+     private float speedModifier;
+ 
+@@ -69,7 +70,12 @@ public class MoveToTargetSink extends Behavior<Mob> {
+ 
+     @Override
+     protected boolean canStillUse(final ServerLevel level, final Mob body, final long timestamp) {
+-        if (org.dreeam.leaf.config.modules.async.AsyncPathfinding.enabled && !this.finishedProcessing) return true; // Kaiiju - petal - async path processing - wait for processing
++        // Kindling start - keep partial paths and the brain's PATH in step with the navigation (Leaf PR 943)
++        if (org.dreeam.leaf.config.modules.async.AsyncPathfinding.enabled && !this.finishedProcessing) {
++            Optional<WalkTarget> walkTarget = body.getBrain().getMemory(MemoryModuleType.WALK_TARGET);
++            return walkTarget.isPresent() && !this.reachedTarget(body, walkTarget.get()) && !isWalkTargetSpectator(walkTarget.get());
++        }
++        // Kindling end - keep partial paths and the brain's PATH in step with the navigation (Leaf PR 943)
+         if (this.path != null && this.lastTargetPos != null) {
+             Optional<WalkTarget> walkTarget = body.getBrain().getMemory(MemoryModuleType.WALK_TARGET);
+             boolean isSpectator = walkTarget.map(MoveToTargetSink::isWalkTargetSpectator).orElse(false);
+@@ -102,8 +108,10 @@ public class MoveToTargetSink extends Behavior<Mob> {
+             WalkTarget walkTarget = brain.getMemory(MemoryModuleType.WALK_TARGET).get();
+ 
+             this.finishedProcessing = false;
++            this.fallbackPath = false; // Kindling - keep partial paths and the brain's PATH in step with the navigation (Leaf PR 943)
+             this.lastTargetPos = walkTarget.getTarget().currentBlockPosition();
+             this.path = this.computePath(body, walkTarget);
++            this.syncNavigationPath(body); // Kindling - keep partial paths and the brain's PATH in step with the navigation (Leaf PR 943)
+             return;
+         }
+         // Kaiiju end - petal - async path processing
+@@ -115,42 +123,42 @@ public class MoveToTargetSink extends Behavior<Mob> {
+     protected void tick(final ServerLevel level, final Mob body, final long timestamp) {
+         // Kaiiju start - petal - async path processing
+         if (org.dreeam.leaf.config.modules.async.AsyncPathfinding.enabled) {
+-            if (this.path != null && !this.path.isProcessed()) return; // wait for processing
++            // Kindling start - keep partial paths and the brain's PATH in step with the navigation (Leaf PR 943)
++            Brain<?> brain = body.getBrain();
+ 
+             if (!this.finishedProcessing) {
+-                this.finishedProcessing = true;
+-
+-                Brain<?> brain = body.getBrain();
+-                boolean canReach = this.path != null && this.path.canReach();
+-                if (canReach) {
+-                    brain.eraseMemory(MemoryModuleType.CANT_REACH_WALK_TARGET_SINCE);
+-                } else if (!brain.hasMemoryValue(MemoryModuleType.CANT_REACH_WALK_TARGET_SINCE)) {
+-                    brain.setMemory(MemoryModuleType.CANT_REACH_WALK_TARGET_SINCE, timestamp);
++                if (this.path != null && !this.path.isProcessed()) {
++                    this.syncNavigationPath(body);
++                    return;
+                 }
+ 
+-                if (!canReach) {
+-                    Optional<WalkTarget> walkTarget = brain.getMemory(MemoryModuleType.WALK_TARGET);
+-
+-                    if (walkTarget.isEmpty()) return;
++                if (!this.fallbackPath) {
++                    boolean canReach = this.path != null && this.path.canReach();
++                    if (canReach) {
++                        brain.eraseMemory(MemoryModuleType.CANT_REACH_WALK_TARGET_SINCE);
++                    } else if (!brain.hasMemoryValue(MemoryModuleType.CANT_REACH_WALK_TARGET_SINCE)) {
++                        brain.setMemory(MemoryModuleType.CANT_REACH_WALK_TARGET_SINCE, timestamp);
++                    }
+ 
+-                    BlockPos blockPos = walkTarget.get().getTarget().currentBlockPosition();
+-                    Vec3 vec3 = DefaultRandomPos.getPosTowards((PathfinderMob) body, 10, 7, Vec3.atBottomCenterOf(blockPos), (float) Math.PI / 2F);
+-                    if (vec3 != null) {
+-                        // try recalculating the path using a random position
+-                        this.path = body.getNavigation().createPath(vec3.x, vec3.y, vec3.z, 0);
+-                        this.finishedProcessing = false;
+-                        return;
++                    if (this.path == null) {
++                        this.fallbackPath = true;
++                        BlockPos blockPos = brain.getMemory(MemoryModuleType.WALK_TARGET).get().getTarget().currentBlockPosition();
++                        Vec3 vec3 = DefaultRandomPos.getPosTowards((PathfinderMob) body, 10, 7, Vec3.atBottomCenterOf(blockPos), (float) Math.PI / 2F);
++                        if (vec3 != null) {
++                            this.path = body.getNavigation().createPath(vec3.x, vec3.y, vec3.z, 0);
++                            this.syncNavigationPath(body);
++                            return;
++                        }
+                     }
+                 }
+ 
+-                body.getBrain().setMemory(MemoryModuleType.PATH, this.path);
++                this.finishedProcessing = true;
+                 body.getNavigation().moveTo(this.path, this.speedModifier);
+             }
+ 
+-            Path path = body.getNavigation().getPath();
+-            Brain<?> brain = body.getBrain();
+-
+-            if (path != null && this.lastTargetPos != null && brain.hasMemoryValue(MemoryModuleType.WALK_TARGET)) {
++            this.path = this.syncNavigationPath(body);
++            if (this.path != null && this.lastTargetPos != null && brain.hasMemoryValue(MemoryModuleType.WALK_TARGET)) {
++                // Kindling end - keep partial paths and the brain's PATH in step with the navigation (Leaf PR 943)
+                 WalkTarget walkTarget = brain.getMemory(MemoryModuleType.WALK_TARGET).get(); // we know isPresent = true
+                 if (walkTarget.getTarget().currentBlockPosition().distSqr(this.lastTargetPos) > 4.0D) {
+                     this.start(level, body, timestamp);
+@@ -175,6 +183,21 @@ public class MoveToTargetSink extends Behavior<Mob> {
+         } // Kaiiju - petal - async path processing
+     }
+ 
++    // Kindling start - keep partial paths and the brain's PATH in step with the navigation (Leaf PR 943)
++    private @Nullable Path syncNavigationPath(final Mob body) {
++        PathNavigation navigation = body.getNavigation();
++        boolean pathReady = navigation.leaf$preparePath();
++        Path installedPath = navigation.getPath();
++        Brain<?> brain = body.getBrain();
++        if (!pathReady) {
++            brain.eraseMemory(MemoryModuleType.PATH);
++        } else if (brain.getMemory(MemoryModuleType.PATH).orElse(null) != installedPath) {
++            brain.setMemory(MemoryModuleType.PATH, installedPath);
++        }
++        return installedPath;
++    }
++    // Kindling end - keep partial paths and the brain's PATH in step with the navigation (Leaf PR 943)
++
+     // Kaiiju start - petal - async path processing
+     private @Nullable Path computePath(Mob body, WalkTarget walkTarget) {
+         BlockPos targetPos = walkTarget.getTarget().currentBlockPosition();
+diff --git a/net/minecraft/world/entity/ai/behavior/SetClosestHomeAsWalkTarget.java b/net/minecraft/world/entity/ai/behavior/SetClosestHomeAsWalkTarget.java
+index 4ba8f4502d258a72a2e6e2c62c31b59e5e8d4f49..536803a31d1cfd637e7d7040124b1db9824c68ea 100644
+--- a/net/minecraft/world/entity/ai/behavior/SetClosestHomeAsWalkTarget.java
++++ b/net/minecraft/world/entity/ai/behavior/SetClosestHomeAsWalkTarget.java
+@@ -49,18 +49,25 @@ public class SetClosestHomeAsWalkTarget {
+ 
+                     @Override
+                     public boolean trigger(final net.minecraft.server.level.ServerLevel level, final PathfinderMob body, final long gameTime) {
++                        // Kindling start - apply a POI path only once it is processed and still leads to a bed (Leaf PR 943)
+                         if (!body.getBrain().checkMemory(MemoryModuleType.WALK_TARGET, net.minecraft.world.entity.ai.memory.MemoryStatus.VALUE_ABSENT)) {
++                            pending = null;
+                             return false;
+                         }
+                         if (!body.getBrain().checkMemory(MemoryModuleType.HOME, net.minecraft.world.entity.ai.memory.MemoryStatus.VALUE_ABSENT)) {
++                            pending = null;
+                             return false;
+                         }
+ 
+                         if (pending != null) {
+-                            pending.process();
++                            if (!pending.isProcessed()) {
++                                return false;
++                            }
+                             processPath(speedModifier, batchCache, lastUpdate, body, level, level.getPoiManager(), stateInt, pending);
+                             pending = null;
++                            return true;
+                         }
++                        // Kindling end - apply a POI path only once it is processed and still leads to a bed (Leaf PR 943)
+ 
+                         if (level.getGameTime() - lastUpdate < RATE) {
+                             return false;
+@@ -120,7 +127,7 @@ public class SetClosestHomeAsWalkTarget {
+         if (path != null && path.canReach()) {
+             BlockPos targetPos = path.getTarget();
+             Optional<Holder<PoiType>> type = poiManager.getType(targetPos);
+-            if (type.isPresent()) {
++            if (type.isPresent() && type.get().is(PoiTypes.HOME)) { // Kindling - apply a POI path only once it is processed and still leads to a bed (Leaf PR 943)
+                 walkTarget.getBrain().setMemory(MemoryModuleType.WALK_TARGET, new WalkTarget(targetPos, speedModifier, 1));
+                 level.debugSynchronizers().updatePoi(targetPos);
+             }
+diff --git a/net/minecraft/world/entity/ai/navigation/FlyingPathNavigation.java b/net/minecraft/world/entity/ai/navigation/FlyingPathNavigation.java
+index 9a1d57b68c912b73ffa5f7d986ded6c9f9076680..e262bbfd151e75c7c60ba89bfb7b2345f37212be 100644
+--- a/net/minecraft/world/entity/ai/navigation/FlyingPathNavigation.java
++++ b/net/minecraft/world/entity/ai/navigation/FlyingPathNavigation.java
+@@ -63,7 +63,7 @@ public class FlyingPathNavigation extends PathNavigation {
+         if (this.hasDelayedRecomputation) {
+             this.recomputePath();
+         }
+-        if (this.path != null && !this.path.isProcessed()) return; // Kaiiju - petal - async path processing
++        if (!this.leaf$preparePath()) return; // Kindling - apply async paths when they are installed and processed (Leaf PR 943)
+ 
+         if (!this.isDone()) {
+             if (this.canUpdatePath()) {
+diff --git a/net/minecraft/world/entity/ai/navigation/PathNavigation.java b/net/minecraft/world/entity/ai/navigation/PathNavigation.java
+index c3897945c6282a69de6d55d8c9982558a7514701..6ab2139edc59ac1af2ac9b4bcc8124d99eada39b 100644
+--- a/net/minecraft/world/entity/ai/navigation/PathNavigation.java
++++ b/net/minecraft/world/entity/ai/navigation/PathNavigation.java
+@@ -37,6 +37,7 @@ public abstract class PathNavigation {
+     protected final Mob mob;
+     protected final Level level;
+     protected @Nullable Path path;
++    private @Nullable Path leaf$preparedPath; // Kindling - apply async paths when they are installed and processed (Leaf PR 943)
+     protected double speedModifier;
+     protected int tick;
+     protected int lastStuckCheck;
+@@ -102,8 +103,8 @@ public abstract class PathNavigation {
+         if (this.level.getGameTime() - this.timeLastRecompute <= 20L || !this.canUpdatePath()) {
+             this.hasDelayedRecomputation = true;
+         } else if (this.targetPos != null) {
+-            this.path = null;
+-            this.path = this.createPath(this.targetPos, this.reachRange);
++            this.leaf$setPath(null); // Kindling - apply async paths when they are installed and processed (Leaf PR 943)
++            this.leaf$setPath(this.createPath(this.targetPos, this.reachRange)); // Kindling - apply async paths when they are installed and processed (Leaf PR 943)
+             this.timeLastRecompute = this.level.getGameTime();
+             this.hasDelayedRecomputation = false;
+         }
+@@ -201,29 +202,18 @@ public abstract class PathNavigation {
+         PathNavigationRegion region = new PathNavigationRegion(this.level, fromPos.offset(-radius, -radius, -radius), fromPos.offset(radius, radius, radius));
+         Path path = this.pathFinder.findPath(region, this.mob, targets, maxPathLength, reachRange, this.maxVisitedNodesMultiplier);
+         profiler.pop();
+-        // Kaiiju start - petal - async path processing
+-        if (org.dreeam.leaf.config.modules.async.AsyncPathfinding.enabled) {
+-            // assign early a target position. most calls will only have 1 position
+-            if (!targets.isEmpty()) this.targetPos = targets.iterator().next();
+-
+-            org.dreeam.leaf.async.path.AsyncPathProcessor.awaitProcessing(path, processedPath -> {
+-                // check that processing didn't take so long that we calculated a new path
+-                if (processedPath != this.path) return;
+-
+-                if (processedPath != null && processedPath.getTarget() != null) {
+-                    this.targetPos = processedPath.getTarget();
+-                    this.reachRange = reachRange;
+-                    this.resetStuckTimeout();
+-                }
+-            });
+-        } else {
+-            // Kaiiju end - petal - async path processing
+-        if (path != null && path.getTarget() != null) {
+-            this.targetPos = path.getTarget();
+-            this.reachRange = reachRange;
+-            this.resetStuckTimeout();
++        // Kindling start - apply async paths when they are installed and processed (Leaf PR 943)
++        if (path != null) {
++            path.leaf$reachRange = reachRange;
++            if (path instanceof org.dreeam.leaf.async.path.AsyncPath) {
++                if (!path.isProcessed()) path.target = targets.iterator().next();
++            } else if (path.getTarget() != null) {
++                this.targetPos = path.getTarget();
++                this.reachRange = reachRange;
++                this.resetStuckTimeout();
++            }
+         }
+-        } // Kaiiju - petal - async path processing
++        // Kindling end - apply async paths when they are installed and processed (Leaf PR 943)
+ 
+         return path;
+     }
+@@ -267,22 +257,25 @@ public abstract class PathNavigation {
+ 
+     public boolean moveTo(final @Nullable Path newPath, final double speedModifier) {
+         if (newPath == null) {
+-            this.path = null;
++            this.leaf$setPath(null); // Kindling - apply async paths when they are installed and processed (Leaf PR 943)
+             return false;
+         }
+ 
+         if (!newPath.sameAs(this.path)) {
+-            this.path = newPath;
+-        }
+-
+-        if (this.isDone()) {
+-            return false;
++            this.leaf$setPath(newPath); // Kindling - apply async paths when they are installed and processed (Leaf PR 943)
+         }
+ 
+-        if (path.isProcessed()) this.trimPath(); // Kaiiju - petal - async path processing - only trim if processed
+-        if (path.isProcessed() && this.path.getNodeCount() <= 0) { // Kaiiju - petal - async path processing - only check node count if processed
+-            return false;
++        // Kindling start - apply async paths when they are installed and processed (Leaf PR 943)
++        final Path installedPath = this.path;
++        final boolean needsAsyncPreparation = installedPath instanceof org.dreeam.leaf.async.path.AsyncPath && this.leaf$preparedPath != installedPath;
++        if (installedPath.isProcessed()) {
++            if (!this.leaf$preparePath()) return false;
++            if (!needsAsyncPreparation) {
++                this.trimPath();
++                if (this.path != installedPath || installedPath.getNodeCount() <= 0) return false;
++            }
+         }
++        // Kindling end - apply async paths when they are installed and processed (Leaf PR 943)
+ 
+         this.speedModifier = speedModifier;
+         Vec3 mobPos = this.getTempMobPos();
+@@ -291,6 +284,36 @@ public abstract class PathNavigation {
+         return true;
+     }
+ 
++    // Kindling start - apply async paths when they are installed and processed (Leaf PR 943)
++    private void leaf$setPath(final @Nullable Path path) {
++        this.path = path;
++        this.leaf$preparedPath = null;
++        if (path instanceof org.dreeam.leaf.async.path.AsyncPath) {
++            this.targetPos = path.target;
++            this.reachRange = path.leaf$reachRange;
++        }
++    }
++
++    /**
++     * Applies the installed path once it is processed, as vanilla's {@code createPath} and {@code moveTo} do for a
++     * path computed on the spot. Returns whether a processed path is installed and not yet done.
++     */
++    public boolean leaf$preparePath() {
++        final Path installedPath = this.path;
++        if (installedPath == null || !installedPath.isProcessed()) return false;
++        if (this.leaf$preparedPath != installedPath) {
++            this.leaf$preparedPath = installedPath;
++            if (installedPath instanceof org.dreeam.leaf.async.path.AsyncPath) {
++                this.targetPos = installedPath.getTarget();
++                this.reachRange = installedPath.leaf$reachRange;
++                this.resetStuckTimeout();
++                if (!installedPath.isDone()) this.trimPath();
++            }
++        }
++        return this.path == installedPath && !installedPath.isDone();
++    }
++    // Kindling end - apply async paths when they are installed and processed (Leaf PR 943)
++
+     public @Nullable Path getPath() {
+         return this.path;
+     }
+@@ -300,7 +323,7 @@ public abstract class PathNavigation {
+         if (this.hasDelayedRecomputation) {
+             this.recomputePath();
+         }
+-        if (this.path != null && !this.path.isProcessed()) return; // Kaiiju - petal - async path processing - skip pathfinding if we're still processing
++        if (!this.leaf$preparePath()) return; // Kindling - apply async paths when they are installed and processed (Leaf PR 943)
+ 
+         if (!this.isDone()) {
+             if (this.canUpdatePath()) {
+@@ -430,7 +453,7 @@ public abstract class PathNavigation {
+     }
+ 
+     public void stop() {
+-        this.path = null;
++        this.leaf$setPath(null); // Kindling - apply async paths when they are installed and processed (Leaf PR 943)
+     }
+ 
+     protected abstract Vec3 getTempMobPos();
+diff --git a/net/minecraft/world/entity/ai/navigation/WallClimberNavigation.java b/net/minecraft/world/entity/ai/navigation/WallClimberNavigation.java
+index 2b5ba8f01b57b5e54bba4a8624f17e1b550d818e..62b0b75972272b8089d0457296b1ded9d20f8f56 100644
+--- a/net/minecraft/world/entity/ai/navigation/WallClimberNavigation.java
++++ b/net/minecraft/world/entity/ai/navigation/WallClimberNavigation.java
+@@ -40,6 +40,7 @@ public class WallClimberNavigation extends GroundPathNavigation {
+ 
+     @Override
+     public void tick() {
++        this.leaf$preparePath(); // Kindling - apply async paths when they are installed and processed (Leaf PR 943)
+         if (!this.isDone()) {
+             super.tick();
+         } else {
+diff --git a/net/minecraft/world/entity/ai/sensing/NearestBedSensor.java b/net/minecraft/world/entity/ai/sensing/NearestBedSensor.java
+index fca5965145d434c336990ce1ecbc54f6df740ee8..7f40e18abd7091ca969eeac9c74d3cb2c1559492 100644
+--- a/net/minecraft/world/entity/ai/sensing/NearestBedSensor.java
++++ b/net/minecraft/world/entity/ai/sensing/NearestBedSensor.java
+@@ -43,15 +43,23 @@ public class NearestBedSensor extends Sensor<Mob> {
+     @Override
+     protected void doTick(final ServerLevel level, final Mob body) {
+         // Kaiiju start - petal - async path processing
++        // Kindling start - apply a POI path only once it is processed and still leads to a bed (Leaf PR 943)
++        if (org.dreeam.leaf.config.modules.async.AsyncPathfinding.enabled && scanTimer > 0) {
++            --scanTimer;
++        }
++        if (pending != null && !body.isBaby()) {
++            pending = null;
++        }
+         if (pending != null) {
+-            pending.process();
++            if (!pending.isProcessed()) return;
+             processPath(body, level.getPoiManager(), pending);
+             pending = null;
+         }
+         if (org.dreeam.leaf.config.modules.async.AsyncPathfinding.enabled) {
+-            if (--scanTimer > 0) {
++            if (scanTimer > 0) {
+                 return;
+             }
++            // Kindling end - apply a POI path only once it is processed and still leads to a bed (Leaf PR 943)
+             if (rateCache == Integer.MIN_VALUE) {
+                 rateCache = getScanRate(level, body);
+             }
+@@ -96,7 +104,7 @@ public class NearestBedSensor extends Sensor<Mob> {
+         if (path != null && path.canReach()) {
+             BlockPos targetPos = path.getTarget();
+             Optional<Holder<PoiType>> type = poiManager.getType(targetPos);
+-            if (type.isPresent()) {
++            if (type.isPresent() && type.get().is(PoiTypes.HOME)) { // Kindling - apply a POI path only once it is processed and still leads to a bed (Leaf PR 943)
+                 body.getBrain().setMemory(MemoryModuleType.NEAREST_BED, targetPos);
+             }
+         } else if (this.triedCount < 5) {
+diff --git a/net/minecraft/world/level/pathfinder/AmphibiousNodeEvaluator.java b/net/minecraft/world/level/pathfinder/AmphibiousNodeEvaluator.java
+index 745cc35d9591003908a0c571ffecbe2506adbd82..e7e3c94a0a787d25fbc1ac03486272086632543d 100644
+--- a/net/minecraft/world/level/pathfinder/AmphibiousNodeEvaluator.java
++++ b/net/minecraft/world/level/pathfinder/AmphibiousNodeEvaluator.java
+@@ -27,10 +27,10 @@ public class AmphibiousNodeEvaluator extends WalkNodeEvaluator {
+     }
+ 
+     @Override
+-    public void done() {
++    protected void releaseMob() { // Kindling - restore the mob's costs on the main thread, right after they were captured
+         this.mob.setPathfindingMalus(PathType.WALKABLE, this.oldWalkableCost);
+         this.mob.setPathfindingMalus(PathType.WATER_BORDER, this.oldWaterBorderCost);
+-        super.done();
++        super.releaseMob(); // Kindling - restore the mob's costs on the main thread, right after they were captured
+     }
+ 
+     @Override
+@@ -55,8 +55,8 @@ public class AmphibiousNodeEvaluator extends WalkNodeEvaluator {
+         PathType blockPathTypeAbove = this.getCachedPathType(pos.x, pos.y + 1, pos.z);
+         PathType blockPathTypeCurrent = this.getCachedPathType(pos.x, pos.y, pos.z);
+         int jumpSize;
+-        if (this.mob.getPathfindingMalus(blockPathTypeAbove) >= 0.0F && blockPathTypeCurrent != PathType.STICKY_HONEY) {
+-            jumpSize = Mth.floor(Math.max(1.0F, this.mob.maxUpStep()));
++        if (this.getPathfindingMalus(this.mob, blockPathTypeAbove) >= 0.0F && blockPathTypeCurrent != PathType.STICKY_HONEY) { // Kindling - read the mob's path costs on the main thread
++            jumpSize = Mth.floor(Math.max(1.0F, this.maxUpStep)); // Kindling - snapshot on main thread
+         } else {
+             jumpSize = 0;
+         }
+diff --git a/net/minecraft/world/level/pathfinder/FlyNodeEvaluator.java b/net/minecraft/world/level/pathfinder/FlyNodeEvaluator.java
+index 95985269148e290fed45dd55f5472db9ca8a000b..a43022cc5b4b2db52c64c6764eeb48928caf6189 100644
+--- a/net/minecraft/world/level/pathfinder/FlyNodeEvaluator.java
++++ b/net/minecraft/world/level/pathfinder/FlyNodeEvaluator.java
+@@ -25,9 +25,16 @@ public class FlyNodeEvaluator extends WalkNodeEvaluator {
+         entity.onPathfindingStart();
+     }
+ 
++    // Kindling start - run the mob's end-of-search hook on the main thread
+     @Override
+-    public void done() {
++    protected void releaseMob() {
+         this.mob.onPathfindingDone();
++        super.releaseMob();
++    }
++    // Kindling end - run the mob's end-of-search hook on the main thread
++
++    @Override
++    public void done() {
+         this.pathTypeByPosCache.clear();
+         super.done();
+     }
+@@ -64,7 +71,7 @@ public class FlyNodeEvaluator extends WalkNodeEvaluator {
+     @Override
+     protected boolean canStartAt(final BlockPos pos) {
+         PathType blockPathType = this.getCachedPathType(pos.getX(), pos.getY(), pos.getZ());
+-        return this.mob.getPathfindingMalus(blockPathType) >= 0.0F;
++        return this.getPathfindingMalus(this.mob, blockPathType) >= 0.0F; // Kindling - read the mob's path costs on the main thread
+     }
+ 
+     @Override
+@@ -267,7 +274,7 @@ public class FlyNodeEvaluator extends WalkNodeEvaluator {
+     protected @Nullable Node findAcceptedNode(final int x, final int y, final int z) {
+         Node best = null;
+         PathType pathType = this.getCachedPathType(x, y, z);
+-        float pathCost = this.mob.getPathfindingMalus(pathType);
++        float pathCost = this.getPathfindingMalus(this.mob, pathType); // Kindling - read the mob's path costs on the main thread
+         if (pathCost >= 0.0F) {
+             best = this.getNode(x, y, z);
+             best.type = pathType;
+diff --git a/net/minecraft/world/level/pathfinder/NodeEvaluator.java b/net/minecraft/world/level/pathfinder/NodeEvaluator.java
+index 12db6ea0d9ac6fbf764ad7bf3120d7c35c4b3a86..a499f6776d5dbe4e260bf738859bcfd7bff57cae 100644
+--- a/net/minecraft/world/level/pathfinder/NodeEvaluator.java
++++ b/net/minecraft/world/level/pathfinder/NodeEvaluator.java
+@@ -22,6 +22,7 @@ public abstract class NodeEvaluator {
+     protected boolean canOpenDoors;
+     protected boolean canFloat;
+     protected boolean canWalkOverFences;
++    private final net.kindlingmc.path.CapturedPathCosts capturedCosts = new net.kindlingmc.path.CapturedPathCosts(); // Kindling - read the mob's path costs on the main thread
+ 
+     public void prepare(final PathNavigationRegion level, final Mob entity) {
+         this.currentContext = new PathfindingContext(level, entity);
+@@ -35,8 +36,30 @@ public abstract class NodeEvaluator {
+     public void done() {
+         this.currentContext = null;
+         this.mob = null;
++        this.capturedCosts.release(); // Kindling - read the mob's path costs on the main thread
+     }
+ 
++    // Kindling start - read the mob's path costs on the main thread
++    /**
++     * Called on the main thread once the start node is known. Afterwards the search reads only captured costs and
++     * runs no mob hooks, so it may continue on a pathfinding thread.
++     */
++    public void captureMobState() {
++        this.capturedCosts.capture(this.mob);
++        this.releaseMob();
++    }
++
++    /**
++     * Undoes what {@link #prepare} changed on the mob and runs its end-of-search hook, as vanilla's {@link #done} does.
++     */
++    protected void releaseMob() {
++    }
++
++    protected final float getPathfindingMalus(final Mob mob, final PathType pathType) {
++        return this.capturedCosts.malus(mob, pathType);
++    }
++    // Kindling end - read the mob's path costs on the main thread
++
+     // Kaiiju start - petal - async path processing
+     public void invalidateCache() {
+         if (this.currentContext != null) {
+diff --git a/net/minecraft/world/level/pathfinder/Path.java b/net/minecraft/world/level/pathfinder/Path.java
+index 12ef3bd830a538eb054663eb5d03f6db27b9a220..b74249e3872d271e04c98a3426fdf85884489daa 100644
+--- a/net/minecraft/world/level/pathfinder/Path.java
++++ b/net/minecraft/world/level/pathfinder/Path.java
+@@ -15,7 +15,7 @@ import org.jspecify.annotations.Nullable;
+ public class Path { // Kaiiju - petal - async path processing - public -> public-f
+     public static final StreamCodec<ByteBuf, Path> DEBUG_STREAM_CODEC = StreamCodec.composite(
+         ByteBufCodecs.BOOL,
+-        p -> p.reached,
++        Path::canReach, // Kindling - process async paths before sending them to debug clients (Leaf PR 943)
+         ByteBufCodecs.INT,
+         p -> p.nextNodeIndex,
+         BlockPos.STREAM_CODEC,
+@@ -43,6 +43,7 @@ public class Path { // Kaiiju - petal - async path processing - public -> public
+     public BlockPos target; // Kaiiju - petal - async path processing - public -> public-f
+     private final float distToTarget;
+     private final boolean reached;
++    public int leaf$reachRange; // Kindling - apply async paths when they are installed and processed (Leaf PR 943)
+ 
+     public Path(final List<Node> nodes, final BlockPos target, final boolean reached) {
+         this.nodes = nodes;
+@@ -182,6 +183,7 @@ public class Path { // Kaiiju - petal - async path processing - public -> public
+         Path result = new Path(this.nodes, this.target, reached); // Leaf - Async pathfinding - copy the resolved reachability
+         result.debugData = this.debugData;
+         result.nextNodeIndex = this.nextNodeIndex;
++        result.leaf$reachRange = this.leaf$reachRange; // Kindling - apply async paths when they are installed and processed (Leaf PR 943)
+         return result;
+     }
+ 
+diff --git a/net/minecraft/world/level/pathfinder/PathFinder.java b/net/minecraft/world/level/pathfinder/PathFinder.java
+index edaca7b3bddc94c3ca1ffdcdd1c0eb9405d573d9..583f81806ee17a3426792ce728914ca05fc03712 100644
+--- a/net/minecraft/world/level/pathfinder/PathFinder.java
++++ b/net/minecraft/world/level/pathfinder/PathFinder.java
+@@ -70,6 +70,7 @@ public class PathFinder {
+             // Kaiiju end - petal - async path processing
+             return null;
+         }
++        nodeEvaluator.captureMobState(); // Kindling - read the mob's path costs and run its hooks on the main thread
+ 
+         // Paper start - Perf: remove streams and optimize collection
+         List<Map.Entry<Target, BlockPos>> tos = Lists.newArrayList();
+diff --git a/net/minecraft/world/level/pathfinder/SwimNodeEvaluator.java b/net/minecraft/world/level/pathfinder/SwimNodeEvaluator.java
+index a4fa389670f3f4ac6df5d2d95aa148843fb7630d..4435110b71a2a2775d9f6c002b04204ceee4b89f 100644
+--- a/net/minecraft/world/level/pathfinder/SwimNodeEvaluator.java
++++ b/net/minecraft/world/level/pathfinder/SwimNodeEvaluator.java
+@@ -86,7 +86,7 @@ public class SwimNodeEvaluator extends NodeEvaluator {
+         Node best = null;
+         PathType pathType = this.getCachedBlockType(x, y, z);
+         if (this.allowBreaching && pathType == PathType.BREACH || pathType == PathType.WATER) {
+-            float pathCost = this.mob.getPathfindingMalus(pathType);
++            float pathCost = this.getPathfindingMalus(this.mob, pathType); // Kindling - read the mob's path costs on the main thread
+             if (pathCost >= 0.0F) {
+                 best = this.getNode(x, y, z);
+                 best.type = pathType;
+diff --git a/net/minecraft/world/level/pathfinder/WalkNodeEvaluator.java b/net/minecraft/world/level/pathfinder/WalkNodeEvaluator.java
+index aeaf9188a521eb33b180ea7871265e37b79ce55d..6da65fe16fffec27bdf22069b37d86dde2fecbf9 100644
+--- a/net/minecraft/world/level/pathfinder/WalkNodeEvaluator.java
++++ b/net/minecraft/world/level/pathfinder/WalkNodeEvaluator.java
+@@ -34,17 +34,26 @@ public class WalkNodeEvaluator extends NodeEvaluator {
+     private final Object2BooleanMap<AABB> collisionCache = new Object2BooleanOpenHashMap<>();
+     private final Node[] reusableNeighbors = new Node[Direction.Plane.HORIZONTAL.length()];
+     private int maxFallDistance; // Kaiiju - petal - async path processing - snapshot on main thread
++    protected float maxUpStep; // Kindling - snapshot on main thread
+ 
+     @Override
+     public void prepare(final PathNavigationRegion level, final Mob entity) {
+         super.prepare(level, entity);
+         entity.onPathfindingStart();
+         this.maxFallDistance = entity.getMaxFallDistance(); // Kaiiju - petal - async path processing - snapshot on main thread
++        this.maxUpStep = entity.maxUpStep(); // Kindling - snapshot on main thread
+     }
+ 
++    // Kindling start - run the mob's end-of-search hook on the main thread
+     @Override
+-    public void done() {
++    protected void releaseMob() {
+         this.mob.onPathfindingDone();
++        super.releaseMob();
++    }
++    // Kindling end - run the mob's end-of-search hook on the main thread
++
++    @Override
++    public void done() {
+         this.pathTypesByPosCacheByMob.clear();
+         this.collisionCache.clear();
+         super.done();
+@@ -101,13 +110,13 @@ public class WalkNodeEvaluator extends NodeEvaluator {
+     protected Node getStartNode(final BlockPos pos) {
+         Node node = this.getNode(pos);
+         node.type = this.getCachedPathType(node.x, node.y, node.z);
+-        node.costMalus = this.mob.getPathfindingMalus(node.type);
++        node.costMalus = this.getPathfindingMalus(this.mob, node.type); // Kindling - read the mob's path costs on the main thread
+         return node;
+     }
+ 
+     protected boolean canStartAt(final BlockPos pos) {
+         PathType blockPathType = this.getCachedPathType(pos.getX(), pos.getY(), pos.getZ());
+-        return blockPathType != PathType.OPEN && this.mob.getPathfindingMalus(blockPathType) >= 0.0F;
++        return blockPathType != PathType.OPEN && this.getPathfindingMalus(this.mob, blockPathType) >= 0.0F; // Kindling - read the mob's path costs on the main thread
+     }
+ 
+     @Override
+@@ -121,8 +130,8 @@ public class WalkNodeEvaluator extends NodeEvaluator {
+         int jumpSize = 0;
+         PathType blockPathTypeAbove = this.getCachedPathType(pos.x, pos.y + 1, pos.z);
+         PathType blockPathTypeCurrent = this.getCachedPathType(pos.x, pos.y, pos.z);
+-        if (this.mob.getPathfindingMalus(blockPathTypeAbove) >= 0.0F && blockPathTypeCurrent != PathType.STICKY_HONEY) {
+-            jumpSize = Mth.floor(Math.max(1.0F, this.mob.maxUpStep()));
++        if (this.getPathfindingMalus(this.mob, blockPathTypeAbove) >= 0.0F && blockPathTypeCurrent != PathType.STICKY_HONEY) { // Kindling - read the mob's path costs on the main thread
++            jumpSize = Mth.floor(Math.max(1.0F, this.maxUpStep)); // Kindling - snapshot on main thread
+         }
+ 
+         double posHeight = this.getFloorLevel(new BlockPos(pos.x, pos.y, pos.z));
+@@ -239,7 +248,7 @@ public class WalkNodeEvaluator extends NodeEvaluator {
+         }
+ 
+         PathType pathType = this.getCachedPathType(x, y, z);
+-        float pathCost = this.mob.getPathfindingMalus(pathType);
++        float pathCost = this.getPathfindingMalus(this.mob, pathType); // Kindling - read the mob's path costs on the main thread
+         if (pathCost >= 0.0F) {
+             best = this.getNodeAndUpdateCostToMax(x, y, z, pathType, pathCost);
+         }
+@@ -271,7 +280,7 @@ public class WalkNodeEvaluator extends NodeEvaluator {
+     }
+ 
+     private double getMobJumpHeight() {
+-        return Math.max(1.125, this.mob.maxUpStep());
++        return Math.max(1.125, this.maxUpStep); // Kindling - snapshot on main thread
+     }
+ 
+     private Node getNodeAndUpdateCostToMax(final int x, final int y, final int z, final PathType pathType, final float cost) {
+@@ -342,7 +351,7 @@ public class WalkNodeEvaluator extends NodeEvaluator {
+                 return best;
+             }
+ 
+-            best = this.getNodeAndUpdateCostToMax(x, y, z, pathTypeLocal, this.mob.getPathfindingMalus(pathTypeLocal));
++            best = this.getNodeAndUpdateCostToMax(x, y, z, pathTypeLocal, this.getPathfindingMalus(this.mob, pathTypeLocal)); // Kindling - read the mob's path costs on the main thread
+             y--;
+         }
+ 
+@@ -356,7 +365,7 @@ public class WalkNodeEvaluator extends NodeEvaluator {
+             }
+ 
+             PathType pathType = this.getCachedPathType(x, currentY, z);
+-            float pathCost = this.mob.getPathfindingMalus(pathType);
++            float pathCost = this.getPathfindingMalus(this.mob, pathType); // Kindling - read the mob's path costs on the main thread
+             if (pathType != PathType.OPEN) {
+                 if (pathCost >= 0.0F) {
+                     return this.getNodeAndUpdateCostToMax(x, currentY, z, pathType, pathCost);
+@@ -393,10 +402,10 @@ public class WalkNodeEvaluator extends NodeEvaluator {
+         }
+ 
+         PathType highestMalusPathTypeWithinBB = PathType.BLOCKED;
+-        float highestMalusWithinBB = mob.getPathfindingMalus(highestMalusPathTypeWithinBB);
++        float highestMalusWithinBB = this.getPathfindingMalus(mob, highestMalusPathTypeWithinBB); // Kindling - read the mob's path costs on the main thread
+ 
+         for (PathType pathType : blockTypes) {
+-            float malusForPathType = mob.getPathfindingMalus(pathType);
++            float malusForPathType = this.getPathfindingMalus(mob, pathType); // Kindling - read the mob's path costs on the main thread
+             if (malusForPathType < 0.0F) {
+                 return pathType;
+             }
+@@ -410,8 +419,8 @@ public class WalkNodeEvaluator extends NodeEvaluator {
+         PathType currentNodePathType = this.getPathType(context, x, y, z);
+         boolean isLargeMob = this.entityWidth > 1;
+         if (isLargeMob) {
+-            boolean isCurrentNodeCheaper = mob.getPathfindingMalus(currentNodePathType) < highestMalusWithinBB;
+-            boolean capMalusDueToCheapNode = isCurrentNodeCheaper && mob.getPathfindingMalus(PathType.BIG_MOBS_CLOSE_TO_DANGER) < highestMalusWithinBB;
++            boolean isCurrentNodeCheaper = this.getPathfindingMalus(mob, currentNodePathType) < highestMalusWithinBB; // Kindling - read the mob's path costs on the main thread
++            boolean capMalusDueToCheapNode = isCurrentNodeCheaper && this.getPathfindingMalus(mob, PathType.BIG_MOBS_CLOSE_TO_DANGER) < highestMalusWithinBB; // Kindling - read the mob's path costs on the main thread
+             return capMalusDueToCheapNode ? PathType.BIG_MOBS_CLOSE_TO_DANGER : highestMalusPathTypeWithinBB;
+         } else {
+             return currentNodePathType == PathType.OPEN && highestMalusPathTypeWithinBB != PathType.OPEN && highestMalusWithinBB == 0.0F

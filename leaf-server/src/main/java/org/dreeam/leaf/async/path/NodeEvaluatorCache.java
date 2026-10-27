@@ -1,7 +1,7 @@
 package org.dreeam.leaf.async.path;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
-import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.Reference2ObjectOpenHashMap; // Kindling - one pool per generator (Leaf PR 943)
 import net.minecraft.world.level.pathfinder.BinaryHeap;
 import net.minecraft.world.level.pathfinder.Node;
 import net.minecraft.world.level.pathfinder.NodeEvaluator;
@@ -11,8 +11,8 @@ import java.util.ArrayDeque;
 
 public final class NodeEvaluatorCache {
 
-    private static final Int2ObjectOpenHashMap<ArrayDeque<NodeEvaluator>> NODE_EVALUATORS = new Int2ObjectOpenHashMap<>();
-    private static final Object2ObjectOpenHashMap<NodeEvaluator, NodeEvaluatorGenerator> NODE_EVALUATOR_TO_GENERATOR = new Object2ObjectOpenHashMap<>();
+    private static final Reference2ObjectOpenHashMap<NodeEvaluatorGenerator, Int2ObjectOpenHashMap<ArrayDeque<NodeEvaluator>>> NODE_EVALUATORS = new Reference2ObjectOpenHashMap<>(); // Kindling - one pool per generator (Leaf PR 943)
+    private static final Reference2ObjectOpenHashMap<NodeEvaluator, ArrayDeque<NodeEvaluator>> NODE_EVALUATOR_TO_POOL = new Reference2ObjectOpenHashMap<>(); // Kindling - one pool per generator (Leaf PR 943)
 
     public static final ThreadLocal<BinaryHeap> HEAP_LOCAL = ThreadLocal.withInitial(BinaryHeap::new);
     public static final ThreadLocal<Node[]> NEIGHBORS_LOCAL = ThreadLocal.withInitial(() -> new Node[32]);
@@ -22,26 +22,26 @@ public final class NodeEvaluatorCache {
 
     public static synchronized NodeEvaluator takeNodeEvaluator(NodeEvaluatorGenerator generator, NodeEvaluator localNodeEvaluator) {
         final int nodeEvaluatorFeatures = NodeEvaluatorFeatures.fromNodeEvaluator(localNodeEvaluator);
-        NodeEvaluator nodeEvaluator = NODE_EVALUATORS.computeIfAbsent(nodeEvaluatorFeatures, key -> new ArrayDeque<>()).poll();
+        final ArrayDeque<NodeEvaluator> pool = NODE_EVALUATORS.computeIfAbsent(generator, key -> new Int2ObjectOpenHashMap<>()).computeIfAbsent(nodeEvaluatorFeatures, key -> new ArrayDeque<>()); // Kindling - one pool per generator (Leaf PR 943)
+        NodeEvaluator nodeEvaluator = pool.poll(); // Kindling - one pool per generator (Leaf PR 943)
 
         if (nodeEvaluator == null) {
             nodeEvaluator = generator.generate(NodeEvaluatorFeatures.unpack(nodeEvaluatorFeatures));
         }
 
-        NODE_EVALUATOR_TO_GENERATOR.put(nodeEvaluator, generator);
+        NODE_EVALUATOR_TO_POOL.put(nodeEvaluator, pool); // Kindling - one pool per generator (Leaf PR 943)
 
         return nodeEvaluator;
     }
 
     public static synchronized void returnNodeEvaluator(final NodeEvaluator nodeEvaluator) {
-        final NodeEvaluatorGenerator generator = NODE_EVALUATOR_TO_GENERATOR.remove(nodeEvaluator);
-        Validate.notNull(generator, "NodeEvaluator already returned");
+        final ArrayDeque<NodeEvaluator> pool = NODE_EVALUATOR_TO_POOL.remove(nodeEvaluator); // Kindling - one pool per generator (Leaf PR 943)
+        Validate.notNull(pool, "NodeEvaluator already returned"); // Kindling - one pool per generator (Leaf PR 943)
 
-        final int feature = NodeEvaluatorFeatures.fromNodeEvaluator(nodeEvaluator);
-        NODE_EVALUATORS.computeIfAbsent(feature, key -> new ArrayDeque<>()).offer(nodeEvaluator);
+        pool.offer(nodeEvaluator); // Kindling - one pool per generator (Leaf PR 943)
     }
 
     public static synchronized void removeNodeEvaluator(final NodeEvaluator nodeEvaluator) {
-        NODE_EVALUATOR_TO_GENERATOR.remove(nodeEvaluator);
+        NODE_EVALUATOR_TO_POOL.remove(nodeEvaluator); // Kindling - one pool per generator (Leaf PR 943)
     }
 }
