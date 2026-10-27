@@ -1,0 +1,172 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Tue, 27 Oct 2026 23:37:09 +0100
+Subject: [PATCH] Kindling: Port Lithium redstone, sensor and chunk tick
+ optimisations
+
+
+diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
+index 7c73f5373d741c5703fff7f5e6eb66d6916b6d8f..8897523741d69c03dc13c304e4300deb5f729418 100644
+--- a/net/minecraft/server/level/ServerLevel.java
++++ b/net/minecraft/server/level/ServerLevel.java
+@@ -1336,6 +1336,11 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
+     public void tickPrecipitation(final BlockPos pos) {
+         BlockPos topPos = this.getHeightmapPos(Heightmap.Types.MOTION_BLOCKING, pos);
+         BlockPos belowPos = topPos.below();
++        // Kindling start - Lithium - without rain only water can change here, so look no further
++        if (!this.isRaining() && !net.kindlingmc.world.FreezableWater.isFreezableWater(this.getBlockState(belowPos))) {
++            return;
++        }
++        // Kindling end - Lithium - without rain only water can change here, so look no further
+         Biome biome = this.getBiome(topPos).value();
+         if (biome.shouldFreeze(this, belowPos)) {
+             org.bukkit.craftbukkit.event.CraftEventFactory.handleBlockFormEvent(this, belowPos, Blocks.ICE.defaultBlockState(), Block.UPDATE_ALL, null); // CraftBukkit
+diff --git a/net/minecraft/world/entity/AgeableMob.java b/net/minecraft/world/entity/AgeableMob.java
+index 6541fe108f60d2c55a47f0bb5ba3b17f270cd5fa..7bb94eca3fd122f26ec3b5d0c6bc16752269bd72 100644
+--- a/net/minecraft/world/entity/AgeableMob.java
++++ b/net/minecraft/world/entity/AgeableMob.java
+@@ -192,6 +192,7 @@ public abstract class AgeableMob extends PathfinderMob {
+     public void onSyncedDataUpdated(final EntityDataAccessor<?> accessor) {
+         if (DATA_BABY_ID.equals(accessor)) {
+             this.refreshDimensions();
++            net.kindlingmc.ai.UselessSensors.onBabyFlagChanged(this); // Kindling - Lithium - baby sensors follow the age
+         }
+ 
+         super.onSyncedDataUpdated(accessor);
+diff --git a/net/minecraft/world/entity/ai/Brain.java b/net/minecraft/world/entity/ai/Brain.java
+index f576a0a1956e426f7601dc73bd3c13fe3e9e992d..6057e59e9361724d4b959fd4dfa06130c977d0b0 100644
+--- a/net/minecraft/world/entity/ai/Brain.java
++++ b/net/minecraft/world/entity/ai/Brain.java
+@@ -415,6 +415,15 @@ public class Brain<E extends LivingEntity> implements net.caffeinemc.mods.lithiu
+         }
+     }
+ 
++    // Kindling start - Lithium - let a sensor that was skipped as useless sense again right away
++    public void tickSensorOnNextCall(final SensorType<?> sensorType) {
++        final Sensor<? super E> sensor = this.sensors.get(sensorType);
++        if (sensor != null) {
++            sensor.tickOnNextCall();
++        }
++    }
++    // Kindling end - Lithium - let a sensor that was skipped as useless sense again right away
++
+     private void forgetOutdatedMemories() {
+         // Leaf start - Lithium - Reduce Brain memories lookup
+         this.memories.values().forEach(slot -> {
+diff --git a/net/minecraft/world/entity/ai/behavior/AcquirePoi.java b/net/minecraft/world/entity/ai/behavior/AcquirePoi.java
+index 2e3a7e4e4d1b3b182b2a4db33dbf4821ccd5348c..3d7e2683262059539d5c44027118c3d13fb97141 100644
+--- a/net/minecraft/world/entity/ai/behavior/AcquirePoi.java
++++ b/net/minecraft/world/entity/ai/behavior/AcquirePoi.java
+@@ -54,6 +54,11 @@ public class AcquirePoi {
+         final Optional<Byte> onPoiAcquisitionEvent,
+         final BiPredicate<ServerLevel, BlockPos> validPoi
+     ) {
++        // Kindling start - Lithium - a search for a POI of no type, as nitwits have for a job site, never finds anything
++        if (poiType == PoiType.NONE) {
++            return net.kindlingmc.ai.InertBehavior.instance();
++        }
++        // Kindling end - Lithium - a search for a POI of no type, as nitwits have for a job site, never finds anything
+         return new AcquirePoiBehavior(poiType, memoryToValidate, memoryToAcquire, onPoiAcquisitionEvent, validPoi, onlyIfAdult);
+     }
+ 
+diff --git a/net/minecraft/world/entity/ai/sensing/Sensor.java b/net/minecraft/world/entity/ai/sensing/Sensor.java
+index c321c01148b0c92d8c2c17bb8c8b460586653107..45f0868646a4a76d69ad2dbfbf3b6bb4b82516c6 100644
+--- a/net/minecraft/world/entity/ai/sensing/Sensor.java
++++ b/net/minecraft/world/entity/ai/sensing/Sensor.java
+@@ -60,10 +60,18 @@ public abstract class Sensor<E extends LivingEntity> {
+             // Kaiiju end - petal - async path processing
+             this.timeToTick = scanRateCache;
+             this.updateTargetingConditionRanges(body);
+-            this.doTick(level, body);
++            if (!net.kindlingmc.ai.UselessSensors.isUseless(this, body)) { // Kindling - Lithium - skip sensing for memories nothing reads
++                this.doTick(level, body);
++            }
+         }
+     }
+ 
++    // Kindling start - Lithium - let a sensor that was skipped as useless sense again right away
++    public final void tickOnNextCall() {
++        this.timeToTick = Math.min(this.timeToTick, 1L);
++    }
++    // Kindling end - Lithium - let a sensor that was skipped as useless sense again right away
++
+     // Kaiiju start - petal - async path processing
+     public final int getScanRate(ServerLevel level, final E body) {
+         return java.util.Objects.requireNonNullElse(level.paperConfig().tickRates.sensor.get(body.getType(), this.configKey), this.scanRate); // Paper - configurable sensor tick rate and timings
+diff --git a/net/minecraft/world/level/biome/Biome.java b/net/minecraft/world/level/biome/Biome.java
+index 0b2c84239983870edc9d0d842256a4144c54dbbd..3b3c63f0ec39831397647c884484edfec3df6f2f 100644
+--- a/net/minecraft/world/level/biome/Biome.java
++++ b/net/minecraft/world/level/biome/Biome.java
+@@ -25,15 +25,12 @@ import net.minecraft.world.level.GrassColor;
+ import net.minecraft.world.level.LevelReader;
+ import net.minecraft.world.level.LightLayer;
+ import net.minecraft.world.level.block.Blocks;
+-import net.minecraft.world.level.block.LiquidBlock;
+ import net.minecraft.world.level.block.state.BlockState;
+ import net.minecraft.world.level.levelgen.LegacyRandomSource;
+ import net.minecraft.world.level.levelgen.WorldgenRandom;
+ import net.minecraft.world.level.levelgen.synth.Noise;
+ import net.minecraft.world.level.levelgen.synth.NoiseStack;
+ import net.minecraft.world.level.levelgen.synth.SimplexNoise;
+-import net.minecraft.world.level.material.FluidState;
+-import net.minecraft.world.level.material.Fluids;
+ import org.jspecify.annotations.Nullable;
+ 
+ public final class Biome {
+@@ -136,8 +133,9 @@ public final class Biome {
+ 
+         if (level.isInsideBuildHeight(pos.getY()) && level.getBrightness(LightLayer.BLOCK, pos) < 10) {
+             BlockState blockState = level.getBlockState(pos);
+-            FluidState fluidState = level.getFluidState(pos);
+-            if (fluidState.is(Fluids.WATER) && blockState.getBlock() instanceof LiquidBlock) {
++            // Kindling start - Lithium - the fluid comes from the block state at hand
++            if (net.kindlingmc.world.FreezableWater.isFreezableWater(blockState)) {
++            // Kindling end - Lithium - the fluid comes from the block state at hand
+                 if (!checkNeighbors) {
+                     return true;
+                 }
+diff --git a/net/minecraft/world/level/redstone/DefaultRedstoneWireEvaluator.java b/net/minecraft/world/level/redstone/DefaultRedstoneWireEvaluator.java
+index 82ee509ffe0d3be94ae9b7580f60f1ac3c04f697..fac5f599cab4adb5b1bec31838332ba98960c78d 100644
+--- a/net/minecraft/world/level/redstone/DefaultRedstoneWireEvaluator.java
++++ b/net/minecraft/world/level/redstone/DefaultRedstoneWireEvaluator.java
+@@ -45,7 +45,8 @@ public class DefaultRedstoneWireEvaluator extends RedstoneWireEvaluator {
+     }
+ 
+     public int calculateTargetStrength(final Level level, final BlockPos pos) { // Paper - Optimize redstone
+-        int blockSignal = this.getBlockSignal(level, pos);
+-        return blockSignal == Redstone.SIGNAL_MAX ? blockSignal : Math.max(blockSignal, this.getIncomingWireSignal(level, pos));
++        // Kindling start - Lithium - look at every neighbour once and never ask a wire for its signal
++        return net.caffeinemc.mods.lithium.common.block.redstone.RedstoneWirePowerCalculations.getTargetStrength(this.wireBlock, level, pos);
++        // Kindling end - Lithium - look at every neighbour once and never ask a wire for its signal
+     }
+ }
+diff --git a/net/minecraft/world/level/saveddata/maps/MapItemSavedData.java b/net/minecraft/world/level/saveddata/maps/MapItemSavedData.java
+index d96051f07cb6a9327f99c29c62b62919336af237..cd188981808a680fecfc48b4032db168e0a86cac 100644
+--- a/net/minecraft/world/level/saveddata/maps/MapItemSavedData.java
++++ b/net/minecraft/world/level/saveddata/maps/MapItemSavedData.java
+@@ -214,21 +214,21 @@ public class MapItemSavedData extends SavedData {
+         for (int i = 0; i < this.carriedBy.size(); i++) {
+             MapItemSavedData.HoldingPlayer otherHoldingPlayer = this.carriedBy.get(i);
+             Player otherPlayer = otherHoldingPlayer.player;
+-            String otherPlayerName = otherPlayer.getPlainTextName();
++            // Kindling - the name is only built where it is used; most players of a framed map need none
+             if (!otherPlayer.isRemoved() && (placedInFrame != null || otherPlayer.getInventory().contains(mapMatcher))) {
+                 if (placedInFrame == null && otherPlayer.level().dimension() == this.dimension && this.trackingPosition) {
+                     this.addDecoration(
+-                        MapDecorationTypes.PLAYER, otherPlayer.level(), otherPlayerName, otherPlayer.getX(), otherPlayer.getZ(), otherPlayer.getYRot(), null
++                        MapDecorationTypes.PLAYER, otherPlayer.level(), otherPlayer.getPlainTextName(), otherPlayer.getX(), otherPlayer.getZ(), otherPlayer.getYRot(), null // Kindling - the name is only built where it is used
+                     );
+                 }
+             } else {
+                 this.carriedByPlayers.remove(otherPlayer);
+                 this.carriedBy.remove(otherHoldingPlayer);
+-                this.removeDecoration(otherPlayerName);
++                this.removeDecoration(otherPlayer.getPlainTextName()); // Kindling - the name is only built where it is used
+             }
+ 
+             if (!otherPlayer.equals(tickingPlayer) && hasMapInvisibilityItemEquipped(otherPlayer)) {
+-                this.removeDecoration(otherPlayerName);
++                this.removeDecoration(otherPlayer.getPlainTextName()); // Kindling - the name is only built where it is used
+             }
+         }
+ 

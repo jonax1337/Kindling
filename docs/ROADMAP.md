@@ -22,6 +22,7 @@ Nothing open; new items need the 7.5 bar of the review.
 | `/kindling doctor` and start-up check | 8.0 | Command plus start-up warnings, setting `performance.doctor.startup-check` |
 | Fast fliers on modest hardware | — | Paper's automatic limit of concurrent generations per player capped at 32: time in the void on the 8-thread bench host 38.5 % → 0.9 % ([MEASUREMENTS](MEASUREMENTS.md#concurrent-generations-per-player)) |
 | Parity CI | 7.8 | `parity.yml` and the weekly Leaf merge run the bases scenario and compare 15 counters with `kindling-bench/parity/bases-ci.json`; identical on Windows and Linux |
+| Lithium ports (redstone wire power, useless sensors, nitwit job search, rain and ice checks, lazy map cursor names) | — | Same results as vanilla (a differential test checks the wire power against vanilla's algorithm in 4000 random surroundings); not yet measured on the bench |
 
 ## Reviewed and dropped
 
@@ -51,5 +52,6 @@ Recorded so they are not proposed again without new facts. Scores from the 2026-
 | Behaviour options: entity culling, lag compensation, update-suppressor catch, XP clumping, 1-gt delays, MC-73719, spawn tracking range, spectator packet, leaf decay | 1.0–5.5 | plugin-type features or already covered by Spigot settings |
 | Lag spike recorder, `/kindling hotspots`, metrics endpoint | 6.5 / 6.0 / 5.0 | spark and exporter plugins already cover them; hotspots needs hooks in hot, heavily patched tick loops |
 | AOT from the jar, profiles, join prefetch | 6.0 / 5.0 / 4.0 | a documented start command covers AOT; profiles write keys across six config systems; join prefetch is unmeasured and collides with Leaf |
+| Lithium framed maps, inactive navigations | — | Framed maps: Lithium's mixin no longer prunes removed players and no longer removes the cursors of players with a map invisibility item when a framed map ticks, and 26.3 already skips the inventory scan it targets, so only the player name is built lazily. Inactive navigations: needs hooks wherever a mob's navigation or vehicle changes, next to Kindling's async path code, in the hot `ServerLevel.sendBlockUpdated`; identical behaviour cannot be shown |
 | Sakura explosions | 2.0 | no TNT-heavy server to measure or justify it |
 | Slime world format | — | very large port, own world format; networks that need it use AdvancedSlimePaper |
