@@ -1,0 +1,233 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Tue, 27 Oct 2026 22:24:39 +0100
+Subject: [PATCH] Kindling: Fix sleeping block entity behaviour differences
+
+
+diff --git a/net/minecraft/world/level/Level.java b/net/minecraft/world/level/Level.java
+index 4e489f8ce310e8fff39cb5c179bfad9c4f89aa6a..72933d63550bcc87046de9e80452b951d913a529 100644
+--- a/net/minecraft/world/level/Level.java
++++ b/net/minecraft/world/level/Level.java
+@@ -1178,6 +1178,7 @@ public abstract class Level implements LevelAccessor, AutoCloseable, ca.spottedl
+         }
+ 
+         BlockState newState = this.getBlockState(pos);
++        if (org.dreeam.leaf.config.modules.opt.SleepingBlockEntity.enabled && newState == blockState) net.caffeinemc.mods.lithium.common.hopper.HopperHelper.updateHopperOnUpdateSuppression(this, pos, updateFlags, chunk, oldState != newState); // Kindling - Fix sleeping block entity behaviour differences: Lithium's hook for blocks set without neighbour updates, which Leaf's port left out
+         /* // CraftBukkit
+         if (newState == blockState) {
+             if (oldState != newState) {
+diff --git a/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java b/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
+index dff68e0acbf99961991ef19028c8cbb31dc977cd..8815ee7722aa27ed4d5cc58722edf22afa93956d 100644
+--- a/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
+@@ -185,6 +185,7 @@ public abstract class AbstractFurnaceBlockEntity extends BaseContainerBlockEntit
+     }
+ 
+     public static void serverTick(final ServerLevel level, final BlockPos pos, BlockState state, final AbstractFurnaceBlockEntity entity) {
++        boolean pluginRefusedFuel = false; // Kindling - Fix sleeping block entity behaviour differences
+         boolean changed = false;
+         boolean isLit;
+         boolean wasLit;
+@@ -252,6 +253,7 @@ public abstract class AbstractFurnaceBlockEntity extends BaseContainerBlockEntit
+                                 isLit = true;
+                                 changed = true;
+                             }
++                            pluginRefusedFuel = !isLit && org.bukkit.event.inventory.FurnaceBurnEvent.getHandlerList().getRegisteredListeners().length != 0; // Kindling - Fix sleeping block entity behaviour differences: Paper asks the plugin again next tick
+                         }
+ 
+                         if (isLit) {
+@@ -301,7 +303,7 @@ public abstract class AbstractFurnaceBlockEntity extends BaseContainerBlockEntit
+             setChanged(level, pos, state);
+         }
+         if (usedLavaFromUnderneath) entity.items.set(1, ItemStack.EMPTY); // Purpur - Furnace uses lava from underneath
+-        if (org.dreeam.leaf.config.modules.opt.SleepingBlockEntity.enabled) entity.checkSleep(state); // Leaves - Lithium Sleeping Block Entity
++        if (org.dreeam.leaf.config.modules.opt.SleepingBlockEntity.enabled && !pluginRefusedFuel) entity.checkSleep(state); // Leaves - Lithium Sleeping Block Entity // Kindling - Fix sleeping block entity behaviour differences
+     }
+ 
+     private static void consumeFuel(final ServerLevel level, final BlockPos pos, final NonNullList<ItemStack> items, final ItemStack fuel) {
+@@ -589,11 +591,22 @@ public abstract class AbstractFurnaceBlockEntity extends BaseContainerBlockEntit
+     }
+ 
+     private void checkSleep(final BlockState state) {
+-        if (!this.isLit() && this.cookingTimer == 0 && (state.is(net.minecraft.world.level.block.Blocks.FURNACE) || state.is(net.minecraft.world.level.block.Blocks.BLAST_FURNACE) || state.is(net.minecraft.world.level.block.Blocks.SMOKER)) && this.level != null) {
++        if (!this.isLit() && this.cookingTimer == 0 && (state.is(net.minecraft.world.level.block.Blocks.FURNACE) || state.is(net.minecraft.world.level.block.Blocks.BLAST_FURNACE) || state.is(net.minecraft.world.level.block.Blocks.SMOKER)) && this.level != null
++            && !this.waitsForLavaFromUnderneath()) { // Kindling - Fix sleeping block entity behaviour differences
+             this.lithium$startSleeping();
+         }
+     }
+ 
++    // Kindling start - Fix sleeping block entity behaviour differences
++    /**
++     * Purpur's furnace looks for lava below every 20 ticks while it has something to smelt and no fuel; nothing would
++     * wake a sleeping furnace when lava flows in.
++     */
++    private boolean waitsForLavaFromUnderneath() {
++        return this.level.purpurConfig.furnaceUseLavaFromUnderneath && this.items.get(1).isEmpty() && !this.items.get(0).isEmpty();
++    }
++    // Kindling end - Fix sleeping block entity behaviour differences
++
+     @Override
+     public void lithium$handleSetChanged() {
+         if (this.isSleeping() && this.level != null && !this.level.isClientSide()) {
+diff --git a/net/minecraft/world/level/block/entity/BrewingStandBlockEntity.java b/net/minecraft/world/level/block/entity/BrewingStandBlockEntity.java
+index 5dbd3bed341e28c0f7b2087c06d9abc54bf93529..f3e2c1ab83e9605566206d6cf68b3baba473002a 100644
+--- a/net/minecraft/world/level/block/entity/BrewingStandBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/BrewingStandBlockEntity.java
+@@ -176,6 +176,7 @@ public class BrewingStandBlockEntity extends BaseContainerBlockEntity implements
+                 entity.getUses(level, brewingFuel)
+             );
+             if (!event.callEvent()) {
++                if (org.dreeam.leaf.config.modules.opt.SleepingBlockEntity.enabled) entity.wakeUpNow(); // Kindling - Fix sleeping block entity behaviour differences: Paper asks the plugin again next tick
+                 return;
+             }
+             entity.fuel = event.getFuelPower();
+diff --git a/net/minecraft/world/level/block/entity/HopperBlockEntity.java b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
+index 612273553c3ec334ffbdb9ef09c52fecfc107b6b..289795b0661547448631579de68f934386a9f1cd 100644
+--- a/net/minecraft/world/level/block/entity/HopperBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
+@@ -211,7 +211,8 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+         if (org.dreeam.leaf.config.modules.opt.SleepingBlockEntity.enabled
+             && !entity.isOnCooldown()
+             && !entity.isSleeping()
+-            && !state.getValue(HopperBlock.ENABLED)) {
++            && !state.getValue(HopperBlock.ENABLED)
++            && net.kindlingmc.sleeping.SleepingHopperRules.mayFallAsleep(level.spigotConfig.hopperCheck)) { // Kindling - Fix sleeping block entity behaviour differences: keep Paper's hopper-check rhythm
+             entity.lithium$startSleeping();
+         }
+         // Leaves end - Lithium Sleeping Block Entity
+@@ -466,7 +467,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+ 
+         Direction direction = self.facing.getOpposite();
+         // Leaves start - Lithium Sleeping Block Entity
+-        if (org.dreeam.leaf.config.modules.opt.SleepingBlockEntity.enabled && !hasPrepareTransferListeners()) { // Kindling - Paper's path asks PrepareHopperTransferEvent, Lithium's does not
++        if (org.dreeam.leaf.config.modules.opt.SleepingBlockEntity.enabled && !hasPrepareTransferListeners() && lithiumTransferMatchesPaper(level)) { // Kindling - Paper's path asks PrepareHopperTransferEvent, fires InventoryMoveItemEvent and moves hopper-amount items, Lithium's does not
+             Boolean res = lithiumInsert(level, blockPos, self, container);
+             if (res != null) {
+                 return res;
+@@ -566,7 +567,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+             final long disallowedSlots = callPrepareTransferEvent(level, container, hopper, false); // Paper - Add PrepareHopperTransferEvent
+             if (disallowedSlots != 0 && hopper instanceof HopperBlockEntity held) held.pluginHeldBack = true; // Kindling - Keep hoppers asking while plugins hold transfers back
+             // Leaves start - Lithium Sleeping Block Entity
+-            if (org.dreeam.leaf.config.modules.opt.SleepingBlockEntity.enabled && disallowedSlots == 0) { // Kindling - Lithium's extraction does not skip disallowed slots
++            if (org.dreeam.leaf.config.modules.opt.SleepingBlockEntity.enabled && disallowedSlots == 0 && lithiumTransferMatchesPaper(level)) { // Kindling - Lithium's extraction does not skip disallowed slots, fire InventoryMoveItemEvent or move hopper-amount items
+                 Boolean res = lithiumExtract(level, hopper, container);
+                 if (res != null) {
+                     return res;
+@@ -843,7 +844,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+     public void setCooldown(final int time) {
+         // Leaves start - Lithium Sleeping Block Entity
+         if (org.dreeam.leaf.config.modules.opt.SleepingBlockEntity.enabled) {
+-            if (time == 7) {
++            if (this.level != null && net.kindlingmc.sleeping.SleepingHopperRules.isReceivingCooldownOfSleeper(time, this.level.spigotConfig.hopperTransfer)) { // Kindling - Fix sleeping block entity behaviour differences: Lithium's 7 is Spigot's default hopper-transfer minus 1
+                 if (this.tickedGameTime == Long.MAX_VALUE) {
+                     this.sleepOnlyCurrentTick();
+                 } else {
+@@ -937,11 +938,37 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+         return io.papermc.paper.event.inventory.PrepareHopperTransferEvent.getHandlerList().getRegisteredListeners().length != 0;
+     }
+     // Kindling end - Keep hoppers asking while plugins hold transfers back
++    // Kindling start - Fix sleeping block entity behaviour differences
++    private static boolean lithiumTransferMatchesPaper(final Level level) {
++        return net.kindlingmc.sleeping.SleepingHopperRules.lithiumTransferMatchesPaper(skipHopperEvents, level.spigotConfig.hopperAmount);
++    }
++
++    /**
++     * A plugin's search result counts as the found inventory when it is the same double chest in another wrapper:
++     * Lithium caches a double chest as its own {@code CompoundContainer}, a plugin hands back Bukkit's.
++     */
++    private static boolean isSameInventory(final @Nullable Container searched, final @Nullable Container found) {
++        return searched == found
++            || searched instanceof net.minecraft.world.CompoundContainer searchedChest
++            && found instanceof net.minecraft.world.CompoundContainer foundChest
++            && searchedChest.container1 == foundChest.container1
++            && searchedChest.container2 == foundChest.container2;
++    }
++    // Kindling end - Fix sleeping block entity behaviour differences
+ 
+     private void checkSleepingConditions() {
+-        if (this.cooldownTime > 0 || this.getLevel() == null || skipNextSleepCheckAfterCooldown || this.pluginHeldBack) { // Kindling - Keep hoppers asking while plugins hold transfers back
++        if (this.cooldownTime > 0 || this.getLevel() == null || this.pluginHeldBack) { // Kindling - Keep hoppers asking while plugins hold transfers back
++            return;
++        }
++        // Kindling start - Fix sleeping block entity behaviour differences: skip one check after a plugin's cooldown, as the name says, then sleep again
++        if (this.skipNextSleepCheckAfterCooldown) {
++            this.skipNextSleepCheckAfterCooldown = false;
+             return;
+         }
++        if (!net.kindlingmc.sleeping.SleepingHopperRules.mayFallAsleep(this.level.spigotConfig.hopperCheck)) {
++            return;
++        }
++        // Kindling end - Fix sleeping block entity behaviour differences
+         if (isSleeping()) {
+             return;
+         }
+@@ -1237,7 +1264,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+             org.bukkit.craftbukkit.block.CraftBlock.at(world, extractBlockPos),
+             org.bukkit.event.inventory.HopperInventorySearchEvent.ContainerType.SOURCE
+         );
+-        if (searched != blockInventory) hopperBlockEntity.pluginHeldBack = true;
++        if (!isSameInventory(searched, blockInventory)) hopperBlockEntity.pluginHeldBack = true; // Kindling - Fix sleeping block entity behaviour differences
+         return searched;
+         // Kindling end - Keep hoppers asking while plugins hold transfers back
+     }
+@@ -1330,7 +1357,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+             org.bukkit.craftbukkit.block.CraftBlock.at(world, this.getBlockPos().relative(this.facing)),
+             org.bukkit.event.inventory.HopperInventorySearchEvent.ContainerType.DESTINATION
+         );
+-        if (searched != blockInventory) this.pluginHeldBack = true;
++        if (!isSameInventory(searched, blockInventory)) this.pluginHeldBack = true; // Kindling - Fix sleeping block entity behaviour differences
+         return searched;
+         // Kindling end - Keep hoppers asking while plugins hold transfers back
+     }
+@@ -1573,7 +1600,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+                 hopperBlockEntity.insertStackList.getOccupiedSlots() == 0 :
+                 insertInventory.isEmpty();
+ 
+-        skipPushModeEventFire = skipHopperEvents;
++        // Kindling - Fix sleeping block entity behaviour differences: a transfer that fires InventoryMoveItemEvent takes Paper's path, which takes from the hopper what was moved
+         //noinspection ConstantConditions
+         if (!(hopperBlockEntity.insertInventory == insertInventory && hopperBlockEntity.insertStackList.getFullSlots() == hopperBlockEntity.insertStackList.size())) {
+             Direction fromDirection = hopperBlockEntity.facing.getOpposite();
+@@ -1581,24 +1608,14 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+             for (int i = 0; i < size; ++i) {
+                 ItemStack transferStack = hopperStackList.get(i);
+                 if (!transferStack.isEmpty()) {
+-                    if (!skipPushModeEventFire && canTakeItemFromContainer(insertInventory, hopperBlockEntity, transferStack, i, Direction.DOWN)) {
+-                        transferStack = callPushMoveEvent(insertInventory, transferStack, hopperBlockEntity);
+-                        if (transferStack == null) { // cancelled
+-                            // Kindling start - Keep hoppers asking while plugins hold transfers back: ask again after the cooldown, as Paper does, instead of waiting for an inventory to change
+-                            hopperBlockEntity.pluginHeldBack = true;
+-                            return false;
+-                            // Kindling end - Keep hoppers asking while plugins hold transfers back
+-                        }
+-                    }
+                     boolean transferSuccess = net.caffeinemc.mods.lithium.common.hopper.HopperHelper.tryMoveSingleItem(insertInventory, transferStack, fromDirection);
+                     if (transferSuccess) {
+                         if (insertInventoryWasEmptyHopperNotDisabled) {
+                             HopperBlockEntity receivingHopper = (HopperBlockEntity) insertInventory;
+-                            int k = 8;
+-                            if (receivingHopper.tickedGameTime >= hopperBlockEntity.tickedGameTime) {
+-                                k = 7;
+-                            }
+-                            receivingHopper.setCooldown(k);
++                            // Kindling start - Fix sleeping block entity behaviour differences: Paper's cooldown from ticks-per.hopper-transfer instead of a fixed 8
++                            boolean receiverTickedThisTick = receivingHopper.tickedGameTime >= hopperBlockEntity.tickedGameTime;
++                            receivingHopper.setCooldown(net.kindlingmc.sleeping.SleepingHopperRules.receivingCooldown(world.spigotConfig.hopperTransfer, receiverTickedThisTick));
++                            // Kindling end - Fix sleeping block entity behaviour differences
+                         }
+                         if (insertInventoryHandlesModdedCooldown) {
+                             insertInventory.setTransferCooldown(hopperBlockEntity.tickedGameTime);
+@@ -1646,12 +1663,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+             int fromSlot = availableSlots != null ? availableSlots[i] : i;
+             ItemStack itemStack = fromStackList.get(fromSlot);
+             if (!itemStack.isEmpty() && canTakeItemFromContainer(to, from, itemStack, fromSlot, Direction.DOWN)) {
+-                if (!skipPullModeEventFire) {
+-                    itemStack = callPullMoveEvent(to, from, itemStack);
+-                    if (itemStack == null) { // cancelled
+-                        return true;
+-                    }
+-                }
++                // Kindling - Fix sleeping block entity behaviour differences: a transfer that fires InventoryMoveItemEvent takes Paper's path, which moves a plugin's replacement item
+                 //calling removeStack is necessary due to its side effects (markDirty in LootableContainerBlockEntity)
+                 ItemStack takenItem = from.removeItem(fromSlot, 1);
+                 assert !takenItem.isEmpty();
