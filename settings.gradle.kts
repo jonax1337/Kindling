@@ -23,7 +23,7 @@ if (!file(".git").exists()) {
          zip from GitHub.
 
          Built Kindling jars are available for download at
-         https://github.com/jonax1337/KindlingMC/releases
+         https://github.com/jonax1337/Kindling/releases
 
          See https://github.com/PaperMC/Paper/blob/main/CONTRIBUTING.md
          for further information on building and modifying Paper forks.

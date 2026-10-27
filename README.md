@@ -81,7 +81,7 @@ Measured with `kindling-bench` against Leaf `4c3d5689` on Java 25, the elytra an
 
 ## Getting started
 
-1. Download the newest `kindling-26.3-<build>.jar` from [Releases](https://github.com/jonax1337/KindlingMC/releases).
+1. Download the newest `kindling-26.3-<build>.jar` from [Releases](https://github.com/jonax1337/Kindling/releases).
 2. Use it like a Leaf or Paper jar:
    ```bash
    java -Xms2G -Xmx2G -XX:+UseCompactObjectHeaders -jar kindling-26.3-<build>.jar --nogui

@@ -18,8 +18,8 @@ import java.util.OptionalInt;
 /** Reads the build numbers of the Kindling releases on GitHub; a release is tagged {@code <minecraft version>-<build>}. */
 final class GitHubReleases {
 
-    static final String DOWNLOAD_PAGE = "https://github.com/jonax1337/KindlingMC/releases";
-    private static final String RELEASES_API = "https://api.github.com/repos/jonax1337/KindlingMC/releases?per_page=100";
+    static final String DOWNLOAD_PAGE = "https://github.com/jonax1337/Kindling/releases";
+    private static final String RELEASES_API = "https://api.github.com/repos/jonax1337/Kindling/releases?per_page=100";
     private static final int TIMEOUT_MILLIS = 5000;
     private static final Gson GSON = new Gson();
 
