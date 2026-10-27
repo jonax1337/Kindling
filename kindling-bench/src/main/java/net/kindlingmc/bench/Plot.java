@@ -11,7 +11,7 @@ import org.bukkit.World;
  */
 final class Plot {
 
-    static final int CHUNKS = 3;
+    static final int CHUNKS = 4;
     static final int FLOOR_Y = 199;
 
     private static final int FLOOR = 0;
@@ -30,7 +30,7 @@ final class Plot {
 
     /** The plot's chunk number {@code index}, counted from 0 in the west. */
     ChunkSite site(int index) {
-        return new ChunkSite(world, firstChunkX + index, FLOOR_Y, chunkZ);
+        return ChunkSite.ofChunk(world, firstChunkX + index, FLOOR_Y, chunkZ);
     }
 
     /** Lays the floor and clears the air around it in every chunk of the plot; loads the chunks if needed. */

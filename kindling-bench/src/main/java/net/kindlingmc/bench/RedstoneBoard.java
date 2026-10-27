@@ -10,12 +10,10 @@ import org.bukkit.block.BlockFace;
 /**
  * Redstone as it runs in farms and doors: a clock feeds a trunk of dust that branches into three lines. Along each line
  * sticky pistons push blocks back and forth, observers watch those blocks and light lamps, and at its end a dropper
- * passes one item per pulse into a barrel. The run drives only the clock, a redstone block it switches every
- * {@value #HALF_PERIOD_TICKS} ticks ({@link #toggleClock()}); everything after it is vanilla redstone.
+ * passes one item per pulse into a barrel. The run drives only the clock, a redstone block it switches at every step
+ * ({@link Clocked}); everything after it is vanilla redstone.
  */
-final class RedstoneBoard implements Contraption {
-
-    static final int HALF_PERIOD_TICKS = 10;
+final class RedstoneBoard implements Contraption, Clocked {
 
     private static final int TRUNK_X = 1;
     private static final int CLOCK_Z = 0;
@@ -33,10 +31,11 @@ final class RedstoneBoard implements Contraption {
     private static final int DROPPER_SUPPLY = 9 * 64;
 
     private final ChunkSite site;
-    private boolean clockOn;
+    private final RedstoneSwitch clock;
 
     RedstoneBoard(ChunkSite site) {
         this.site = site;
+        this.clock = new RedstoneSwitch(site.block(TRUNK_X, ON_FLOOR, CLOCK_Z));
     }
 
     @Override
@@ -49,10 +48,9 @@ final class RedstoneBoard implements Contraption {
         }
     }
 
-    /** One step of the clock: switches its redstone block on or off, with block updates. */
-    void toggleClock() {
-        clockOn = !clockOn;
-        site.block(TRUNK_X, ON_FLOOR, CLOCK_Z).setType(clockOn ? Material.REDSTONE_BLOCK : Material.AIR, true);
+    @Override
+    public void clockStep() {
+        clock.toggle();
     }
 
     private static BlockFace[] trunkConnections(int z) {

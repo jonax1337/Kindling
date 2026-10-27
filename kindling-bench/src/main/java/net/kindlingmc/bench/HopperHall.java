@@ -19,7 +19,6 @@ final class HopperHall implements Contraption {
     private static final int LOWER_BARRELS = 0;
     private static final int HOPPER_LAYER = 1;
     private static final int UPPER_BARRELS = 2;
-    private static final int BARREL_CAPACITY = 27 * 64;
     private static final int STUCK_ITEMS = 5;
 
     private final ChunkSite site;
@@ -39,7 +38,7 @@ final class HopperHall implements Contraption {
 
     private void buildChain(int z) {
         site.place(FIRST_X, UPPER_BARRELS, z, Material.BARREL);
-        site.stock(FIRST_X, UPPER_BARRELS, z, Material.COBBLESTONE, BARREL_CAPACITY);
+        site.fill(FIRST_X, UPPER_BARRELS, z, Material.COBBLESTONE);
         for (int x = FIRST_X; x < LAST_X; x++) {
             site.place(x, HOPPER_LAYER, z, BlockStates.facing(Material.HOPPER, BlockFace.EAST));
         }
@@ -61,7 +60,7 @@ final class HopperHall implements Contraption {
             site.place(x, HOPPER_LAYER, STUCK_ROW, BlockStates.facing(Material.HOPPER, BlockFace.DOWN));
             site.stock(x, HOPPER_LAYER, STUCK_ROW, Material.COBBLESTONE, STUCK_ITEMS);
             site.place(x, LOWER_BARRELS, STUCK_ROW, Material.BARREL);
-            site.stock(x, LOWER_BARRELS, STUCK_ROW, Material.STONE, BARREL_CAPACITY);
+            site.fill(x, LOWER_BARRELS, STUCK_ROW, Material.STONE);
         }
     }
 

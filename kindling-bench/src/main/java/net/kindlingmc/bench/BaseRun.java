@@ -15,10 +15,10 @@ import org.bukkit.scheduler.BukkitTask;
 
 /**
  * A run in survival bases: every fake player hovers among its {@link Plot}s, each with a storage room of hoppers, a row
- * of furnaces and a redstone board ({@link PlotGrid}). Once world generation around the players has calmed down, all
- * contraptions are built in the same tick, run through the warm-up and are then measured: tick times, and how far
- * every contraption got. Nothing in a base depends on chance, so two runs, and two server builds that keep vanilla
- * behaviour, must report the same counters; a difference means behaviour changed.
+ * of furnaces, a redstone board and a workshop ({@link PlotGrid}). Once world generation around the players has calmed
+ * down, all contraptions are built in the same tick, run through the warm-up and are then measured: tick times, and
+ * how far every contraption got. Nothing in a base depends on chance, so two runs, and two server builds that keep
+ * vanilla behaviour, must report the same counters; a difference means behaviour changed.
  */
 final class BaseRun {
 
@@ -36,7 +36,7 @@ final class BaseRun {
     private final RunResult result = new RunResult();
     private final List<Plot> plots = new ArrayList<>();
     private final List<Contraption> contraptions = new ArrayList<>();
-    private final List<RedstoneBoard> boards = new ArrayList<>();
+    private final List<Clocked> clocks = new ArrayList<>();
     private final GenerationWatch generation = new GenerationWatch();
     private final PistonCount pistons = new PistonCount();
     private World world;
@@ -75,9 +75,9 @@ final class BaseRun {
     }
 
     /**
-     * Clears one plot per tick, since each loads and may generate three chunks; then builds the bases as soon as no
-     * chunk has been generated for a while and every plot ticks, or after the limit. Generation still running would
-     * put its load into the measurement.
+     * Clears one plot per tick, since each loads and may generate {@value Plot#CHUNKS} chunks; then builds the bases as
+     * soon as no chunk has been generated for a while and every plot ticks, or after the limit. Generation still
+     * running would put its load into the measurement.
      */
     private void prepare(BukkitTask task) {
         if (clearedPlots < plots.size()) {
@@ -97,13 +97,16 @@ final class BaseRun {
 
     private void build() {
         removeStrayEntities();
+        List<Clocked> workshops = new ArrayList<>();
         for (Plot plot : plots) {
             RedstoneBoard board = new RedstoneBoard(plot.site(2));
-            contraptions.add(new HopperHall(plot.site(0)));
-            contraptions.add(new FurnaceRow(plot.site(1)));
-            contraptions.add(board);
-            boards.add(board);
+            Workshop workshop = new Workshop(plot.site(3));
+            contraptions.addAll(List.of(new HopperHall(plot.site(0)), new FurnaceRow(plot.site(1)), board, workshop));
+            clocks.add(board);
+            workshops.add(workshop);
         }
+        // All boards before all workshops: taking turns, each kind would step on every other tick only.
+        clocks.addAll(workshops);
         contraptions.forEach(Contraption::build);
         Bukkit.getPluginManager().registerEvents(pistons, plugin);
         Bukkit.getScheduler().runTaskTimer(plugin, this::tickClocks, 1, 1);
@@ -124,14 +127,14 @@ final class BaseRun {
     }
 
     /**
-     * Switches each board's clock every {@value RedstoneBoard#HALF_PERIOD_TICKS} ticks, board after board one tick
-     * apart, as clocks on a server are not in step; all of them at once would make every tenth tick a spike.
+     * Steps each clock every {@value Clocked#STEP_TICKS} ticks, clock after clock one tick apart, as clocks on a server
+     * are not in step; all of them at once would make every tenth tick a spike.
      */
     private void tickClocks() {
         clockTicks++;
-        for (int board = 0; board < boards.size(); board++) {
-            if ((clockTicks + board) % RedstoneBoard.HALF_PERIOD_TICKS == 0) {
-                boards.get(board).toggleClock();
+        for (int clock = 0; clock < clocks.size(); clock++) {
+            if ((clockTicks + clock) % Clocked.STEP_TICKS == 0) {
+                clocks.get(clock).clockStep();
             }
         }
     }
@@ -155,10 +158,7 @@ final class BaseRun {
     }
 
     private Map<String, Long> totals() {
-        Map<String, Long> totals = new TreeMap<>();
-        for (Contraption contraption : contraptions) {
-            contraption.totals().forEach((name, value) -> totals.merge(name, value, Long::sum));
-        }
+        Map<String, Long> totals = Contraption.totalsOf(contraptions);
         totals.put("piston_extensions", pistons.extensions());
         return totals;
     }
