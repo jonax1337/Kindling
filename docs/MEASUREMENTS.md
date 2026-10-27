@@ -12,6 +12,7 @@ Why each Kindling change exists, and what was tried and left out.
 - [JVM and heap](#jvm-and-heap)
 - [Elytra test: new chunks ahead of fast players](#elytra-test-new-chunks-ahead-of-fast-players)
 - [Default number of chunk workers](#default-number-of-chunk-workers)
+- [Concurrent generations per player](#concurrent-generations-per-player)
 - [Pregeneration](#pregeneration)
 - [Loading chunks from disk](#loading-chunks-from-disk)
 - [The lagging check of the tick loop](#the-lagging-check-of-the-tick-loop)
@@ -154,6 +155,32 @@ Why at most five: the mixed load (eight players flying outward, 12 logical cores
 | 7 (five eighths of 12) | 0 % | 40.1 / 64.9 | 26.9 / 32.3 | 244 |
 
 With 3 workers the ticks look cheap only because a quarter of the time there is nothing to tick: the players fly into the void. Five workers keep them out of it; the main thread then does the vanilla work of the chunks they really reach (loading, entities, block ticks), within the 50 ms of a tick. Seven only build more lead than anyone needs and push the 95th percentile over 50 ms, because workers and main thread share the cores.
+
+## Concurrent generations per player
+
+On the 8-thread bench host (Intel i7-7700, Linux, the machine of [Leaf's options one by one](#leafs-options-one-by-one)) eight players flying outward still spent 30–40 % of the time over the void with Kindling's five workers, while the same load on 12 threads stayed at 0 %. A profile showed the five workers busy with vanilla world generation, the machine only 70–80 % busy, and about 110 new chunks per second against roughly 220 that eight fliers need at view distance 10.
+
+More workers do not help: they share the four cores with the main thread. What helps is the order. Paper lets every player have a fifth of the chunks of the view distance in generation at once (`chunk-loading-advanced.player-max-concurrent-chunk-generates: 0`, 88 at view distance 10). With that many already handed to the workers, [directional loading](#elytra-test-new-chunks-ahead-of-fast-players) has nothing left to re-sort: the workers spend half their time on chunks beside and behind the flight that the player has left before they are done. A shorter queue keeps re-sorting toward the flight direction. Kindling caps the automatic value at 32; an explicit value in `paper-global.yml` still wins. Which chunks are generated, and how, does not change.
+
+Flight only (eight players, no mobs), two runs each:
+
+| Variant | Time in the void | Lead avg | Tick time flight avg / p95 | Tick time standing | New chunks / s |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Paper's automatic limit (88) | 31.5 % | 1.6 | 14.9 / 40.2 | 38.7 | 112 |
+| limit 32 | **1.2 %** | 3.0 | 24.0 / 49.6 | 35.7 | 103 |
+| limit 16 | 3.5 % | 3.1 | 24.8 / 51.2 | 35.1 | 101 |
+| 7 workers, automatic limit | 32.2 % | 1.8 | 31.4 / 63.6 | 50.4 | 116 |
+| 7 workers, limit 16 | 0.9 % | 4.2 | 44.0 / 94.6 | 51.8 | 118 |
+
+Mixed load (flight, then 1 200 mobs, then idle), two runs each; the last row is the Kindling jar with the cap and no configuration overlay:
+
+| Variant | Time in the void | Tick time flight avg / p95 | Tick time standing avg / p95 | Peak RSS | CPU time |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Paper's automatic limit | 38.5 % | 14.7 / 40.5 | 37.7 / 71.8 | 2 783 MB | 1 322 s |
+| limit 32 set in `paper-global.yml` | 1.4 % | 23.1 / 50.0 | 36.5 / 65.8 | 2 784 MB | 1 339 s |
+| **Kindling default (cap 32)** | **0.9 %** | 23.6 / 48.2 | **35.9 / 67.5** | 2 766 MB | 1 327 s |
+
+The flight ticks get more expensive because the players now fly over chunks that exist: the main thread loads, ticks and sends what they reach instead of waiting for it. They stay below 50 ms at the 95th percentile. Standing ticks, memory and CPU time do not get worse.
 
 ## Pregeneration
 

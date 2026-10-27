@@ -11,9 +11,7 @@ What Kindling works on next. Kindling has one maintainer, so an item stays on th
 
 ## Next
 
-| Item | Content | Done when |
-| --- | --- | --- |
-| **Fast fliers on modest hardware** | On a 4-core, 8-thread machine (i7-7700) eight players flying outward spend 30–40 % of the time over chunks that have not reached them yet; on 12 threads it is 0 %. Find out what limits it there (CPU, worker scheduling, generation order) and fix it without changing world generation | under 5 % void on the 8-thread bench host, tick time not worse |
+Nothing open; new items need the 7.5 bar of the review.
 
 ## Done (2026-10-27)
 
@@ -22,6 +20,7 @@ What Kindling works on next. Kindling has one maintainer, so an item stays on th
 | Pregenerator resume fix | 9.5 | State written atomically and durably; a damaged file is kept as `.corrupt` and only the affected worlds start over |
 | Leaf's synchronous options one by one | 8.5 | Measured; none is both faster and the same behaviour, so no new default ([MEASUREMENTS](MEASUREMENTS.md#leafs-options-one-by-one)) |
 | `/kindling doctor` and start-up check | 8.0 | Command plus start-up warnings, setting `performance.doctor.startup-check` |
+| Fast fliers on modest hardware | — | Paper's automatic limit of concurrent generations per player capped at 32: time in the void on the 8-thread bench host 38.5 % → 0.9 % ([MEASUREMENTS](MEASUREMENTS.md#concurrent-generations-per-player)) |
 | Parity CI | 7.8 | `parity.yml` and the weekly Leaf merge run the bases scenario and compare 15 counters with `kindling-bench/parity/bases-ci.json`; identical on Windows and Linux |
 
 ## Reviewed and dropped
