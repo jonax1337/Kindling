@@ -1,101 +1,5 @@
 [
   {
-    "file": "glutblatt/icon-color.svg",
-    "width": 1024,
-    "height": 1024,
-    "transparent": true
-  },
-  {
-    "file": "glutblatt/icon-inverse.svg",
-    "width": 1024,
-    "height": 1024,
-    "transparent": true
-  },
-  {
-    "file": "glutblatt/icon-mono-black.svg",
-    "width": 1024,
-    "height": 1024,
-    "transparent": true
-  },
-  {
-    "file": "glutblatt/icon-mono-white.svg",
-    "width": 1024,
-    "height": 1024,
-    "transparent": true
-  },
-  {
-    "file": "glutblatt/wordmark-light.svg",
-    "width": 1600,
-    "height": 480,
-    "transparent": true
-  },
-  {
-    "file": "glutblatt/logo-horizontal-light.svg",
-    "width": 1600,
-    "height": 420,
-    "transparent": true
-  },
-  {
-    "file": "glutblatt/logo-stacked-light.svg",
-    "width": 1000,
-    "height": 1000,
-    "transparent": true
-  },
-  {
-    "file": "glutblatt/avatar-light.svg",
-    "width": 1024,
-    "height": 1024,
-    "transparent": false
-  },
-  {
-    "file": "glutblatt/banner-light.svg",
-    "width": 1600,
-    "height": 500,
-    "transparent": false
-  },
-  {
-    "file": "glutblatt/social-preview-light.svg",
-    "width": 1280,
-    "height": 640,
-    "transparent": false
-  },
-  {
-    "file": "glutblatt/wordmark-dark.svg",
-    "width": 1600,
-    "height": 480,
-    "transparent": true
-  },
-  {
-    "file": "glutblatt/logo-horizontal-dark.svg",
-    "width": 1600,
-    "height": 420,
-    "transparent": true
-  },
-  {
-    "file": "glutblatt/logo-stacked-dark.svg",
-    "width": 1000,
-    "height": 1000,
-    "transparent": true
-  },
-  {
-    "file": "glutblatt/avatar-dark.svg",
-    "width": 1024,
-    "height": 1024,
-    "transparent": false
-  },
-  {
-    "file": "glutblatt/banner-dark.svg",
-    "width": 1600,
-    "height": 500,
-    "transparent": false
-  },
-  {
-    "file": "glutblatt/social-preview-dark.svg",
-    "width": 1280,
-    "height": 640,
-    "transparent": false
-  },
-  {
     "file": "holzschnitt/icon-color.svg",
     "width": 1024,
     "height": 1024,
@@ -194,7 +98,7 @@
   {
     "file": "brand-overview.svg",
     "width": 1800,
-    "height": 1630,
+    "height": 1740,
     "transparent": false
   }
 ]

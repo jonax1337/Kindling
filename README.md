@@ -11,12 +11,12 @@
 **A [Leaf](https://github.com/Winds-Studio/Leaf) fork for small and mid-sized survival servers on shared hardware.**<br>
 Vanilla behaviour, the full vanilla world, and every change measured.
 
-[![Release](https://img.shields.io/github/v/release/jonax1337/KindlingMC?include_prereleases&label=release&color=f56b27)](https://github.com/jonax1337/KindlingMC/releases)
-[![Build](https://img.shields.io/github/actions/workflow/status/jonax1337/KindlingMC/build.yml?branch=ver%2F26.3&label=build)](https://github.com/jonax1337/KindlingMC/actions/workflows/build.yml)
-![Minecraft](https://img.shields.io/badge/Minecraft-26.3-62b47a)
-![Java](https://img.shields.io/badge/Java-25-b07219)
-[![Based on Leaf](https://img.shields.io/badge/based%20on-Leaf-3fb950)](https://github.com/Winds-Studio/Leaf)
-[![License](https://img.shields.io/badge/license-MIT%20%2F%20GPL--3.0-blue)](LICENSE.md)
+[![Release](https://img.shields.io/github/v/release/jonax1337/Kindling?include_prereleases&label=release&style=for-the-badge&labelColor=19291f&color=f56b27)](https://github.com/jonax1337/Kindling/releases)
+[![Build](https://img.shields.io/github/actions/workflow/status/jonax1337/Kindling/build.yml?branch=ver%2F26.3&label=build&style=for-the-badge&labelColor=19291f)](https://github.com/jonax1337/Kindling/actions/workflows/build.yml)
+![Minecraft](https://img.shields.io/badge/Minecraft-26.3-f56b27?style=for-the-badge&labelColor=19291f)
+![Java](https://img.shields.io/badge/Java-25-556457?style=for-the-badge&labelColor=19291f)
+[![Based on Leaf](https://img.shields.io/badge/based%20on-Leaf-556457?style=for-the-badge&labelColor=19291f)](https://github.com/Winds-Studio/Leaf)
+[![License](https://img.shields.io/badge/license-MIT%20%2F%20GPL--3.0-556457?style=for-the-badge&labelColor=19291f)](LICENSE.md)
 
 [Features](#what-kindling-adds-on-top-of-leaf) ·
 [Numbers](#numbers) ·
