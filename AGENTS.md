@@ -19,6 +19,7 @@ Rules for coding agents working on Kindling. What Kindling is and does: [README.
 | `leaf-archived-patches/` | history, not the current baseline | ❌ read only |
 | `kindling-bench/` | the load test ([README](kindling-bench/README.md)) | ✅ |
 | `docs/`, `*.md` | documentation, English | ✅ keep it true to the code |
+| `website/` | the public site (Vite, React, TypeScript, published by `website.yml`); [README](website/README.md) | ✅ |
 
 ## Ground rules
 

@@ -1,0 +1,40 @@
+packages:
+  - .
+
+# Supply chain: a version must be at least 7 days old (minutes) before pnpm resolves it.
+minimumReleaseAge: 10080
+
+# Supply chain: a package that wants to run an install script fails the install unless it is listed here.
+strictDepBuilds: true
+
+# Pins younger than the minimum age at the time of writing (the same as cubyx-panel's); drop each line once the
+# version has matured. vite 8.3.5 pins rolldown 1.2.15 and its native bindings exactly.
+minimumReleaseAgeExclude:
+  - "@biomejs/biome@2.6.2"
+  - "@biomejs/cli-android-arm64@2.6.2"
+  - "@biomejs/cli-android-x64@2.6.2"
+  - "@biomejs/cli-darwin-arm64@2.6.2"
+  - "@biomejs/cli-darwin-x64@2.6.2"
+  - "@biomejs/cli-linux-arm64@2.6.2"
+  - "@biomejs/cli-linux-arm64-musl@2.6.2"
+  - "@biomejs/cli-linux-x64@2.6.2"
+  - "@biomejs/cli-linux-x64-musl@2.6.2"
+  - "@biomejs/cli-win32-arm64@2.6.2"
+  - "@biomejs/cli-win32-x64@2.6.2"
+  - vite@8.3.5
+  - rolldown@1.2.15
+  - "@rolldown/binding-android-arm-eabi@1.2.15"
+  - "@rolldown/binding-android-arm64@1.2.15"
+  - "@rolldown/binding-darwin-arm64@1.2.15"
+  - "@rolldown/binding-darwin-x64@1.2.15"
+  - "@rolldown/binding-freebsd-x64@1.2.15"
+  - "@rolldown/binding-linux-arm-gnueabihf@1.2.15"
+  - "@rolldown/binding-linux-arm64-gnu@1.2.15"
+  - "@rolldown/binding-linux-arm64-musl@1.2.15"
+  - "@rolldown/binding-linux-ppc64-gnu@1.2.15"
+  - "@rolldown/binding-linux-s390x-gnu@1.2.15"
+  - "@rolldown/binding-linux-x64-gnu@1.2.15"
+  - "@rolldown/binding-linux-x64-musl@1.2.15"
+  - "@rolldown/binding-openharmony-arm64@1.2.15"
+  - "@rolldown/binding-win32-arm64-msvc@1.2.15"
+  - "@rolldown/binding-win32-x64-msvc@1.2.15"

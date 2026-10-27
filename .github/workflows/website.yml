@@ -1,0 +1,63 @@
+name: Website
+
+# Builds website/ (Vite, React) and publishes it to GitHub Pages at https://jonax1337.github.io/Kindling/.
+# Repository setting this needs once: Settings > Pages > Build and deployment > Source "GitHub Actions".
+on:
+  push:
+    branches: [ "ver/26.3" ]
+    paths: [ "website/**", "docs/branding/**", ".github/workflows/website.yml" ]
+  pull_request:
+    branches: [ "ver/26.3" ]
+    paths: [ "website/**", "docs/branding/**", ".github/workflows/website.yml" ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: website
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 24
+
+      - name: Set up pnpm
+        run: npm install --global pnpm@11.1.3
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint, typecheck and build
+        run: pnpm run check
+
+      - name: Upload the site
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: website/dist
+
+  deploy:
+    if: github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v5
