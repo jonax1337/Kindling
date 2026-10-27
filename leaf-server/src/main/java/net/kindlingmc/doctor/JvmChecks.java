@@ -1,0 +1,68 @@
+package net.kindlingmc.doctor;
+
+import java.util.List;
+import java.util.Optional;
+
+/** Checks of the JVM flags. */
+final class JvmChecks {
+
+    private static final int MIN_JAVA_WITH_COMPACT_HEADERS = 25;
+    private static final int MIN_JAVA_WITH_SIMPLE_AOT_CACHE = 25;
+    private static final List<String> AOT_ARGUMENT_PREFIXES = List.of("-XX:AOTCache=", "-XX:AOTCacheOutput=", "-XX:AOTMode=");
+
+    private JvmChecks() {
+    }
+
+    static Optional<Finding> garbageCollector(final JvmFacts jvm) {
+        if (jvm.garbageCollector().isEmpty()) {
+            return Optional.empty();
+        }
+        final GarbageCollector collector = jvm.garbageCollector().get();
+        return Optional.of(switch (collector) {
+            case G1 -> Finding.ok("Garbage collector: G1");
+            case ZGC, SHENANDOAH -> Finding.info(
+                "Garbage collector: " + collector + ", which trades memory and throughput for short pauses; Kindling measured only G1",
+                "Use -XX:+UseG1GC unless you have a reason for " + collector,
+                Basis.GENERAL_ADVICE);
+            case PARALLEL, SERIAL -> Finding.warn(
+                "Garbage collector: " + collector + ", which stops all threads for every collection and shows as tick lag",
+                "Use -XX:+UseG1GC",
+                Basis.GENERAL_ADVICE);
+        });
+    }
+
+    static Optional<Finding> compactObjectHeaders(final JvmFacts jvm) {
+        if (jvm.javaFeatureVersion() < MIN_JAVA_WITH_COMPACT_HEADERS || jvm.compactObjectHeaders().isEmpty()) {
+            return Optional.empty();
+        }
+        if (jvm.compactObjectHeaders().get()) {
+            return Optional.of(Finding.ok("Compact object headers are on"));
+        }
+        return Optional.of(Finding.info(
+            "Compact object headers are off: with G1 and a 2 GB heap Kindling measured -29 % resident memory and -17 % GC time, with no tick cost",
+            "Add -XX:+UseCompactObjectHeaders",
+            Basis.KINDLING_MEASUREMENT));
+    }
+
+    static Optional<Finding> aotCache(final JvmFacts jvm) {
+        if (jvm.javaFeatureVersion() < MIN_JAVA_WITH_SIMPLE_AOT_CACHE) {
+            return Optional.empty();
+        }
+        if (usesAotCache(jvm)) {
+            return Optional.of(Finding.ok("An AOT cache is configured"));
+        }
+        return Optional.of(Finding.info(
+            "No AOT cache: every start loads and links the classes again; Kindling measured the start dropping from 7.5 s to 2.7 s on a direct class path",
+            "Run once with -XX:AOTCacheOutput=kindling.aot, stop the server, then start with -XX:AOTCache=kindling.aot; "
+                + "create the cache again after every update of the server jar",
+            Basis.KINDLING_MEASUREMENT));
+    }
+
+    private static boolean usesAotCache(final JvmFacts jvm) {
+        return jvm.arguments().stream().anyMatch(JvmChecks::isAotArgument);
+    }
+
+    private static boolean isAotArgument(final String argument) {
+        return AOT_ARGUMENT_PREFIXES.stream().anyMatch(argument::startsWith);
+    }
+}

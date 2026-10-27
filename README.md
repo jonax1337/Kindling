@@ -110,6 +110,18 @@ performance:
 
 `/pregen start` centres on the world spawn unless `<x> <z>` are given. Progress is kept in `<world>/pregeneration.properties`. Permission: `kindling.command.pregen` (operators by default).
 
+### Doctor (`config/leaf-global.yml`)
+
+`/kindling doctor` (permission `kindling.command.doctor`, operators by default) reads this machine and server and lists what costs performance or memory: processors and container CPU limit, `-Xmx` against the memory, the garbage collector, `-XX:+UseCompactObjectHeaders`, the AOT cache, chunk worker threads, `MALLOC_ARENA_MAX`, `-XX:TrimNativeHeapInterval`, transparent huge pages, view and simulation distance against the processors, and network compression behind a proxy. The output is grouped into `WARN`, `INFO` and `OK`; every `WARN` and `INFO` names its fix and says whether the advice rests on a Kindling measurement or is general advice. Anything the system cannot tell (for example the Linux-only values on Windows) is skipped instead of guessed.
+
+```yaml
+performance:
+  doctor:
+    startup-check: true   # log the warnings once the server has started
+```
+
+With `startup-check` the server logs each `WARN` of that report (one line with its fix) on its first tick. Hints and OK lines only show in the command.
+
 ### Directional chunk loading
 
 ```yaml

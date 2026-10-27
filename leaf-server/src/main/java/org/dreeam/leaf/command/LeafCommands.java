@@ -19,9 +19,11 @@ public final class LeafCommands {
     static {
         COMMANDS.put(LeafCommand.COMMAND_LABEL, new LeafCommand());
         COMMANDS.put(net.kindlingmc.pregen.PregenCommand.LABEL, new net.kindlingmc.pregen.PregenCommand()); // Kindling - chunk pregenerator
+        COMMANDS.put(net.kindlingmc.doctor.KindlingCommand.LABEL, new net.kindlingmc.doctor.KindlingCommand()); // Kindling - /kindling doctor
     }
 
     public static void registerCommands(final MinecraftServer server) {
         COMMANDS.forEach((s, command) -> server.server.getCommandMap().register(s, "Leaf", command));
+        net.kindlingmc.doctor.StartupCheck.install(server); // Kindling - /kindling doctor start-up check
     }
 }
