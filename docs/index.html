@@ -83,28 +83,28 @@
       </div>
       <div class="feature-layout">
         <div class="feature-copy">
-          <article class="feature-item reveal" data-feature="ahead">
+          <article class="feature-item reveal">
             <h3>Ahead of the adventure.</h3>
             <p>Directional chunk loading prioritizes the terrain in front of moving players. The world loads where you're going next.</p>
             <a class="text-link" href="https://github.com/jonax1337/Kindling/blob/ver/26.3/docs/MEASUREMENTS.md#elytra-test-new-chunks-ahead-of-fast-players">See the elytra measurements <span aria-hidden="true">↗</span></a>
           </article>
-          <article class="feature-item reveal" data-feature="pregen">
+          <article class="feature-item reveal">
             <h3>Prepare the world.<br>Keep players first.</h3>
             <p>The built-in pregenerator fills terrain in the background, gives player chunks priority and can resume after a restart.</p>
             <code class="inline-command">/pregen start world 5000</code>
           </article>
-          <article class="feature-item reveal" data-feature="lean">
+          <article class="feature-item reveal">
             <h3>Less overhead.<br>Same familiar home.</h3>
             <p>Lean chunk loading, measured runtime advice and Leaf's plugin compatibility. Keep your worlds and existing configuration.</p>
             <a class="text-link" href="https://github.com/jonax1337/Kindling#configuration">Review the configuration <span aria-hidden="true">↗</span></a>
           </article>
         </div>
-        <div class="feature-visual" data-mode="ahead" aria-label="Simplified illustration of chunks loading ahead of a player">
-          <div class="map-caption"><span>Room to keep going.</span><span aria-hidden="true">↗</span></div>
-          <div class="map-stage" aria-hidden="true"><div class="chunk-grid"></div><span class="player-marker">You</span></div>
-          <p class="map-note">Player chunks come first.</p>
-          <span class="map-disclaimer">Simplified illustration</span>
-        </div>
+        <figure class="world-visual">
+          <div class="world-window">
+            <img class="world-image" src="media/kindling-home.webp" width="1122" height="1402" loading="lazy" decoding="async" alt="An illustrated voxel woodland, with a stone bridge leading to a warmly lit survival cabin.">
+          </div>
+          <figcaption>Your world, as you know it.</figcaption>
+        </figure>
       </div>
     </section>
 

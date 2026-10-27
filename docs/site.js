@@ -71,25 +71,6 @@
     }
   });
 
-  const grid = document.querySelector('.chunk-grid');
-  for (let index = 0; index < 49; index++) {
-    const cell = document.createElement('span');
-    cell.className = 'chunk-cell';
-    if (index === 24) cell.classList.add('is-player');
-    if ([10, 11, 12, 17, 18, 19, 25, 26].includes(index)) cell.classList.add('is-active');
-    grid.appendChild(cell);
-  }
-  const visual = document.querySelector('.feature-visual');
-  const notes = { ahead: 'Player chunks come first.', pregen: 'Prepare more. Wait less.', lean: 'A lighter foundation.' };
-  const cells = [...grid.children];
-  const showFeature = mode => {
-    visual.dataset.mode = mode;
-    document.querySelector('.map-note').textContent = notes[mode];
-    cells.forEach((cell, index) => {
-      cell.classList.toggle('is-active', mode === 'pregen' ? index % 3 !== 0 : mode === 'lean' ? [16, 17, 18, 23, 25, 30, 31, 32].includes(index) : [10, 11, 12, 17, 18, 19, 25, 26].includes(index));
-    });
-  };
-
   if (!window.gsap || !window.ScrollTrigger) return;
   gsap.registerPlugin(ScrollTrigger);
   const media = gsap.matchMedia();
@@ -97,17 +78,12 @@
     // Parallax separates the world from the foreground copy without taking over scrolling.
     gsap.fromTo('.hero-image', { yPercent: -3 }, { yPercent: 12, ease: 'none', scrollTrigger: { trigger: '.hero', start: 'top top', end: 'bottom top', scrub: 1 } });
     gsap.timeline({ defaults: { ease: 'power3.out', duration: .9 } })
-      .from('.hero-line', { y: 42, autoAlpha: 0, stagger: .12 })
-      .from('.hero-enter', { y: 18, autoAlpha: 0, stagger: .1 }, .2);
+      .from('.hero-line', { y: 32, autoAlpha: 0, stagger: .12 })
+      .from('.hero-enter', { y: 16, autoAlpha: 0, stagger: .1 }, .2);
     gsap.to('.reading-progress', { scaleX: 1, ease: 'none', scrollTrigger: { trigger: document.body, start: 'top top', end: 'max', scrub: true } });
-    gsap.from('.intro-mark', { rotation: -8, y: 55, scrollTrigger: { trigger: '.intro', start: 'top bottom', end: 'bottom top', scrub: 1 } });
+    gsap.fromTo('.world-image', { yPercent: -6 }, { yPercent: 6, ease: 'none', scrollTrigger: { trigger: '.feature-layout', start: 'top bottom', end: 'bottom top', scrub: 1 } });
     gsap.utils.toArray('.reveal').forEach(element => {
-      gsap.from(element, { y: 28, autoAlpha: 0, immediateRender: false, duration: .75, ease: 'power2.out', scrollTrigger: { trigger: element, start: 'top 93%', once: true } });
-    });
-  });
-  media.add('(min-width: 768px)', () => {
-    document.querySelectorAll('[data-feature]').forEach(item => {
-      ScrollTrigger.create({ trigger: item, start: 'top 65%', end: 'bottom 40%', onEnter: () => showFeature(item.dataset.feature), onEnterBack: () => showFeature(item.dataset.feature) });
+      gsap.from(element, { y: 24, autoAlpha: 0, immediateRender: false, duration: .75, ease: 'power2.out', scrollTrigger: { trigger: element, start: 'top 93%', once: true } });
     });
   });
   document.querySelectorAll('details').forEach(details => details.addEventListener('toggle', () => ScrollTrigger.refresh()));
