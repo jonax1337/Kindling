@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Runs benchmark variants against one server jar, twice each, one after another (never in parallel: they would share
-# the CPU and skew each other). Usage: matrix.sh <server.jar> <label prefix> [variant ...]
+# the CPU and skew each other). Usage: [SCENARIO=type=bases] matrix.sh <server.jar> <label prefix> [variant ...]
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -27,6 +27,7 @@ declare -A jvm=(
     [cand-b-throttle]="$coh -Xms2G -Xmx2G"
     [leaf-safe]="$coh $elastic"
     [leaf-aggressive]="$coh $elastic"
+    [sleeping-be]="$coh -Xms2G -Xmx2G"
 )
 
 variants=("$@")
@@ -35,7 +36,8 @@ if [ ${#variants[@]} -eq 0 ]; then
 fi
 
 for variant in "${variants[@]}"; do
-    args=(--jar "$jar" --plugin "$plugin" --label "$prefix-$variant" --repeat 2 "--jvm=${jvm[$variant]:-}")
+    args=(--jar "$jar" --plugin "$plugin" --label "$prefix-$variant" --repeat 2 "--jvm=${jvm[$variant]:-}"
+          "--scenario=${SCENARIO:-}")
     # Every folder under overlays/ is a Leaf configuration variant of the same name.
     if [ -d "overlays/$variant" ]; then
         args+=(--overlay "overlays/$variant")

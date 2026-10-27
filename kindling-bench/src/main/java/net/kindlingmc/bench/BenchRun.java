@@ -1,20 +1,13 @@
 package net.kindlingmc.bench;
 
-import com.google.gson.GsonBuilder;
-import java.io.IOException;
-import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-import java.util.function.ToLongFunction;
 import org.bukkit.Bukkit;
-import org.bukkit.GameMode;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
@@ -32,8 +25,6 @@ import org.bukkit.scheduler.BukkitTask;
  */
 final class BenchRun {
 
-    static final String RESULT_FILE = "bench-result.json";
-
     private static final int TICKS_PER_SECOND = 20;
     private static final double FLIGHT_HEIGHT = 160;
     private static final int NIGHT = 18000;
@@ -41,14 +32,13 @@ final class BenchRun {
     private static final long MOB_SEED = 26_03L;
     private static final List<EntityType> MOB_MIX = List.of(EntityType.COW, EntityType.SHEEP, EntityType.PIG,
             EntityType.CHICKEN, EntityType.VILLAGER, EntityType.ZOMBIE, EntityType.SKELETON);
-    private static final int BYTES_PER_MB = 1 << 20;
     private static final int LEAD_SAMPLE_TICKS = 5;
 
     private final Plugin plugin;
     private final Scenario scenario;
     private final TickRecorder ticks;
     private final FakePlayers fakePlayers;
-    private final Map<String, Object> result = new LinkedHashMap<>();
+    private final RunResult result = new RunResult();
     private final List<Player> players = new ArrayList<>();
     private World world;
     private ChunkLead lead;
@@ -74,11 +64,7 @@ final class BenchRun {
 
     private void joinPlayers() {
         for (int i = 0; i < scenario.players(); i++) {
-            Player player = fakePlayers.join("bench" + i, startOf(i));
-            player.setGameMode(GameMode.CREATIVE);
-            player.setAllowFlight(true);
-            player.setFlying(true);
-            players.add(player);
+            players.add(fakePlayers.joinFlying("bench" + i, startOf(i)));
         }
     }
 
@@ -160,9 +146,9 @@ final class BenchRun {
         ticks.start();
         later(scenario.steadySeconds(), () -> {
             result.put("steady", ticks.stop());
-            result.put("chunks_loaded", loadedChunks());
-            result.put("entities", entities());
-            result.putAll(memoryFigures());
+            result.put("chunks_loaded", ServerState.loadedChunks());
+            result.put("entities", ServerState.entities());
+            result.putAll(ServerState.memoryUnderLoad());
             idle();
         });
     }
@@ -172,53 +158,18 @@ final class BenchRun {
         players.forEach(Player::kick);
         later(scenario.idleSeconds(), () -> {
             result.put("idle", idleFigures());
-            write(plugin.getServer().getWorldContainer().toPath().resolve(RESULT_FILE));
-            Bukkit.shutdown();
+            result.writeAndStop(plugin);
         });
-    }
-
-    private static int loadedChunks() {
-        return Bukkit.getWorlds().stream().mapToInt(w -> w.getLoadedChunks().length).sum();
-    }
-
-    private static int entities() {
-        return Bukkit.getWorlds().stream().mapToInt(w -> w.getEntities().size()).sum();
     }
 
     private static Map<String, Object> idleFigures() {
         MemoryMXBean memory = ManagementFactory.getMemoryMXBean();
         Map<String, Object> figures = new LinkedHashMap<>();
-        figures.put("chunks_loaded", loadedChunks());
-        figures.put("entities", entities());
-        figures.put("heap_used_mb", memory.getHeapMemoryUsage().getUsed() / BYTES_PER_MB);
-        figures.put("heap_committed_mb", memory.getHeapMemoryUsage().getCommitted() / BYTES_PER_MB);
+        figures.put("chunks_loaded", ServerState.loadedChunks());
+        figures.put("entities", ServerState.entities());
+        figures.put("heap_used_mb", memory.getHeapMemoryUsage().getUsed() / ServerState.BYTES_PER_MB);
+        figures.put("heap_committed_mb", memory.getHeapMemoryUsage().getCommitted() / ServerState.BYTES_PER_MB);
         return figures;
-    }
-
-    private static Map<String, Object> memoryFigures() {
-        MemoryMXBean memory = ManagementFactory.getMemoryMXBean();
-        Map<String, Object> figures = new LinkedHashMap<>();
-        figures.put("heap_used_before_gc_mb", memory.getHeapMemoryUsage().getUsed() / BYTES_PER_MB);
-        figures.put("gc_count", gcTotal(GarbageCollectorMXBean::getCollectionCount));
-        figures.put("gc_millis", gcTotal(GarbageCollectorMXBean::getCollectionTime));
-        System.gc();
-        System.gc();
-        figures.put("heap_used_after_gc_mb", memory.getHeapMemoryUsage().getUsed() / BYTES_PER_MB);
-        figures.put("heap_committed_mb", memory.getHeapMemoryUsage().getCommitted() / BYTES_PER_MB);
-        figures.put("non_heap_used_mb", memory.getNonHeapMemoryUsage().getUsed() / BYTES_PER_MB);
-        return figures;
-    }
-
-    private static long gcTotal(ToLongFunction<GarbageCollectorMXBean> figure) {
-        return ManagementFactory.getGarbageCollectorMXBeans().stream().mapToLong(figure).filter(n -> n > 0).sum();
-    }
-
-    private void write(Path file) {
-        try {
-            Files.writeString(file, new GsonBuilder().setPrettyPrinting().create().toJson(result));
-        } catch (IOException e) {
-            throw new IllegalStateException("cannot write " + file, e);
-        }
     }
 
     private void later(int seconds, Runnable step) {

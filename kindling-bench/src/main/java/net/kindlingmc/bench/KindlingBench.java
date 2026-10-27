@@ -1,5 +1,6 @@
 package net.kindlingmc.bench;
 
+import java.util.Optional;
 import org.bukkit.Bukkit;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -20,9 +21,27 @@ public final class KindlingBench extends JavaPlugin implements Listener {
     /** Scheduled tasks already run while the worlds load; the server ticks its connections only after this event. */
     @EventHandler
     public void onServerLoad(ServerLoadEvent event) {
-        Scenario scenario = Scenario.read(getDataFolder().toPath());
+        readScenario().ifPresent(this::run);
+    }
+
+    private void run(Scenario scenario) {
         FakePlayers fakePlayers = new ServerFakePlayers(action -> Bukkit.getScheduler().runTask(this, action),
                 scenario.clientViewDistance());
-        Bukkit.getScheduler().runTask(this, () -> new BenchRun(this, scenario, ticks, fakePlayers).start());
+        Runnable run = switch (scenario.type()) {
+            case MIXED -> () -> new BenchRun(this, scenario, ticks, fakePlayers).start();
+            case BASES -> () -> new BaseRun(this, scenario, ticks, fakePlayers).start();
+        };
+        Bukkit.getScheduler().runTask(this, run);
+    }
+
+    /** The scenario, or none after stopping the server, so a mistyped scenario ends the run at once instead of hanging. */
+    private Optional<Scenario> readScenario() {
+        try {
+            return Optional.of(Scenario.read(getDataFolder().toPath()));
+        } catch (IllegalArgumentException e) {
+            getLogger().severe("Invalid scenario, stopping without a result: " + e.getMessage());
+            Bukkit.shutdown();
+            return Optional.empty();
+        }
     }
 }

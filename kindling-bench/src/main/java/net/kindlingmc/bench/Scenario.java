@@ -8,7 +8,10 @@ import java.util.Properties;
 
 /**
  * What one benchmark run does, read from {@code plugins/KindlingBench/scenario.properties}; every key has a default.
+ * The {@link ScenarioType#BASES bases} run uses only {@code players}, {@code plots-per-player}, {@code warmup-seconds},
+ * {@code steady-seconds} and {@code client-view-distance}.
  *
+ * @param type which load the run puts on the server
  * @param players fake players that join, spread on a circle around the world origin
  * @param circleRadius blocks from the origin to each player's start
  * @param warmupSeconds time after the joins before anything is measured, so the JIT and the spawn chunks settle
@@ -19,11 +22,21 @@ import java.util.Properties;
  * @param steadySeconds time the players stand still among the mobs while the tick times are measured
  * @param idleSeconds time the server runs empty after everyone left, before what it still holds is measured
  * @param clientViewDistance the view distance the fake clients ask for (a vanilla client defaults to 12)
+ * @param plotsPerPlayer plots of hoppers, furnaces and redstone around each player in a bases run
+ * @throws IllegalArgumentException for an unknown type, a value that is not a number or too many plots per player
  */
-record Scenario(int players, int circleRadius, int warmupSeconds, int travelSeconds, double blocksPerTick,
-                int mobsPerPlayer, int settleSeconds, int steadySeconds, int idleSeconds, int clientViewDistance) {
+record Scenario(ScenarioType type, int players, int circleRadius, int warmupSeconds, int travelSeconds, double blocksPerTick,
+                int mobsPerPlayer, int settleSeconds, int steadySeconds, int idleSeconds, int clientViewDistance,
+                int plotsPerPlayer) {
 
     static final String FILE_NAME = "scenario.properties";
+
+    Scenario {
+        if (plotsPerPlayer < 1 || plotsPerPlayer > PlotGrid.MAX_PLOTS_PER_PLAYER) {
+            throw new IllegalArgumentException(
+                    "plots-per-player must be 1 to " + PlotGrid.MAX_PLOTS_PER_PLAYER + ", not " + plotsPerPlayer);
+        }
+    }
 
     static Scenario read(Path folder) {
         Properties properties = new Properties();
@@ -36,6 +49,7 @@ record Scenario(int players, int circleRadius, int warmupSeconds, int travelSeco
             }
         }
         return new Scenario(
+                ScenarioType.named(properties.getProperty("type", "mixed")),
                 intOf(properties, "players", 8),
                 intOf(properties, "circle-radius", 512),
                 intOf(properties, "warmup-seconds", 30),
@@ -45,7 +59,8 @@ record Scenario(int players, int circleRadius, int warmupSeconds, int travelSeco
                 intOf(properties, "settle-seconds", 15),
                 intOf(properties, "steady-seconds", 90),
                 intOf(properties, "idle-seconds", 60),
-                intOf(properties, "client-view-distance", 12));
+                intOf(properties, "client-view-distance", 12),
+                intOf(properties, "plots-per-player", 4));
     }
 
     private static int intOf(Properties properties, String key, int fallback) {

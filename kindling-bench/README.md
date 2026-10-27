@@ -25,6 +25,18 @@ During the flight, `chunk_lead` samples every 5 ticks per player how many chunks
 
 The fake players request view distance 12 like a vanilla client (`client-view-distance`); the server sends up to the smaller of that and its own. They join through `PlayerList.placeNewPlayer` and move through the same packets as a client (movement, tick end, teleport and keep-alive answers). Their connection discards all outgoing packets, so everything up to the network is measured, but not encoding and compressing packets on the Netty threads. `flown_blocks_avg` in the result shows whether the flight really happened (expected: `travel-seconds × 20 × blocks-per-tick`).
 
+## The bases scenario
+
+`--scenario "type=bases"` measures what a survival server spends most of its ticks on once players have built: block entities and redstone. Every fake player hovers among `plots-per-player` (4, at most 10) plots, each three chunks on a stone floor at y 199, high above the terrain:
+
+- **Storage room**: three hopper chains carrying cobblestone from one barrel into another, a row of idle hoppers between empty barrels, and a row of hoppers stuck in front of full barrels.
+- **Furnace row**: twelve furnaces fed by hoppers from a barrel of cobblestone above and a barrel of coal beside, the stone carried off by a hopper below; four cold furnaces.
+- **Redstone board**: a clock (a redstone block the plugin switches every 10 ticks, each board one tick after the previous one, as clocks on a server are not in step) feeds a trunk of dust with three branches; along each, five sticky pistons push planks, observers above the planks light lamps, and a dropper at the end passes one item per pulse into a barrel.
+
+The run waits until no chunk has been generated for 5 s and every plot ticks, removes the animals world generation placed, builds all plots in one tick, lets them run for `warmup-seconds` and then measures for `steady-seconds`: tick times (`bases`) and `counters`, how much every contraption did in the measured ticks. Natural spawning, time and weather are off, and each contraption keeps to its own chunk, so nothing depends on chance or on the order in which chunks tick: **the counters must be identical in every run and in every server build that keeps vanilla behaviour.** `compare.py` marks a counter that differs with `!` and warns about runs that built before generation settled (`settled: false`). The idle and stuck hoppers must report 0. The supplies in the barrels and droppers last for about nine minutes of warm-up and measurement together.
+
+Hopper events are not used for counting: Paper skips them when no plugin listens, and a listener would change the code path being measured. The counters read the barrels instead; only piston extensions are counted through their event, which Paper creates either way.
+
 ## Building and running
 
 ```bash
@@ -55,6 +67,8 @@ bash kindling-bench/matrix.sh <server.jar> <prefix> [variant ...]   # all varian
 > Every run leaves a full server with its world under `runs/`. Delete the run folders once the results are read; they fill a disk quickly.
 
 ## Variants
+
+`SCENARIO=type=bases bash kindling-bench/matrix.sh <server.jar> <prefix> fork sleeping-be` runs the variants in the bases scenario instead; `sleeping-be` switches on Leaf's sleeping block entities.
 
 A variant is a name. Its JVM arguments come from the `jvm` table in `matrix.sh` (without an entry it runs with `-Xms3G -Xmx3G` and G1); if a folder `overlays/<name>` exists, it is copied over the server before the start.
 

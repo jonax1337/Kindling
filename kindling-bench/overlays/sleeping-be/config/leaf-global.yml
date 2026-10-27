@@ -1,0 +1,4 @@
+# Leaf's port of Lithium's sleeping block entities: hoppers, furnaces and other block entities stop ticking while
+# nothing can change for them. Off by default in Leaf and Kindling.
+performance:
+  sleeping-block-entity: true
