@@ -1,0 +1,6 @@
+# The villagers scenario: a villager outside the activation range only ticks its timers, not its brain, and the halls
+# lie up to a few dozen chunks from the player. Range 128 keeps every villager of a run thinking.
+world-settings:
+  default:
+    entity-activation-range:
+      villagers: 128

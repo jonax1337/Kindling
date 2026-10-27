@@ -5,7 +5,7 @@ The plugin joins fake players, drives the load, measures tick times and the heap
 the server. This script adds what only the operating system sees: the resident memory of the process and the CPU time.
 
     python -I run_bench.py --jar <server.jar> --plugin <kindling-bench.jar> --label leaf-stock [--jvm "-XX:+Flag ..."]
-                            [--overlay <folder with config files>] [--world <world folder to copy>] [--repeat 3]
+                            [--overlay <folder with config files> ...] [--world <world folder to copy>] [--repeat 3]
 """
 
 import argparse
@@ -56,7 +56,9 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("--label", required=True)
     parser.add_argument("--heap", default="3G", help="-Xmx; -Xms too unless --jvm sets -Xms itself")
     parser.add_argument("--jvm", default="", help="extra JVM arguments, one string")
-    parser.add_argument("--overlay", type=Path, help="folder whose files are copied over the server folder")
+    parser.add_argument("--overlay", type=Path, action="append", default=[],
+                        help="folder whose files are copied over the server folder; may be given more than once, "
+                             "later folders overwrite earlier ones")
     parser.add_argument("--world", type=Path, help="world folder copied in as 'world' before the start")
     parser.add_argument("--scenario", default="", help="key=value pairs for the plugin, comma separated")
     parser.add_argument("--repeat", type=int, default=1)
@@ -99,8 +101,8 @@ def prepare_folder(args: argparse.Namespace, attempt: int) -> Path:
         "\n".join(args.scenario.split(",")) + "\n", encoding="utf-8")
     if args.world:
         shutil.copytree(args.world, folder / "world")
-    if args.overlay:
-        shutil.copytree(args.overlay, folder, dirs_exist_ok=True)
+    for overlay in args.overlay:
+        shutil.copytree(overlay, folder, dirs_exist_ok=True)
     return folder
 
 

@@ -1,0 +1,4 @@
+# Parity check, option off: mob pathfinding runs on the main thread as in Paper.
+async:
+  async-pathfinding:
+    enabled: false

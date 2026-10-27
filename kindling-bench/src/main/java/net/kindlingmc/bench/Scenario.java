@@ -12,7 +12,8 @@ import org.bukkit.GameMode;
  * What one benchmark run does, read from {@code plugins/KindlingBench/scenario.properties}; every key has a default.
  * The {@link ScenarioType#BASES bases} run uses only {@code players}, {@code plots-per-player}, {@code warmup-seconds},
  * {@code steady-seconds}, {@code client-view-distance}, {@code chunk-acks} and {@code hopper-guard-seconds}; its players
- * are always in creative mode.
+ * are always in creative mode. The {@link ScenarioType#SLEEPING sleeping} and {@link ScenarioType#VILLAGERS villagers}
+ * runs use the same keys except {@code hopper-guard-seconds}, whose waits are fixed in their layouts.
  *
  * @param type which load the run puts on the server
  * @param players fake players that join, spread on a circle around the world origin

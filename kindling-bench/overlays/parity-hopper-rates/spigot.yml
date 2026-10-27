@@ -1,0 +1,7 @@
+# Parity check, non-default hopper rates as in many tuning guides: three items per transfer, four ticks between them
+# (Spigot defaults: 1 and 8). Paper honours both; the sleeping hopper path must as well.
+world-settings:
+  default:
+    hopper-amount: 3
+    ticks-per:
+      hopper-transfer: 4

@@ -1,0 +1,4 @@
+# Parity check, option on: mob pathfinding runs on worker threads.
+async:
+  async-pathfinding:
+    enabled: true

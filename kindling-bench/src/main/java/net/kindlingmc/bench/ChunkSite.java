@@ -53,6 +53,11 @@ final class ChunkSite {
         place(x, y, z, material.createBlockData());
     }
 
+    /** Sets the block through {@link Block#setType(Material, boolean)} without physics, the way plugins and tools place. */
+    void placeType(int x, int y, int z, Material material) {
+        block(x, y, z).setType(material, false);
+    }
+
     /** Sets every block of one layer of the chunk. */
     void layer(int y, Material material) {
         BlockData data = material.createBlockData();
@@ -99,8 +104,18 @@ final class ChunkSite {
 
     /** How many items one slot of the container at the position holds. */
     int itemsIn(int x, int y, int z, int slot) {
-        ItemStack stack = inventory(x, y, z).getItem(slot);
+        ItemStack stack = stackIn(x, y, z, slot);
         return stack == null ? 0 : stack.getAmount();
+    }
+
+    /** The stack in one slot of the container at the position; null for an empty slot. */
+    ItemStack stackIn(int x, int y, int z, int slot) {
+        return inventory(x, y, z).getItem(slot);
+    }
+
+    /** Whether the block at the position holds an inventory; a container placed later is not there yet. */
+    boolean hasContainer(int x, int y, int z) {
+        return block(x, y, z).getState(false) instanceof Container;
     }
 
     /**

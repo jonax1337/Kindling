@@ -88,6 +88,48 @@ git diff kindling-bench/parity/bases-ci.json
 
 `--update` refuses to write when a run did not settle or the runs disagree. Commit the new file together with the bench change, and say in the commit message why the counters moved. The scenario of the CI run is the `scenario` line in `parity/run.sh`; the golden file records the scenario it was made with, and the check fails on a mismatch.
 
+## Option parity scenarios
+
+Two more scenario types check that an option of the server changes speed and nothing else. They are not compared with a golden file but with themselves: every scenario runs twice, with the option under test on and off (the overlay folders `overlays/parity-*`), and `parity/check.py --pair` requires the counters to agree. Their counters are absolute (what each module holds at the end, counted from what it was built with), and they run without a warm-up (`warmup-seconds=0`), because the plugin stand-ins act at fixed ticks after the build. Each run also reports `options`: the settings of the files the server started with (`performance.sleeping-block-entity`, `async.async-pathfinding.enabled`, the `spigot.yml` hopper rates and villager activation range). The pair check fails if the toggle is not on in one run and off in the other, or if any other option differs, so an overlay that silently did not apply cannot pass as parity. It also requires that the reference run (option off) shows work: counters that must be above 0 are listed in `PAIR_RULES` in `check.py`.
+
+```bash
+bash kindling-bench/parity/run.sh <server.jar> sleeping    # four runs of about 2 min each: sleeping block entities on/off, default and tuned hopper rates
+bash kindling-bench/parity/run.sh <server.jar> villagers   # two runs of about 3 min each: async pathfinding on/off
+bash kindling-bench/parity/run.sh <server.jar> all         # bases, sleeping and villagers
+```
+
+Without a scenario name `run.sh` runs the bases check as before. A pair that disagrees is printed counter by counter with the likely cause; the files stay in `runs/parity-<name>-on.json` and `-off.json`. `PARITY_RUNS=n` repeats every run n times and compares run k of one side with run k of the other.
+
+### `type=sleeping`
+
+Three chunks per plot (the fourth is empty). Where a server that lets idle block entities sleep (Leaf's `performance.sleeping-block-entity`) has differed from Paper:
+
+| Module | What it does | Counters | Bug it catches |
+| --- | --- | --- | --- |
+| Hopper hall | the chains, idle and stuck rows of the bases storage room | `hopper_chain_items`, `hopper_idle_items`, `hopper_stuck_items` | with the tuned overlay `parity-hopper-rates` (`hopper-amount: 3`, `ticks-per.hopper-transfer: 4`, Spigot's defaults are 1 and 8): the sleeping hopper path ignores both, so the chains carry other amounts |
+| Hopper rewrite | four hoppers with 20 cobblestone each push into barrels; a plugin stand-in (`HopperRewriter`) calls `InventoryMoveItemEvent#setItem` with a tagged copy of the moved item | `rewrite_arrived` (items in the barrels), `rewrite_left` (items missing from the hoppers), `rewrite_duplicated` (arrived minus left) | the sleeping path shrinks a copy of the stack, so the hopper keeps its items and the barrels fill up: `rewrite_duplicated` above 0 |
+| Physics-free placement | after 10 s a chest is placed under two hoppers that point into air and over two barrels under a stocked chest above two hoppers, once with `Block#setType(type, false)` and once with `Block#setBlockData(data, false)` | `placement_target_arrived`, `placement_source_arrived` (20 each) | the hoppers cached "no inventory" and are not woken by a block placed without block updates: both stay 0 |
+| Gated fuel row | two brewing stands (3 water bottles, nether wart, blaze powder) and two furnaces (cobblestone, coal); a plugin stand-in (`FuelGate`) cancels `BrewingStandFuelEvent` and sets `FurnaceBurnEvent#setBurning(false)` for the first 10 s | `gate_brewed_potions` (6 awkward potions), `gate_smelted_items` (10 stones) | the stands and furnaces fall asleep during the hold and never wake: both stay 0 |
+
+The plugin stand-ins are real event listeners (like `HopperGuard`), so they also switch the server onto the code paths that exist only when a plugin listens. The CI size is one player and one plot with 65 s of measuring; the furnaces need the last of it (a stone takes 10 s, the first fuel is allowed after 10 s, five stones each by the end). **Expected on a build with the bugs: differences in `rewrite_*`, `placement_*`, `gate_*` between the runs (and in `hopper_chain_items` in the tuned pair); identical after the fixes.** `rewrite_duplicated` must be 0 in both runs of every pair.
+
+### `type=villagers`
+
+A walled hall in every chunk of every plot (4 halls per plot, so 48 villagers at `plots-per-player=1`). Each hall has twelve unemployed adult villagers, twelve beds (two rows of six) and twelve composters as job sites, so in the end every villager can hold a bed and a job site and none can hold another villager's. The run only builds and waits; the villagers claim the places themselves. Counters: `bed_claims` and `job_site_claims` (villagers whose `HOME` and `JOB_SITE` memory is set), `shared_beds` and `shared_job_sites` (places that more than one villager holds).
+
+Vanilla takes a place in the same tick it chooses it, so a place is never held twice. With async pathfinding, `AcquirePoi` sets the memory after a path that arrives later and ignores the result of `PoiManager#take`, so two villagers can end up with the same bed or composter. **Expected on a build with the bug: `shared_*` above 0 with async pathfinding on, 0 with it off; after the fix 0 in both.**
+
+The claims cannot be compared exactly. Both runs should end with 48 and 48 (supply equals demand per hall), but when the last villager gets there depends on the random retry delay of the brain (20 to 40 ticks per attempt) and on how long an asynchronous path takes, so a run that ends a little early is a few claims short. `check.py` lets `bed_claims` and `job_site_claims` differ by 10 % of the larger value and requires `shared_*` to be exactly 0 in both runs. Villagers outside the activation range only tick their timers, not their brain, so the overlay `villagers-active` raises `entity-activation-range.villagers` to 128; use it for every villager run.
+
+**As a performance load** (for example to compare optimisations of the villager sensors), run the same type with a warm-up and read the tick times, which land under `bases` in the result (the counters are then only the claims at the end and say nothing about speed):
+
+```bash
+SCENARIO="type=villagers,players=2,plots-per-player=4,warmup-seconds=60,steady-seconds=90" \
+    bash kindling-bench/matrix.sh <server.jar> villagers villagers-active
+```
+
+Run it once per jar or setting under comparison. Every variant needs the `villagers-active` overlay (or a copy of it with the setting under test added); without it most villagers do not think and there is nothing to measure.
+
 ## Building and running
 
 ```bash
@@ -100,7 +142,7 @@ bash kindling-bench/matrix.sh <server.jar> <prefix> [variant ...]   # all varian
 | Option of `run_bench.py` | Effect |
 | --- | --- |
 | `--heap` | Sets `-Xmx` (default 3G) and, unless `--jvm` names its own `-Xms`, also `-Xms` |
-| `--overlay <folder>` | Copies files over the server folder before the start, for example `overlays/leaf-safe/config/leaf-global.yml`. Leaf fills in missing keys, so an overlay only needs the keys it changes |
+| `--overlay <folder>` | Copies files over the server folder before the start, for example `overlays/leaf-safe/config/leaf-global.yml`. Leaf fills in missing keys, so an overlay only needs the keys it changes. May be given more than once; later folders overwrite earlier ones |
 | `--world <folder>` | Copies a world in as `world` before the start |
 | `--scenario "players=4,travel-seconds=30"` | Overrides single scenario keys |
 | `--cpus N` | Pins the server to the first N logical cores as a stand-in for a smaller machine (pair it with `-XX:ActiveProcessorCount=N` in `--jvm`, so the JVM sizes its thread pools accordingly). On Linux the server starts under `taskset -c 0-(N-1)`, so every thread inherits the mask; on Windows the affinity is set after the start |

@@ -1,0 +1,3 @@
+# Parity check, option off: every block entity ticks as in Paper.
+performance:
+  sleeping-block-entity: false

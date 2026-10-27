@@ -53,7 +53,7 @@ final class BrewingRow implements Contraption {
         }
     }
 
-    private static ItemStack waterBottle() {
+    static ItemStack waterBottle() {
         ItemStack bottle = new ItemStack(Material.POTION);
         bottle.editMeta(PotionMeta.class, meta -> meta.setBasePotionType(PotionType.WATER));
         return bottle;

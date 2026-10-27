@@ -5,6 +5,7 @@ import org.bukkit.block.BlockFace;
 import org.bukkit.block.Orientation;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.block.data.Directional;
+import org.bukkit.block.data.type.Bed;
 import org.bukkit.block.data.type.Crafter;
 import org.bukkit.block.data.type.RedstoneWire;
 
@@ -22,6 +23,14 @@ final class BlockStates {
         Directional data = (Directional) material.createBlockData();
         data.setFacing(face);
         return data;
+    }
+
+    /** One half of a bed; the head lies one block from the foot in the direction {@code facing} names. */
+    static BlockData bed(Bed.Part part, BlockFace facing) {
+        Bed bed = (Bed) Material.RED_BED.createBlockData();
+        bed.setPart(part);
+        bed.setFacing(facing);
+        return bed;
     }
 
     /** A crafter turned to {@code orientation}: first the side it puts out what it crafts, then its top. */

@@ -3,7 +3,6 @@ package net.kindlingmc.bench;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.TreeMap;
 import org.bukkit.Bukkit;
 import org.bukkit.GameMode;
 import org.bukkit.World;
@@ -11,14 +10,16 @@ import org.bukkit.entity.Entity;
 import org.bukkit.entity.Item;
 import org.bukkit.entity.Mob;
 import org.bukkit.event.HandlerList;
+import org.bukkit.event.Listener;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitTask;
 
 /**
- * A run in survival bases: every fake player hovers among its {@link Plot}s, each with a storage room of hoppers, a row
- * of furnaces, a redstone board and a workshop ({@link PlotGrid}). Once world generation around the players has calmed
+ * A run in plots built for counting: every fake player hovers among its {@link Plot}s ({@link PlotGrid}), which the
+ * scenario's {@link Layout} fills: survival bases with hoppers, furnaces, redstone and a workshop, the cases where
+ * sleeping block entities can differ, or halls of villagers. Once world generation around the players has calmed
  * down, all contraptions are built in the same tick, run through the warm-up and are then measured: tick times, and
- * how far every contraption got. Nothing in a base depends on chance, so two runs, and two server builds that keep
+ * how far every contraption got. Nothing in a layout depends on chance, so two runs, and two server builds that keep
  * vanilla behaviour, must report the same counters; a difference means behaviour changed.
  */
 final class BaseRun {
@@ -36,10 +37,8 @@ final class BaseRun {
     private final FakePlayers fakePlayers;
     private final RunResult result = new RunResult();
     private final List<Plot> plots = new ArrayList<>();
-    private final List<Contraption> contraptions = new ArrayList<>();
-    private final List<Clocked> clocks = new ArrayList<>();
     private final GenerationWatch generation = new GenerationWatch();
-    private final PistonCount pistons = new PistonCount();
+    private Layout layout;
     private World world;
     private int startTick;
     private int clearedPlots;
@@ -56,6 +55,7 @@ final class BaseRun {
         world = Bukkit.getWorlds().getFirst();
         holdStill(world);
         result.put("scenario", scenario);
+        result.put("options", ServerOptions.read(plugin.getServer().getWorldContainer().toPath()));
         Bukkit.getPluginManager().registerEvents(generation, plugin);
         PlotGrid grid = new PlotGrid(world, scenario.plotsPerPlayer());
         for (int i = 0; i < scenario.players(); i++) {
@@ -98,29 +98,13 @@ final class BaseRun {
 
     private void build() {
         removeStrayEntities();
-        List<Clocked> workshops = new ArrayList<>();
-        for (Plot plot : plots) {
-            RedstoneBoard board = new RedstoneBoard(plot.site(2));
-            Workshop workshop = new Workshop(plot.site(3));
-            contraptions.addAll(List.of(new HopperHall(plot.site(0)), new FurnaceRow(plot.site(1)), board, workshop));
-            clocks.add(board);
-            workshops.add(workshop);
+        layout = Layout.of(scenario, plots);
+        layout.contraptions().forEach(Contraption::build);
+        for (Listener listener : layout.listeners(Bukkit.getCurrentTick())) {
+            Bukkit.getPluginManager().registerEvents(listener, plugin);
         }
-        // All boards before all workshops: taking turns, each kind would step on every other tick only.
-        clocks.addAll(workshops);
-        contraptions.forEach(Contraption::build);
-        startHopperGuard();
-        Bukkit.getPluginManager().registerEvents(pistons, plugin);
         Bukkit.getScheduler().runTaskTimer(plugin, this::tickClocks, 1, 1);
         afterTicks((long) scenario.warmupSeconds() * TICKS_PER_SECOND, this::measure);
-    }
-
-    /** The stand-in protection plugin, if the scenario asks for one. */
-    private void startHopperGuard() {
-        if (scenario.hopperGuardSeconds() > 0) {
-            int releaseTick = Bukkit.getCurrentTick() + scenario.hopperGuardSeconds() * TICKS_PER_SECOND;
-            Bukkit.getPluginManager().registerEvents(new HopperGuard(releaseTick), plugin);
-        }
     }
 
     /**
@@ -142,6 +126,7 @@ final class BaseRun {
      */
     private void tickClocks() {
         clockTicks++;
+        List<Clocked> clocks = layout.clocks();
         for (int clock = 0; clock < clocks.size(); clock++) {
             if ((clockTicks + clock) % Clocked.STEP_TICKS == 0) {
                 clocks.get(clock).clockStep();
@@ -151,7 +136,7 @@ final class BaseRun {
 
     /** Reading the counters costs a tick of its own, so the tick times are recorded from the next tick on. */
     private void measure() {
-        Map<String, Long> before = totals();
+        Map<String, Long> before = layout.totals();
         long measuredTicks = (long) scenario.steadySeconds() * TICKS_PER_SECOND;
         afterTicks(1, phase::start);
         afterTicks(1 + measuredTicks, () -> finish(before));
@@ -159,24 +144,12 @@ final class BaseRun {
 
     private void finish(Map<String, Long> before) {
         result.put("bases", phase.stop());
-        result.put("counters", growth(before, totals()));
+        result.put("counters", layout.counters(before, layout.totals()));
         result.put("chunks_loaded", ServerState.loadedChunks());
         result.put("entities", ServerState.entities());
         result.put("entity_types", ServerState.entityTypes());
         result.putAll(ServerState.memoryUnderLoad());
         result.writeAndStop(plugin);
-    }
-
-    private Map<String, Long> totals() {
-        Map<String, Long> totals = Contraption.totalsOf(contraptions);
-        totals.put("piston_extensions", pistons.extensions());
-        return totals;
-    }
-
-    private static Map<String, Long> growth(Map<String, Long> before, Map<String, Long> after) {
-        Map<String, Long> growth = new TreeMap<>();
-        after.forEach((name, value) -> growth.put(name, value - before.getOrDefault(name, 0L)));
-        return growth;
     }
 
     private void afterTicks(long delay, Runnable step) {
