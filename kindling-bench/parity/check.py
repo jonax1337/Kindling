@@ -19,6 +19,9 @@ GOLDEN = Path(__file__).resolve().parent / "bases-ci.json"
 def main() -> int:
     args = parse_arguments()
     runs = json.loads(args.result.read_text(encoding="utf-8"))
+    if not runs:
+        print(f"no runs in {args.result}")
+        return 1
     if args.update:
         return update_golden(args.golden, runs)
     golden = json.loads(args.golden.read_text(encoding="utf-8"))

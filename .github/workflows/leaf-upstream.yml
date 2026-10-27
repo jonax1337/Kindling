@@ -88,7 +88,7 @@ jobs:
             PARITY="The parity check passed: the bases scenario counted exactly what bases-ci.json says."
           else
             PARITY_LOG=parity.log
-            PARITY="The parity check FAILED: block entity or redstone behaviour differs from bases-ci.json (or the bench itself changed, docs: kindling-bench/README.md)."
+            PARITY="The parity check FAILED: counters differ from bases-ci.json, or the run did not finish (see the log below; if the bench itself changed, see kindling-bench/README.md)."
           fi
           if ! git ls-remote --exit-code --heads origin "$BRANCH" > /dev/null; then
             git push origin "$BRANCH" > push.log 2>&1 || report "Pushing $BRANCH failed." push.log
