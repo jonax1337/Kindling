@@ -19,6 +19,7 @@ final class PregenTask {
 
     private static final int TICKS_PER_SECOND = 20;
     private static final double RELAXED_SHARE_OF_BUDGET = 0.75;
+    private static final int RATE_WINDOW_SECONDS = 60;
 
     final ServerLevel level;
     final int centerX;
@@ -28,8 +29,10 @@ final class PregenTask {
     private final KeptTiles kept;
     private final LongSortedSet inFlight = new LongRBTreeSet();
     private final AtomicLong completed = new AtomicLong();
+    // chunks the chunk system generated or read from disk; the ones outside the area are only counted as completed
+    private final AtomicLong delivered = new AtomicLong();
+    private final RateWindow deliveryRate = new RateWindow(RATE_WINDOW_SECONDS + 1);
     private final long startIndex;
-    private final long startNanos = System.nanoTime();
     private long next;
     private int parallel = 1;
     private boolean paused;
@@ -48,6 +51,9 @@ final class PregenTask {
     }
 
     void pump(final long tick, final long averageTickNanos, final long budgetNanos, final int maxParallel) {
+        if (tick % TICKS_PER_SECOND == 0) {
+            this.deliveryRate.sample(System.nanoTime(), this.delivered.get());
+        }
         if (this.paused || this.next >= this.total) {
             return;
         }
@@ -76,6 +82,7 @@ final class PregenTask {
         ((ChunkSystemServerLevel) this.level).moonrise$getChunkTaskScheduler().scheduleChunkLoad(
             chunkX, chunkZ, ChunkStatus.FULL, true, Priority.IDLE, chunk -> {
                 this.completed.incrementAndGet();
+                this.delivered.incrementAndGet();
                 this.inFlight.remove(index);
                 if (chunk != null && !this.closed && !this.paused) {
                     this.kept.keep(TileSpiral.tileOf(index), chunkX, chunkZ);
@@ -113,12 +120,12 @@ final class PregenTask {
 
     String describe() {
         final long done = this.startIndex + this.completed.get();
-        final double seconds = Math.max(1e-3, (System.nanoTime() - this.startNanos) / 1e9);
-        final double perSecond = this.completed.get() / seconds;
+        final double perSecond = this.deliveryRate.perSecond();
         final long left = this.total - done;
         final String eta = perSecond > 0 ? Math.round(left / perSecond / 60) + " min" : "-";
-        return String.format("%s: %,d / %,d chunks (%.1f %%), %.0f chunks/s, %d in flight, ETA %s%s",
-            this.level.dimension().identifier(), done, this.total, 100.0 * done / this.total, perSecond, this.parallel, eta,
-            this.paused ? ", paused" : "");
+        return String.format(
+            "%s: %,d / %,d chunks (%.1f %%), %.0f chunks/s over the last minute, %d in flight (up to %d), ETA %s%s",
+            this.level.dimension().identifier(), done, this.total, 100.0 * done / this.total, perSecond,
+            this.inFlight.size(), this.parallel, eta, this.paused ? ", paused" : "");
     }
 }
