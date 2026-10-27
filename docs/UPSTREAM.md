@@ -3,7 +3,7 @@
 Kindling is a GitHub fork of [Leaf](https://github.com/Winds-Studio/Leaf): Leaf's `ver/26.3` branch plus a few commits on top.
 
 > [!NOTE]
-> A weekly workflow ([`.github/workflows/leaf-upstream.yml`](../.github/workflows/leaf-upstream.yml), Mondays 06:00 UTC, also startable by hand) merges Leaf's new commits into a branch `auto/leaf-<commit>`, applies the patches, builds the jar and runs Kindling's tests. It reports in one issue labelled `upstream`: a link to open the pull request when all of that passed, otherwise the step that failed (a merge conflict, a Leaf patch with a number Kindling uses, the build or the tests) with the end of its log. Once Kindling contains Leaf's branch again, it closes that issue.
+> A weekly workflow ([`.github/workflows/leaf-upstream.yml`](../.github/workflows/leaf-upstream.yml), Mondays 06:00 UTC, also startable by hand) merges Leaf's new commits into a branch `auto/leaf-<commit>`, applies the patches, builds the jar, runs Kindling's tests and the [parity check](../kindling-bench/README.md#parity-check-ci) (the `bases` counters must equal `kindling-bench/parity/bases-ci.json`). It reports in one issue labelled `upstream`: a link to open the pull request when the merge applied, built and passed the tests, together with the parity result (a failed parity check does not stop the branch; the end of its log lists the counters that differ), otherwise the step that failed (a merge conflict, a Leaf patch with a number Kindling uses, the build or the tests) with the end of its log. Once Kindling contains Leaf's branch again, it closes that issue.
 >
 > The pull request is still merged by hand after a `kindling-bench` run.
 
@@ -20,7 +20,7 @@ Kindling is a GitHub fork of [Leaf](https://github.com/Winds-Studio/Leaf): Leaf'
 | `leaf-server/build.gradle.kts.patch` | The name in the jar manifest (`Brand-Name`, `Implementation-Title`) |
 | `settings.gradle.kts` | The `kindling-bench` module |
 | `kindling-bench/` | The load test |
-| `.github/workflows/` | `build.yml` (every push to `ver/26.3` that changes more than docs and the bench becomes a pre-release `26.3-<build>`), `leaf-upstream.yml` (above) |
+| `.github/workflows/` | `build.yml` (every push to `ver/26.3` that changes more than docs and the bench becomes a pre-release `26.3-<build>`), `leaf-upstream.yml` (above), `parity.yml` (the parity check on every change to patches, Kindling code or the bench) |
 
 ## Merging a Leaf update
 

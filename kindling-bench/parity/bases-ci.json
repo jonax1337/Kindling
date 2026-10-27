@@ -1,0 +1,34 @@
+{
+  "scenario": {
+    "type": "BASES",
+    "players": 1,
+    "circleRadius": 512,
+    "warmupSeconds": 20,
+    "travelSeconds": 90,
+    "blocksPerTick": 1.0,
+    "mobsPerPlayer": 150,
+    "settleSeconds": 15,
+    "steadySeconds": 90,
+    "idleSeconds": 60,
+    "clientViewDistance": 12,
+    "plotsPerPlayer": 2,
+    "hopperGuardSeconds": 0
+  },
+  "counters": {
+    "brewing_brews_finished": 20,
+    "chest_minecart_items": 452,
+    "composter_bone_meal": 50,
+    "crafter_crafted_items": 180,
+    "double_chest_items": 452,
+    "dropped_items_caught": 1805,
+    "furnace_smelted_items": 216,
+    "hopper_chain_items": 1350,
+    "hopper_idle_items": 0,
+    "hopper_minecart_items": 450,
+    "hopper_stuck_items": 0,
+    "piston_extensions": 2700,
+    "redstone_pulses": 540,
+    "sorter_passed_items": 360,
+    "sorter_sorted_items": 360
+  }
+}

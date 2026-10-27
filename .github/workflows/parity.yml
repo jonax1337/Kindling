@@ -1,0 +1,72 @@
+name: Parity
+
+# Block entity and redstone behaviour must not change. The bases scenario of kindling-bench counts, in a fixed number
+# of server ticks, what every contraption does; kindling-bench/parity/bases-ci.json holds the counts of a build that
+# keeps vanilla behaviour. Any difference fails the run. How to regenerate the file: kindling-bench/README.md.
+on:
+  push:
+    branches: [ "ver/26.3" ]
+    paths:
+      - "leaf-server/**/*.patch"
+      - "leaf-api/**/*.patch"
+      - "leaf-server/src/main/java/**"
+      - "kindling-bench/**"
+      - ".github/workflows/parity.yml"
+  pull_request:
+    branches: [ "ver/26.3" ]
+    paths:
+      - "leaf-server/**/*.patch"
+      - "leaf-api/**/*.patch"
+      - "leaf-server/src/main/java/**"
+      - "kindling-bench/**"
+      - ".github/workflows/parity.yml"
+  workflow_dispatch:
+
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v6
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+          cache: gradle
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+
+      - name: Install psutil
+        run: python -m pip install psutil
+
+      - name: Configure Git
+        run: |
+          git config --global user.email "no-reply@github.com"
+          git config --global user.name "Github Actions"
+
+      - name: Apply patches
+        run: ./gradlew applyAllPatches --stacktrace --no-daemon
+      - name: Build the server jar and the bench plugin
+        run: ./gradlew createPaperclipJar :kindling-bench:jar --no-configuration-cache --stacktrace --no-daemon
+
+      - name: Run the bases scenario and compare the counters
+        run: kindling-bench/parity/run.sh "$(ls leaf-server/build/libs/leaf-paperclip-*.jar | head -n 1)"
+
+      - name: Keep the logs of the run
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: parity-run
+          path: |
+            kindling-bench/runs/parity-ci.log
+            kindling-bench/runs/parity-ci-*/console.log
+            kindling-bench/runs/parity-ci-*/bench-result.json
+          if-no-files-found: ignore

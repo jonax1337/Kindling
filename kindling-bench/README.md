@@ -42,6 +42,27 @@ Hopper events are not used for counting: Paper skips them when no plugin listens
 
 `hopper-guard-seconds=10` adds a stand-in protection plugin that holds every hopper back for the first 10 seconds after the build (it hides their sources and cancels transfers and pickups, as a claim plugin does until its claims are loaded) and then lets everything through. Its counters compare only with other guarded runs: a server whose hoppers stay stuck after the release reports far lower counters than one without sleeping hoppers.
 
+## Parity check (CI)
+
+`parity/run.sh <server.jar>` runs the bases scenario in a size a GitHub runner finishes in a few minutes (one player over two plots, 20 s warm-up, 90 s measured; every contraption type is in each plot) and compares its counters with [`parity/bases-ci.json`](parity/bases-ci.json). A counter that differs makes `parity/check.py` print `name: expected X, got Y` and exit 1. The workflows [`parity.yml`](../.github/workflows/parity.yml) (patch, Kindling code and bench changes) and [`leaf-upstream.yml`](../.github/workflows/leaf-upstream.yml) (after the weekly Leaf merge; it reports the result in the `upstream` issue) run it.
+
+The counters do not depend on the speed of the machine: the whole scenario is counted in server ticks (clocks, warm-up, measurement and the hopper guard all use the tick counter, none the wall clock), so a slow runner takes longer but counts the same. The one thing that must hold is that world generation has settled before the bases are built; a run that did not (`settled: false`) fails the check instead of reporting counters.
+
+```bash
+./gradlew :kindling-bench:jar --no-configuration-cache
+bash kindling-bench/parity/run.sh <server.jar>               # needs Python with psutil
+PARITY_RUNS=2 bash kindling-bench/parity/run.sh <server.jar>   # every one of two runs must match
+```
+
+**Regenerating the golden file.** The counters are a property of the bench (what it builds and how often it steps it) together with vanilla behaviour. When the bench changes what it builds, steps or counts, or when behaviour is meant to change (a Leaf merge that fixes a vanilla bug), the file is stale. Build the new bench against a jar you trust, run it twice and write the file only if both agree:
+
+```bash
+PARITY_RUNS=2 bash kindling-bench/parity/run.sh <server.jar> --update
+git diff kindling-bench/parity/bases-ci.json
+```
+
+`--update` refuses to write when a run did not settle or the runs disagree. Commit the new file together with the bench change, and say in the commit message why the counters moved. The scenario of the CI run is the `scenario` line in `parity/run.sh`; the golden file records the scenario it was made with, and the check fails on a mismatch.
+
 ## Building and running
 
 ```bash
