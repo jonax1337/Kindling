@@ -1,0 +1,123 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Tue, 27 Oct 2026 22:40:20 +0100
+Subject: [PATCH] Kindling: Make async player data saving safe
+
+
+diff --git a/net/minecraft/server/MinecraftServer.java b/net/minecraft/server/MinecraftServer.java
+index ff638fd0b45d010bcd9f9caa080b00aac0e0d03b..cbc0568ff72b9933778d7d5b2a1b023119a87bab 100644
+--- a/net/minecraft/server/MinecraftServer.java
++++ b/net/minecraft/server/MinecraftServer.java
+@@ -1006,6 +1006,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+             // Leaf end - SparklyPaper - parallel world ticking - Shutdown handling for async reads
+             result = true;
+         }
++        if (flush) org.dreeam.leaf.async.AsyncPlayerDataSaving.awaitQueuedWrites(); // Kindling - a flush promises the queued player data and level.dat writes on disk
+ 
+         // Paper start - split out global level data
+         return result;
+@@ -1127,6 +1128,7 @@ public abstract class MinecraftServer extends ReentrantBlockableEventLoop<TickTa
+         this.savedDataStorage.close();
+         this.resources.close();
+ 
++        org.dreeam.leaf.async.AsyncPlayerDataSaving.shutdown(); // Kindling - the queued writes reach the disk while the world is still locked
+         try {
+             this.storageSource.close();
+         } catch (IOException e) {
+diff --git a/net/minecraft/world/level/storage/LevelStorageSource.java b/net/minecraft/world/level/storage/LevelStorageSource.java
+index 3fa69608fbc348df64d4e08baf60b7a2d455a392..fcc01d62a210a4999637d9f60f7d38fa3612b9ad 100644
+--- a/net/minecraft/world/level/storage/LevelStorageSource.java
++++ b/net/minecraft/world/level/storage/LevelStorageSource.java
+@@ -632,6 +632,7 @@ public class LevelStorageSource {
+                 NbtIo.writeCompressed(root, nbtBytes);
+             } catch (Exception e) {
+                 LevelStorageSource.LOGGER.error("Failed to encode level {}", worldDir, e);
++                return; // Kindling - never write a truncated file
+             }
+             org.dreeam.leaf.async.AsyncPlayerDataSaving.submit(() -> {
+                 try {
+diff --git a/net/minecraft/world/level/storage/PlayerDataStorage.java b/net/minecraft/world/level/storage/PlayerDataStorage.java
+index 1c1117f3e674ddd009fb1e580670e0140a22b1c0..f47cab9f6fca4f8a67a8bbe2dffc440781e00a6b 100644
+--- a/net/minecraft/world/level/storage/PlayerDataStorage.java
++++ b/net/minecraft/world/level/storage/PlayerDataStorage.java
+@@ -23,7 +23,7 @@ public class PlayerDataStorage {
+     private static final Logger LOGGER = LogUtils.getLogger();
+     private final File playerDir;
+     protected final DataFixer fixerUpper;
+-    private final java.util.Map<java.util.UUID, java.util.concurrent.Future<?>> savingLocks = new it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap<>(); // Leaf - Async playerdata saving
++    // Kindling - pending writes are tracked by AsyncPlayerDataSaving, which never drops one
+ 
+     public PlayerDataStorage(final LevelStorageSource.LevelStorageAccess levelAccess, final DataFixer fixerUpper) {
+         this.fixerUpper = fixerUpper;
+@@ -54,10 +54,10 @@ public class PlayerDataStorage {
+             NbtIo.writeCompressed(compoundTag, nbtBytes);
+         } catch (Exception exception) {
+             LOGGER.warn("Failed to encode player data for {}", stringId, exception);
++            return; // Kindling - never write a truncated file
+         }
+-        lockFor(uniqueId, playerName);
+         synchronized (PlayerDataStorage.this) {
+-            org.dreeam.leaf.async.AsyncPlayerDataSaving.submit(() -> {
++            org.dreeam.leaf.async.AsyncPlayerDataSaving.submit(uniqueId, () -> { // Kindling - the write queue waits for and keeps track of earlier writes
+                 try {
+                     Path playerDirPath = this.playerDir.toPath();
+                     Path tmpFile = Files.createTempFile(playerDirPath, stringId + "-", ".dat");
+@@ -67,48 +67,11 @@ public class PlayerDataStorage {
+                     Util.safeReplaceFile(realFile, tmpFile, oldFile);
+                 } catch (Exception var7) {
+                     LOGGER.warn("Failed to save player data for {}", playerName, var7);
+-                } finally {
+-                    synchronized (PlayerDataStorage.this) {
+-                        savingLocks.remove(uniqueId);
+-                    }
+                 }
+-            }).ifPresent(future -> savingLocks.put(uniqueId, future));
++            }); // Kindling - the write queue keeps track of pending writes
+         }
+     }
+ 
+-    private void lockFor(final java.util.UUID uniqueId, final String playerName) {
+-        java.util.concurrent.Future<?> fut;
+-        synchronized (this) {
+-            fut = savingLocks.get(uniqueId);
+-        }
+-        if (fut == null) {
+-            return;
+-        }
+-        while (true) {
+-            try {
+-                fut.get(10_000L, java.util.concurrent.TimeUnit.MILLISECONDS);
+-                break;
+-            } catch (InterruptedException ignored) {
+-            } catch (java.util.concurrent.ExecutionException
+-                     | java.util.concurrent.TimeoutException exception) {
+-                LOGGER.warn("Failed to save player data for {}", playerName, exception);
+-
+-                String threadDump = "";
+-                var threadMXBean = java.lang.management.ManagementFactory.getThreadMXBean();
+-                for (var threadInfo : threadMXBean.dumpAllThreads(true, true)) {
+-                    if (threadInfo.getThreadName().equals("Leaf IO Thread")) { // TODO: We should use instanceOf here
+-                        threadDump = threadInfo.toString();
+-                        break;
+-                    }
+-                }
+-                LOGGER.warn(threadDump);
+-                fut.cancel(true);
+-                break;
+-            } finally {
+-                savingLocks.remove(uniqueId);
+-            }
+-        }
+-    }
+     // Leaf end - Async playerdata saving
+ 
+     private void backup(final NameAndId nameAndId, final String suffix) {
+@@ -126,7 +89,7 @@ public class PlayerDataStorage {
+     }
+ 
+     private Optional<CompoundTag> load(final NameAndId nameAndId, final String suffix) {
+-        lockFor(nameAndId.id(), nameAndId.name()); // Leaf - Async playerdata saving
++        org.dreeam.leaf.async.AsyncPlayerDataSaving.awaitWrite(nameAndId.id()); // Leaf - Async playerdata saving // Kindling - wait without giving up, so the newest save is what gets read
+         File realFile = new File(this.playerDir, nameAndId.id() + suffix);
+         // Spigot start
+         boolean usingWrongFile = false;

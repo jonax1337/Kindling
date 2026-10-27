@@ -21,14 +21,7 @@ public class ShutdownExecutors {
             }
         }
 
-        if (AsyncPlayerDataSaving.IO_POOL != null) {
-            LOGGER.info("Waiting for player I/O executor to shutdown...");
-            AsyncPlayerDataSaving.IO_POOL.shutdown();
-            try {
-                AsyncPlayerDataSaving.IO_POOL.awaitTermination(60L, TimeUnit.SECONDS);
-            } catch (InterruptedException ignored) {
-            }
-        }
+        // Kindling - the player I/O executor is drained in MinecraftServer#stopServer, before the world lock is released
 
         if (AsyncTracker.TRACKER_EXECUTOR != null) {
             LOGGER.info("Waiting for entity tracker executor to shutdown...");
