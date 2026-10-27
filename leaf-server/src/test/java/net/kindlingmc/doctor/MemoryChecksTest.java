@@ -20,12 +20,34 @@ class MemoryChecksTest {
 
     @Test
     void aHeapAlmostAsBigAsTheMemoryIsAWarningWithASmallerHeap() {
-        scenario.maxHeapBytes = 15 * ByteSize.GIB;
+        scenario.maxHeapBytes = 15872 * ByteSize.MIB;
 
         final Finding finding = MemoryChecks.heapHeadroom(scenario.jvm(), scenario.machine()).orElseThrow();
 
         assertEquals(Severity.WARN, finding.severity());
-        assertTrue(finding.fix().contains("-Xmx12288M"), finding.fix());
+        assertTrue(finding.fix().contains("-Xmx15784M"), finding.fix());
+        assertTrue(finding.what().contains("other servers"), finding.what());
+    }
+
+    @Test
+    void theHeapPlusTheNativeOverheadMustFitTheMemory() {
+        scenario.memoryBytes = OptionalLong.of(4 * ByteSize.GIB);
+        scenario.maxHeapBytes = 4 * ByteSize.GIB - 600 * ByteSize.MIB;
+        assertSeverity(Severity.OK, MemoryChecks.heapHeadroom(scenario.jvm(), scenario.machine()));
+
+        scenario.maxHeapBytes = 4 * ByteSize.GIB - 599 * ByteSize.MIB;
+        assertSeverity(Severity.WARN, MemoryChecks.heapHeadroom(scenario.jvm(), scenario.machine()));
+    }
+
+    @Test
+    void aMachineSmallerThanTheNativeOverheadNeedsMoreMemoryNotASmallerHeap() {
+        scenario.memoryBytes = OptionalLong.of(512 * ByteSize.MIB);
+        scenario.maxHeapBytes = 256 * ByteSize.MIB;
+
+        final Finding finding = MemoryChecks.heapHeadroom(scenario.jvm(), scenario.machine()).orElseThrow();
+
+        assertEquals(Severity.WARN, finding.severity());
+        assertTrue(finding.fix().startsWith("Give the machine more memory"), finding.fix());
     }
 
     @Test
@@ -36,10 +58,22 @@ class MemoryChecksTest {
     }
 
     @Test
-    void aHeapBelowOneGibIsTooSmall() {
-        scenario.maxHeapBytes = 512 * ByteSize.MIB;
+    void aHeapBelowOneAndAHalfGibIsTooSmallAndCitesTheMeasuredLiveData() {
+        scenario.maxHeapBytes = ByteSize.GIB;
 
-        assertSeverity(Severity.WARN, MemoryChecks.heapSize(scenario.jvm(), scenario.server()));
+        final Finding finding = MemoryChecks.heapSize(scenario.jvm(), scenario.server()).orElseThrow();
+
+        assertEquals(Severity.WARN, finding.severity());
+        assertEquals(Basis.KINDLING_MEASUREMENT, finding.basis());
+        assertTrue(finding.what().contains("1.2 GB of live data"), finding.what());
+        assertTrue(finding.fix().contains("-Xmx2048M"), finding.fix());
+    }
+
+    @Test
+    void aHeapBetweenOneAndAHalfAndTwoGibIsAHint() {
+        scenario.maxHeapBytes = 1792 * ByteSize.MIB;
+
+        assertSeverity(Severity.INFO, MemoryChecks.heapSize(scenario.jvm(), scenario.server()));
     }
 
     @Test
@@ -50,7 +84,7 @@ class MemoryChecksTest {
     }
 
     @Test
-    void aFarViewDistanceNeedsMoreThanOneGib() {
+    void aFarViewDistanceNeedsMoreThanOneAndAHalfGib() {
         scenario.maxHeapBytes = 1536 * ByteSize.MIB;
         scenario.viewDistance = 16;
 
@@ -58,11 +92,14 @@ class MemoryChecksTest {
     }
 
     @Test
-    void manyPlayerSlotsNeedMoreThanOneGib() {
-        scenario.maxHeapBytes = 1536 * ByteSize.MIB;
+    void manyPlayerSlotsNeedMoreThanTwoGibForAnUnmeasuredLoadHint() {
+        scenario.maxHeapBytes = 2 * ByteSize.GIB;
         scenario.maxPlayers = 100;
 
-        assertSeverity(Severity.WARN, MemoryChecks.heapSize(scenario.jvm(), scenario.server()));
+        final Finding finding = MemoryChecks.heapSize(scenario.jvm(), scenario.server()).orElseThrow();
+
+        assertEquals(Severity.INFO, finding.severity());
+        assertEquals(Basis.GENERAL_ADVICE, finding.basis());
     }
 
     @Test
@@ -74,6 +111,13 @@ class MemoryChecksTest {
         assertEquals(Severity.WARN, finding.severity());
         assertTrue(finding.fix().contains("MALLOC_ARENA_MAX=2"));
         assertTrue(finding.what().contains("64 malloc arenas"), finding.what());
+    }
+
+    @Test
+    void anArenaLimitFromGlibcTunablesCountsLikeTheEnvironmentVariable() {
+        scenario.mallocArenaMax = LinuxFiles.parseArenaMaxTunable("glibc.malloc.tcache_count=0:glibc.malloc.arena_max=2");
+
+        assertSeverity(Severity.OK, MemoryChecks.mallocArenas(scenario.machine()));
     }
 
     @Test
@@ -102,7 +146,6 @@ class MemoryChecksTest {
     @Test
     void aHeapReportedSlightlyBelowTheWantedSizeIsStillEnough() {
         scenario.maxHeapBytes = 2 * ByteSize.GIB - 100 * ByteSize.MIB;
-        scenario.viewDistance = 16;
 
         assertSeverity(Severity.OK, MemoryChecks.heapSize(scenario.jvm(), scenario.server()));
     }

@@ -109,10 +109,18 @@ A server jar cannot bring its own JVM flags. Measured and recommended:
 
 - ✅ `-XX:+UseCompactObjectHeaders` (Java 25): live heap −5 %, GC time −17 %, no tick time cost.
 - ✅ Heap 2 GB instead of 3 GB with G1: under full load (8 players, 2 900 entities) the server holds about 1.2 GB of live data; with 2 GB the process uses 1 GB less memory (−29 %) at the same tick time.
+- The process needs about 500 MB beyond the heap at `-Xmx2G` (metaspace, thread stacks, code cache, direct buffers; `kindling-bench`). `/kindling doctor` therefore wants `-Xmx` plus 600 MB to fit into the memory the server can use (container limit included), and counts every other server on the machine on top.
 - ❌ Not recommended:
   - ZGC: −22 % peak memory and returns memory to the OS, but +11 % CPU and worse tick spikes.
   - Generational Shenandoah: slower, barely less memory.
   - G1 with a small `-Xms`: G1 returns practically nothing while the server ticks, because `G1PeriodicGCInterval` only acts after GC-free pauses.
+
+## Start time and native memory (Cubyx VPS)
+
+Measured on the Cubyx VPS with the production servers, one start each:
+
+- **AOT cache** (`-XX:AOTCache`, Java 25): billiards started in 9.5 to 10.7 s instead of 16.9 to 26.9 s, smp in 19.2 s instead of 23 to 27 s. The cache only works with a direct class path start; `java -jar` with Paperclip loads the server in its own class loader, where the cache does not apply.
+- **Native heap trim**: one `jcmd <pid> System.trim_native_heap` freed 101 MB on billiards-1 and 103 MB on smp-1, so `/kindling doctor` points at `-XX:TrimNativeHeapInterval` (the interval it names is a suggestion; only the one-off trim was measured).
 
 ## Elytra test: new chunks ahead of fast players
 

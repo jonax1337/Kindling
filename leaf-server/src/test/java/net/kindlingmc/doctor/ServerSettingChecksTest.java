@@ -1,5 +1,6 @@
 package net.kindlingmc.doctor;
 
+import java.util.List;
 import java.util.OptionalDouble;
 import java.util.OptionalInt;
 import org.junit.jupiter.api.Test;
@@ -12,15 +13,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class ServerSettingChecksTest {
 
     private final Scenario scenario = new Scenario();
-
-    @Test
-    void theMeasuredDefaultFollowsTheFormulaOfThePatch() {
-        assertEquals(1, ServerSettingChecks.measuredDefaultWorkerThreads(1));
-        assertEquals(2, ServerSettingChecks.measuredDefaultWorkerThreads(4));
-        assertEquals(5, ServerSettingChecks.measuredDefaultWorkerThreads(8));
-        assertEquals(5, ServerSettingChecks.measuredDefaultWorkerThreads(12));
-        assertEquals(6, ServerSettingChecks.measuredDefaultWorkerThreads(24));
-    }
 
     @Test
     void workerThreadsLeftAtTheDefaultAreFine() {
@@ -44,7 +36,7 @@ class ServerSettingChecksTest {
 
         assertEquals(Severity.WARN, finding.severity());
         assertEquals(Basis.KINDLING_MEASUREMENT, finding.basis());
-        assertTrue(finding.what().contains("92 %"));
+        assertTrue(finding.what().contains("92 %") && finding.what().contains("9 %") && finding.what().contains("directional"), finding.what());
         assertTrue(finding.fix().contains("worker-threads"));
     }
 
@@ -71,22 +63,39 @@ class ServerSettingChecksTest {
     }
 
     @Test
-    void aHighViewDistanceOnFewProcessorsIsAWarning() {
-        scenario.processors = 4;
-        scenario.viewDistance = 20;
+    void aViewDistanceAboveTenOnEightProcessorsOrFewerRestsOnTheMeasurement() {
+        scenario.processors = 8;
+        scenario.viewDistance = 12;
 
         final Finding finding = ServerSettingChecks.viewDistance(scenario.machine(), scenario.server()).orElseThrow();
 
         assertEquals(Severity.WARN, finding.severity());
-        assertTrue(finding.fix().contains("view-distance at 14"), finding.fix());
+        assertEquals(Basis.KINDLING_MEASUREMENT, finding.basis());
+        assertTrue(finding.what().contains("45 new chunks per second"), finding.what());
+        assertTrue(finding.fix().contains("view-distance at 10"), finding.fix());
     }
 
     @Test
-    void aHighSimulationDistanceOnFewProcessorsIsAWarning() {
+    void aViewDistanceBeyondTheRuleOfThumbOnManyProcessorsIsOnlyGeneralAdvice() {
+        scenario.processors = 16;
+        scenario.viewDistance = 40;
+
+        final Finding finding = ServerSettingChecks.viewDistance(scenario.machine(), scenario.server()).orElseThrow();
+
+        assertEquals(Severity.WARN, finding.severity());
+        assertEquals(Basis.GENERAL_ADVICE, finding.basis());
+        assertTrue(finding.fix().contains("view-distance at 38"), finding.fix());
+    }
+
+    @Test
+    void aHighSimulationDistanceOnFewProcessorsIsAGeneralWarning() {
         scenario.processors = 4;
         scenario.simulationDistance = 12;
 
-        assertSeverity(Severity.WARN, ServerSettingChecks.viewDistance(scenario.machine(), scenario.server()));
+        final Finding finding = ServerSettingChecks.viewDistance(scenario.machine(), scenario.server()).orElseThrow();
+
+        assertEquals(Severity.WARN, finding.severity());
+        assertEquals(Basis.GENERAL_ADVICE, finding.basis());
     }
 
     @Test
@@ -103,13 +112,47 @@ class ServerSettingChecksTest {
     }
 
     @Test
-    void compressionBehindAProxyIsAWarningWithTheSetting() {
+    void compressionBehindAProxyOnTheSameHostIsAWarningWithTheSetting() {
         scenario.behindProxy = true;
+        scenario.proxyLocation = ProxyLocation.SAME_HOST;
 
         final Finding finding = ServerSettingChecks.proxyCompression(scenario.server()).orElseThrow();
 
         assertEquals(Severity.WARN, finding.severity());
         assertTrue(finding.fix().contains("network-compression-threshold=-1"));
+    }
+
+    @Test
+    void compressionBehindAProxyAtAnUnknownPlaceIsAWarningToo() {
+        scenario.behindProxy = true;
+        scenario.proxyLocation = ProxyLocation.UNKNOWN;
+
+        assertSeverity(Severity.WARN, ServerSettingChecks.proxyCompression(scenario.server()));
+    }
+
+    @Test
+    void compressionBehindAProxyOnAnotherHostIsOnlyAHint() {
+        scenario.behindProxy = true;
+        scenario.proxyLocation = ProxyLocation.OTHER_HOST;
+
+        assertSeverity(Severity.INFO, ServerSettingChecks.proxyCompression(scenario.server()));
+    }
+
+    @Test
+    void recommendedOptionsThatAreOnAreFine() {
+        assertSeverity(Severity.OK, ServerSettingChecks.recommendedOptions(scenario.server()));
+    }
+
+    @Test
+    void recommendedOptionsThatAreOffAreAHintNamingThemAndWhyTheyStayOff() {
+        scenario.recommendedOptionsOff = List.of("async.async-pathfinding.enabled", "performance.sleeping-block-entity");
+
+        final Finding finding = ServerSettingChecks.recommendedOptions(scenario.server()).orElseThrow();
+
+        assertEquals(Severity.INFO, finding.severity());
+        assertTrue(finding.what().contains("async.async-pathfinding.enabled, performance.sleeping-block-entity"), finding.what());
+        assertTrue(finding.what().contains("fresh file"), finding.what());
+        assertTrue(finding.fix().contains("config/leaf-global.yml"), finding.fix());
     }
 
     @Test

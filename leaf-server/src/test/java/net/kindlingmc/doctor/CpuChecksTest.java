@@ -18,17 +18,17 @@ class CpuChecksTest {
     }
 
     @Test
-    void twoProcessorsAreVeryFew() {
+    void twoProcessorsAreVeryFewButOnlyAHint() {
         scenario.processors = 2;
 
-        assertSeverity(Severity.WARN, CpuChecks.processorCount(scenario.machine()));
+        assertSeverity(Severity.INFO, CpuChecks.processorCount(scenario.machine()));
     }
 
     @Test
     void aContainerLimitBelowTheJvmCountCountsInsteadOfIt() {
         scenario.cgroupCpuLimit = OptionalDouble.of(1.5);
 
-        assertSeverity(Severity.WARN, CpuChecks.processorCount(scenario.machine()));
+        assertSeverity(Severity.INFO, CpuChecks.processorCount(scenario.machine()));
     }
 
     @Test

@@ -113,12 +113,15 @@ performance:
 
 ### Doctor (`config/leaf-global.yml`)
 
-`/kindling doctor` (permission `kindling.command.doctor`, operators by default) reads this machine and server and lists what costs performance or memory: processors and container CPU limit, `-Xmx` against the memory, the garbage collector, `-XX:+UseCompactObjectHeaders`, the AOT cache, chunk worker threads, `MALLOC_ARENA_MAX`, `-XX:TrimNativeHeapInterval`, transparent huge pages, view and simulation distance against the processors, and network compression behind a proxy. The output is grouped into `WARN`, `INFO` and `OK`; every `WARN` and `INFO` names its fix and says whether the advice rests on a Kindling measurement or is general advice. Anything the system cannot tell (for example the Linux-only values on Windows) is skipped instead of guessed.
+`/kindling doctor` (permission `kindling.command.doctor`, operators by default) reads this machine and server and lists what costs performance or memory: processors and container CPU limit, `-Xmx` against the memory (heap plus about 600 MB must fit), the garbage collector, `-XX:+UseCompactObjectHeaders`, the AOT cache, chunk worker threads, the malloc arena limit (`MALLOC_ARENA_MAX` or `GLIBC_TUNABLES`), `-XX:TrimNativeHeapInterval`, transparent huge pages, view and simulation distance against the processors, network compression behind a proxy (a warning when the proxy runs on this machine or its place is unknown, a hint when it runs elsewhere), free disk space of the worlds (a warning below 5 GiB or 10 %), and Kindling's recommended options in `leaf-global.yml` (a fresh file has them on, an older file keeps its values). The output is grouped into `WARN`, `INFO` and `OK`; every `WARN` and `INFO` that has something to change names its fix and says whether the advice rests on a Kindling measurement or is general advice. Anything the system cannot tell (for example the Linux-only values on Windows) is skipped instead of guessed.
+
+On Linux the doctor also answers "is the lag my server or my host?" in a `LIVE` section, in plain sentences over the last minute (with the last 15 minutes in brackets): how long the main thread waited for a CPU (a warning above 10 % of the time it had work to do: other threads or processes on the machine compete with it), how long the chunk workers waited, how much CPU time the host took from this virtual machine (steal, a warning above 5 %) and whether a container CPU limit throttled the server (a warning from 1 % of the periods). A background thread samples these every 5 seconds from `/proc` and the cgroup files; it needs a minute to say something about the last minute.
 
 ```yaml
 performance:
   doctor:
     startup-check: true   # log the warnings once the server has started
+    host-monitor: true    # Linux only: sample the host every 5 seconds for the LIVE section
 ```
 
 With `startup-check` the server logs each `WARN` of that report (one line with its fix) on its first tick. Hints and OK lines only show in the command.

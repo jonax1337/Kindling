@@ -6,7 +6,6 @@ import java.lang.management.ManagementFactory;
 import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Locale;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.OptionalLong;
@@ -23,15 +22,21 @@ final class MachineFactsCollector {
     }
 
     static MachineFacts collect() {
-        final boolean linux = System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("linux");
+        final boolean linux = LinuxFiles.runsOnLinux();
         return new MachineFacts(
             Runtime.getRuntime().availableProcessors(),
             linux ? cgroupCpuLimit() : OptionalDouble.empty(),
             memoryBytes(linux),
             linux ? Optional.of(!usesMusl()) : Optional.empty(),
-            Optional.ofNullable(System.getenv("MALLOC_ARENA_MAX")),
+            mallocArenaMax(),
             Optional.ofNullable(System.getenv("LD_PRELOAD")),
             linux ? transparentHugePages() : Optional.empty());
+    }
+
+    /** The malloc arena limit from {@code MALLOC_ARENA_MAX}, or else from {@code GLIBC_TUNABLES}. */
+    private static Optional<String> mallocArenaMax() {
+        return Optional.ofNullable(System.getenv("MALLOC_ARENA_MAX"))
+            .or(() -> Optional.ofNullable(System.getenv("GLIBC_TUNABLES")).flatMap(LinuxFiles::parseArenaMaxTunable));
     }
 
     private static OptionalDouble cgroupCpuLimit() {

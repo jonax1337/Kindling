@@ -31,7 +31,7 @@ final class CpuChecks {
         if (usable > VERY_FEW_PROCESSORS) {
             return Optional.of(Finding.ok(usable + " processors available"));
         }
-        return Optional.of(Finding.warn(
+        return Optional.of(Finding.info(
             "Only " + usable + " processor(s) available: the main thread, chunk workers and the garbage collector compete for them",
             "Give the server at least 4 processors, or lower view-distance and simulation-distance",
             Basis.GENERAL_ADVICE));

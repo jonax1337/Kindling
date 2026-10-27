@@ -20,10 +20,14 @@ final class JvmChecks {
         final GarbageCollector collector = jvm.garbageCollector().get();
         return Optional.of(switch (collector) {
             case G1 -> Finding.ok("Garbage collector: G1");
-            case ZGC, SHENANDOAH -> Finding.info(
-                "Garbage collector: " + collector + ", which trades memory and throughput for short pauses; Kindling measured only G1",
-                "Use -XX:+UseG1GC unless you have a reason for " + collector,
-                Basis.GENERAL_ADVICE);
+            case ZGC -> Finding.info(
+                "Garbage collector: ZGC, which saves about 22 % peak memory and returns memory to the system, but Kindling measured +11 % CPU and worse tick spikes",
+                "Use -XX:+UseG1GC unless the memory matters more to you than the tick spikes",
+                Basis.KINDLING_MEASUREMENT);
+            case SHENANDOAH -> Finding.info(
+                "Garbage collector: Shenandoah, which Kindling measured (generational) as slower than G1 with barely less memory",
+                "Use -XX:+UseG1GC",
+                Basis.KINDLING_MEASUREMENT);
             case PARALLEL, SERIAL -> Finding.warn(
                 "Garbage collector: " + collector + ", which stops all threads for every collection and shows as tick lag",
                 "Use -XX:+UseG1GC",
@@ -52,9 +56,11 @@ final class JvmChecks {
             return Optional.of(Finding.ok("An AOT cache is configured"));
         }
         return Optional.of(Finding.info(
-            "No AOT cache: every start loads and links the classes again; Kindling measured the start dropping from 7.5 s to 2.7 s on a direct class path",
-            "Run once with -XX:AOTCacheOutput=kindling.aot, stop the server, then start with -XX:AOTCache=kindling.aot; "
-                + "create the cache again after every update of the server jar",
+            "No AOT cache: every start loads and links the classes again; on the Cubyx VPS, AOT-cached starts took 9.5 to 10.7 s instead of "
+                + "16.9 to 26.9 s (billiards) and 19.2 s instead of 23 to 27 s (smp)",
+            "Start the server with a direct class path (java -cp ... instead of java -jar with Paperclip, which loads the server in its own "
+                + "class loader, where the cache does not apply); run once with -XX:AOTCacheOutput=kindling.aot, stop the server, then start with "
+                + "-XX:AOTCache=kindling.aot; create the cache again after every update of the server jar",
             Basis.KINDLING_MEASUREMENT));
     }
 

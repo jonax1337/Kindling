@@ -1,5 +1,6 @@
 package net.kindlingmc.doctor;
 
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -28,7 +29,7 @@ class FactsCollectorsTest {
     @Test
     void checkingTheRealMachineNeverThrows() {
         final DoctorFacts facts = new DoctorFacts(
-            MachineFactsCollector.collect(), JvmFactsCollector.collect(), new Scenario().server());
+            MachineFactsCollector.collect(), JvmFactsCollector.collect(), new Scenario().server(), Optional.empty(), HostLoads.NONE);
 
         assertTrue(Doctor.examine(facts).size() >= 5);
     }

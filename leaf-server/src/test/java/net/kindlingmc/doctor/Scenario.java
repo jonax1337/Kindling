@@ -33,6 +33,11 @@ final class Scenario {
     int maxPlayers = 20;
     boolean behindProxy = false;
     int compressionThreshold = 256;
+    ProxyLocation proxyLocation = ProxyLocation.SAME_HOST;
+    List<String> recommendedOptionsOff = List.of();
+
+    Optional<DiskSpace> worldDisk = Optional.empty();
+    HostLoads live = HostLoads.NONE;
 
     MachineFacts machine() {
         return new MachineFacts(processors, cgroupCpuLimit, memoryBytes, glibc, mallocArenaMax, preloadedLibraries, transparentHugePages);
@@ -44,11 +49,12 @@ final class Scenario {
     }
 
     ServerSettings server() {
-        return new ServerSettings(workerThreads, viewDistance, simulationDistance, maxPlayers, behindProxy, compressionThreshold);
+        return new ServerSettings(workerThreads, viewDistance, simulationDistance, maxPlayers, behindProxy, compressionThreshold,
+            proxyLocation, recommendedOptionsOff);
     }
 
     DoctorFacts facts() {
-        return new DoctorFacts(machine(), jvm(), server());
+        return new DoctorFacts(machine(), jvm(), server(), worldDisk, live);
     }
 
     static void assertSeverity(final Severity expected, final Optional<Finding> finding) {

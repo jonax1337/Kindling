@@ -28,12 +28,17 @@ class JvmChecksTest {
     }
 
     @Test
-    void concurrentCollectorsAreOnlyAHint() {
+    void concurrentCollectorsAreOnlyAHintBasedOnTheMeasurements() {
         scenario.garbageCollector = Optional.of(GarbageCollector.ZGC);
-        assertSeverity(Severity.INFO, JvmChecks.garbageCollector(scenario.jvm()));
+        final Finding zgc = JvmChecks.garbageCollector(scenario.jvm()).orElseThrow();
+        assertEquals(Severity.INFO, zgc.severity());
+        assertEquals(Basis.KINDLING_MEASUREMENT, zgc.basis());
+        assertTrue(zgc.what().contains("22 %") && zgc.what().contains("+11 % CPU"), zgc.what());
 
         scenario.garbageCollector = Optional.of(GarbageCollector.SHENANDOAH);
-        assertSeverity(Severity.INFO, JvmChecks.garbageCollector(scenario.jvm()));
+        final Finding shenandoah = JvmChecks.garbageCollector(scenario.jvm()).orElseThrow();
+        assertEquals(Severity.INFO, shenandoah.severity());
+        assertEquals(Basis.KINDLING_MEASUREMENT, shenandoah.basis());
     }
 
     @Test
@@ -85,15 +90,16 @@ class JvmChecksTest {
     }
 
     @Test
-    void withoutAnAotCacheOnJava25TheHintNamesTheMeasuredStartTimes() {
+    void withoutAnAotCacheOnJava25TheHintNamesTheMeasuredStartTimesAndTheDirectClassPath() {
         scenario.jvmArguments = List.of("-Xmx2G");
 
         final Finding finding = JvmChecks.aotCache(scenario.jvm()).orElseThrow();
 
         assertEquals(Severity.INFO, finding.severity());
         assertEquals(Basis.KINDLING_MEASUREMENT, finding.basis());
-        assertTrue(finding.what().contains("7.5 s to 2.7 s"));
+        assertTrue(finding.what().contains("9.5 to 10.7 s instead of 16.9 to 26.9 s"), finding.what());
         assertTrue(finding.fix().contains("-XX:AOTCacheOutput="));
+        assertTrue(finding.fix().contains("direct class path") && finding.fix().contains("Paperclip"), finding.fix());
     }
 
     @Test

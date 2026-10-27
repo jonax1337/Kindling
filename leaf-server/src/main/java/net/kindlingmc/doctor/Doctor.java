@@ -12,13 +12,15 @@ public final class Doctor {
 
     /** Reads the facts of this machine and server, then runs the checks over them. */
     public static List<Finding> examineThisServer() {
-        return examine(new DoctorFacts(MachineFactsCollector.collect(), JvmFactsCollector.collect(), ServerSettingsCollector.collect()));
+        return examine(new DoctorFacts(MachineFactsCollector.collect(), JvmFactsCollector.collect(), ServerSettingsCollector.collect(),
+            DiskSpaceCollector.collect(), HostMonitor.loads()));
     }
 
     public static List<Finding> examine(final DoctorFacts facts) {
         final MachineFacts machine = facts.machine();
         final JvmFacts jvm = facts.jvm();
         final ServerSettings server = facts.server();
+        final HostLoads live = facts.live();
         return Stream.of(
                 CpuChecks.processorCount(machine),
                 CpuChecks.containerLimit(machine),
@@ -32,7 +34,13 @@ public final class Doctor {
                 MemoryChecks.trimNativeHeap(jvm, machine),
                 MemoryChecks.transparentHugePages(machine),
                 ServerSettingChecks.viewDistance(machine, server),
-                ServerSettingChecks.proxyCompression(server))
+                ServerSettingChecks.proxyCompression(server),
+                ServerSettingChecks.recommendedOptions(server),
+                StorageChecks.worldDisk(facts.worldDisk()),
+                HostChecks.mainThreadWait(live),
+                HostChecks.chunkWorkerWait(live),
+                HostChecks.hostSteal(live),
+                HostChecks.cpuThrottling(live))
             .flatMap(Optional::stream)
             .toList();
     }
