@@ -243,6 +243,16 @@ class PackedPaletteTest(unittest.TestCase):
             chunkdiff.unpack_indices(LongArray((0,)), 4, 4096)
 
 
+class BlockStateNameTest(unittest.TestCase):
+    def test_minecraft_26_writes_a_bare_id_or_id_and_properties(self):
+        self.assertEqual("minecraft:stone", chunkdiff.block_state_name("minecraft:stone"))
+        self.assertEqual("minecraft:piston[extended=false,facing=east]", chunkdiff.block_state_name(
+            {"id": "minecraft:piston", "properties": {"facing": "east", "extended": "false"}}))
+
+    def test_older_versions_wrote_name_and_properties(self):
+        self.assertEqual("minecraft:piston[extended=false,facing=east]", chunkdiff.block_state_name(PISTON))
+
+
 # ---- the comparer ------------------------------------------------------------------------------------------------
 
 class BlockDiffTest(TempDirTestCase):
