@@ -3,13 +3,14 @@
 Why each Kindling change exists, and what was tried and left out.
 
 > [!NOTE]
-> The numbers up to 2026-10-27 come from `kindling-bench` ([how it works](../kindling-bench/README.md)), measured on a Windows machine with 12 logical cores and Java 25.0.4 (the mixed load, the elytra test, the worker counts) or on the bench host (the sections that say so), against Leaf `4c3d5689` (Paper `1b9bf5c8`). **Those variants ran twice; tables show the mean.** Two runs do not meet the rule that applies since 2026-10-28 ([how to read the numbers](#how-to-read-the-numbers)); where a claim rests on two runs, its section says so. The sections from 2026-10-28 ran three or more times per variant. A shared-core VPS will show other absolute numbers; the direction should hold.
+> The numbers up to 2026-10-27 come from `kindling-bench` ([how it works](../kindling-bench/README.md)), measured on a Windows machine with 12 logical cores and Java 25.0.4 (the mixed load, the elytra test, the worker counts) or on the bench host (the sections that say so), against Leaf `4c3d5689` (Paper `1b9bf5c8`). **Those variants ran twice; tables show the mean.** Two runs do not meet the rule that applies since 2026-10-28 ([how to read the numbers](#how-to-read-the-numbers)); where a claim rests on two runs, its section says so. The sections from 2026-10-28 ran three or more times per variant; the [final round](#final-round-the-build-of-2026-10-28-against-263-11-and-plain-leaf) compared against Leaf `66f99f8e`, the commit Kindling is now based on. A shared-core VPS will show other absolute numbers; the direction should hold.
 >
 > **Bench host:** a PC with an Intel i7-7700 (4 cores, 8 threads), 16 GB, Linux (Ubuntu 24.04 under WSL2), Temurin 25.0.5, G1. Unless a section says otherwise, its server ran with `-XX:+UseCompactObjectHeaders -Xms2G -Xmx2G` and 8 CPUs.
 
 **Contents**
 
 - [How to read the numbers](#how-to-read-the-numbers)
+- [Final round: the build of 2026-10-28 against 26.3-11 and plain Leaf](#final-round-the-build-of-2026-10-28-against-263-11-and-plain-leaf)
 - [Mixed load](#mixed-load) · [not adopted, although Leaf offers them](#not-adopted-although-leaf-offers-them)
 - [Survival bases: sleeping block entities](#survival-bases-sleeping-block-entities) · [after the fixes](#sleeping-block-entities-after-the-fixes)
 - [Async pathfinding, tracker and saving after the fixes](#async-pathfinding-tracker-and-saving-after-the-fixes)
@@ -43,6 +44,92 @@ Why each Kindling change exists, and what was tried and left out.
 - *Fake players are creative by default*, so mobs never target them. `gamemode=survival` exists since 2026-10-28; the mixed A/Bs of that day used it.
 - *Raw data* lands in `kindling-bench/runs/` (not checked in). The Linux figures (`main_wait_ms`, steal, idle) exist only where `/proc` does.
 
+## Final round: the build of 2026-10-28 against 26.3-11 and plain Leaf
+
+The build with all changes of 2026-10-28 (`cd56f6c7`, "the new build" below) against release 26.3-11 and against plain Leaf at the commit Kindling is now based on (`66f99f8e`), on the bench host, 2026-10-28. Every server ran with its own defaults and no overlay, so plain Leaf had sleeping block entities and the async options off. The variants ran interleaved. Bases: `players=8,plots-per-player=4,warmup-seconds=60,steady-seconds=90`. Mixed: `players=8,mobs-per-player=150,travel-seconds=90,steady-seconds=90`, creative fake players that never answer chunk batches. None of the 35 bench runs (28 measured, 7 for parity) failed or was repeated.
+
+**Parity.** `parity/run.sh <new build> all` passed:
+
+- the bases check: 15 counters identical to `bases-ci.json`;
+- both sleeping pairs: 10 counters each, with default and with tuned hopper rates;
+- the villager pair: 48 bed and 48 job site claims in both modes, none shared.
+
+The new build contains the five fixes that the earlier rounds had not benched ([sleeping block entities after the fixes](#sleeping-block-entities-after-the-fixes)).
+
+**Sleeping block entities on against off.** New build, overlays `parity-sleeping-on` and `parity-sleeping-off`, 5 runs each:
+
+| Figure | Off | On | p |
+| --- | ---: | ---: | ---: |
+| Tick time avg | 12.3 ±0.4 | **11.3 ±0.1** | 0.001 \* |
+| p95 | 16.8 ±1.1 | 15.6 ±0.4 | 0.040 |
+| p99 | 21.6 ±2.0 | 20.7 ±1.4 | 0.34 |
+| CPU time | 367 ±12 s | 376 ±27 s | 0.42 |
+
+All 15 counters were identical in all ten runs. The option saves 8 % of the average tick time. The p95 points the same way but misses the gap rule. This replaces the two-run "−12 to −15 %" of 2026-10-27, which was measured on older builds before the fixes.
+
+**Survival bases.** 3 runs each:
+
+| Figure | New build | 26.3-11 | Leaf `66f99f8e` |
+| --- | ---: | ---: | ---: |
+| Tick time avg | 11.7 ±0.4 | 11.7 ±0.1 (p = 0.99) | 12.5 ±0.8 (p = 0.28) |
+| p95 / p99 | 17.0 / 23.2 | 16.4 / 22.8 | 17.8 / 25.6 |
+| CPU time | 376 ±5 s | 371 ±2 s | 298 ±6 s \* |
+| GC count / heap after GC | 47 / 485 MB | 48 / 485 MB | 36 \* / 475 MB \* |
+
+All 15 counters were identical in the three builds, and no tick time differs. Plain Leaf ran at 11.9, 12.1 and 13.5 ms, about where the new build runs with sleeping off (12.0 to 12.7 ms above).
+
+Kindling used 26 % more CPU time per run:
+
+- About 16 of the 78 extra CPU-seconds fall into the measured 90 s. The machine was 89 % idle there, 91 % with Leaf.
+- The rest falls into the start, the building of the plots and the warm-up, the phases in which the chunks around the players are generated. There Kindling runs five chunk workers instead of two on four cores with hyper-threading, plus its async threads.
+
+Which part is extra work was not separated.
+
+**Mixed load.** 3 runs each:
+
+| Figure | New build | 26.3-11 | Leaf `66f99f8e` |
+| --- | ---: | ---: | ---: |
+| Flight tick time avg / p95 | 27.8 ±0.9 / 65.2 ±2.8 | 28.8 / 67.6 (p = 0.25 / 0.59) | 37.7 / 174.9 \* |
+| Time in the void (five lines) | 2.0 ±2.1 % | 4.5 ±2.7 % | 85.8 % \* |
+| Own chunk missing | 0.0 % | 0.4 % | 84.2 % \* |
+| Lead avg | 3.5 | 3.5 | 0.8 \* |
+| New chunks per second | 98.0 | 97.8 | 51.3 \* |
+| Chunk packets in the flight | 5 700 | 5 724 | 354 \* |
+| Flight: main thread running / waiting for a CPU | 44.6 / 3.8 s | 46.2 / 4.9 s | 18.5 / 0.1 s \* |
+| Machine idle in the flight | 19.5 % | 18.7 % | 64.7 % \* |
+| Join until the full view | 39.9 s | 40.1 s | 57.4 s \* |
+| Standing tick time avg / p95 | 35.4 ±0.5 / 60.6 | 35.9 / 64.3 (p = 0.23 / 0.13) | 44.4 \* / 62.5 |
+| Machine idle while standing (from the raw runs) | 77.0 % | 76.0 % | 65.9 % |
+| Entities at the end | 2 926 | 2 946 | 2 904 |
+| CPU time | 1 416 ±10 s | 1 434 ±11 s | 927 ±12 s \* |
+
+The new build and 26.3-11 differ in no row. Against plain Leaf:
+
+- **Flight.** Plain Leaf uses Paper's two chunk workers on 8 CPUs and Paper's automatic limit of concurrent generations.
+  - After 10 to 20 s of flight the eight players had outrun world generation, in all three runs. From 20 s on every sample was over the void.
+  - The server sent them 348 to 358 chunk packets in the whole flight, and their own chunk was missing 84 % of the time.
+  - The ticks were either short or very long: median 3.1 to 3.3 ms, p95 175 ms. The 1 800 ticks took 101 to 104 s instead of 93 to 95 s.
+  - The main thread ran only 18.5 s of that time while the machine was two thirds idle. It spent most of each long tick neither running nor waiting for a CPU. That fits waiting for chunks that were not generated yet; it was not profiled.
+
+  The comparison shows the [chunk workers](#default-number-of-chunk-workers), the [generation cap](#concurrent-generations-per-player) and [directional loading](#elytra-test-new-chunks-ahead-of-fast-players) together, not one by one.
+- **Standing.** Kindling's standing ticks were 20 % shorter, but plain Leaf was behind when the players landed. Its machine was busier while standing (34 % of the CPUs against 23 %), which fits its two workers still generating the players' surroundings. The bench does not count chunks while standing, so that is an inference, and the figure is not a clean measure of the async defaults. A standing comparison on a pregenerated world was not run.
+- **CPU time.** Kindling used 53 % more, mostly for work that plain Leaf did not get done: twice the new chunks, 16 times the chunk packets, and a main thread that ticks what the players reach.
+
+**Stop during a pregeneration.** Fresh world, no bench plugin, `/pregen start world 1500`, then `stop` 60 s later. Release 26.3-11 and the new build each stopped once in the round and three more times afterwards, alternating:
+
+| Figure | 26.3-11, 4 stops | New build, 4 stops |
+| --- | --- | --- |
+| Overworld save at the stop | 0.34, 1.10, 0.52, 0.47 s | 5.05, 0.54, 0.59, 0.50 s |
+| "Accessing poi chunk off-main" | none | once (in the last stop) |
+
+The slow save of the round did not come back in three more stops; its cause was not looked into. The stack trace is the one under [the doctor's readings](#the-doctors-live-readings).
+
+**What the round says.**
+
+- The changes of 2026-10-28 made no measurable difference to speed: the new build and 26.3-11 agree in every row of both loads.
+- The [Lithium ports](#lithium-ports) measured −7 % in their own A/B, but the new build is not faster than the release in the bases. The only later change to what the bases tick is the hopper cooldown after a failed transfer: hoppers that keep failing stay awake and wait out Paper's cooldown instead of sleeping. It was not measured on its own.
+- Against plain Leaf the gain is where players outrun world generation. In the bases, Kindling is not faster than plain Leaf and uses more CPU time.
+
 ## Mixed load
 
 Scenario defaults: 8 fake players fly outward for 90 s at 1 block/tick, then land between 1 200 mobs with natural spawning on and stand for 90 s.
@@ -58,7 +145,10 @@ Scenario defaults: 8 fake players fly outward for 90 s at 1 block/tick, then lan
 
 Tick times in milliseconds. Raw data lands in `kindling-bench/runs/` after a run (not checked in); `python -I kindling-bench/compare.py <label> …` puts runs side by side.
 
-**What this table supports.** Two runs each, Windows machine. The memory rows (2 GB with compact headers: −29 % peak RSS at equal tick time) are far larger than any gap between runs. The Kindling-defaults row is 3 % faster in the flight (15.6 against 16.1 ms) and 13 % faster standing (22.5 against 26.0 ms) than the Leaf row; the row "from the Kindling jar itself" has a standing p95 of 34.3 with a half range of 6.1 (one run spiked). These differences are of the size of two runs of one build, so they are **not** a finding under the three-run rule and were not repeated against plain Leaf. What was measured since: the fixes that make the async defaults act as vanilla did not change the tick time ([see below](#async-pathfinding-tracker-and-saving-after-the-fixes)).
+**What this table supports.** Two runs each, Windows machine. The memory rows (2 GB with compact headers: −29 % peak RSS at equal tick time) are far larger than any gap between runs. The Kindling-defaults row is 3 % faster in the flight (15.6 against 16.1 ms) and 13 % faster standing (22.5 against 26.0 ms) than the Leaf row; the row "from the Kindling jar itself" has a standing p95 of 34.3 with a half range of 6.1 (one run spiked). These differences are of the size of two runs of one build, so they are **not** a finding under the three-run rule. What was measured since:
+
+- The fixes that make the async defaults act as vanilla did not change the tick time ([see below](#async-pathfinding-tracker-and-saving-after-the-fixes)).
+- The [final round](#final-round-the-build-of-2026-10-28-against-263-11-and-plain-leaf) compared Kindling with plain Leaf in this load with three runs on the bench host. There the chunk defaults decide the flight, and plain Leaf was still generating while standing, so the async options are not measured on their own.
 
 ### Not adopted, although Leaf offers them
 
@@ -148,8 +238,10 @@ On the release the tuned pair also showed `rewrite_arrived` 1 304 against 80. `h
 - **The furnace case did not reproduce.** `gate_smelted_items` is 12 with sleeping on and off on the release too, so this scenario cannot show the fix for furnaces that a plugin holds back. The expectation of 10 in earlier notes was wrong (the furnaces smelt 12); the bench README now says 12.
 - **Guarded bases** (`hopper-guard-seconds=10`, a stand-in claim plugin): release and fixed build agree on all 15 counters, one run each.
 - **The bases check** (`parity/run.sh`, 15 counters against `bases-ci.json`): all counters matched on every build tested. The script itself exited 1 until the golden file's scenario block got the four fields the bench plugin gained later (`chunkAcks`, `gameMode`, `warmupMaxSeconds`, `warmupQuietSeconds`); that is fixed in the repository.
-- **Last bench round** (the build of 2026-10-28 with chunk quarantine): bases, sleeping (both pairs) and villagers parity all passed.
-- **Not benched.** Five fixes landed after the last bench round and are covered by unit tests and review only: the hopper cooldown after a failed transfer (Paper's `cooldown-when-full`), the removal of Lithium's nitwit shortcut, the happy ghast's adult sensor, the idle-memory pause during a pregeneration and the publication of the async saving writer.
+- **Bench rounds of the fixed builds:**
+  - the build with chunk quarantine: bases, sleeping (both pairs) and villagers parity all passed;
+  - the [final round](#final-round-the-build-of-2026-10-28-against-263-11-and-plain-leaf): the same checks passed again.
+- **Five late fixes.** Five fixes landed after the chunk-quarantine round: the hopper cooldown after a failed transfer (Paper's `cooldown-when-full`), the removal of Lithium's nitwit shortcut, the happy ghast's adult sensor, the idle-memory pause during a pregeneration and the publication of the async saving writer. The final round's jar contains all five, but its scenarios exercise only the hopper cooldown (the sleeping pairs and the bases). The other four rest on unit tests and review.
 
 **Speed.** Bases scenario (8 players × 4 plots, 60 s warm-up, 90 s measured, 3 GB heap), release 26.3-11 against the fixed build, sleeping on. The option is on by default in both, so the runs with and without the `sleeping-be` overlay are the same condition and are pooled: 6 runs per build, interleaved.
 
@@ -161,7 +253,14 @@ On the release the tuned pair also showed `rewrite_arrived` 1 304 against 80. `h
 | CPU time | 357 ±10 s | 364 ±14 s | 0.23 |
 | GC pause | 1 111 ±121 ms | 1 077 ±58 ms | 0.44 |
 
-No difference is significant: the fix does not slow the bases down by 0.5 ms (about 4 %) or more; a smaller slowdown cannot be excluded with six runs. **Does the option still help?** The fixed build with the option off (3 runs) gave 14.3 ±1.3 ms against 12.7 ±0.3 ms on (p = 0.20; p95 20.9 against 18.9, p = 0.65): the direction matches the −12 to −15 % of 2026-10-27, but it is not significant with three runs, so that figure stands as a two-run result only. The absolute tick times of this day (12.7 ms) are far above those of the 2026-10-27 runs (7 to 8 ms in the same scenario), so only same-session comparisons count.
+No difference is significant: the fix does not slow the bases down by 0.5 ms (about 4 %) or more; a smaller slowdown cannot be excluded with six runs.
+
+**Does the option still help?**
+
+- *Three runs on the fixed build:* the option off gave 14.3 ±1.3 ms against 12.7 ±0.3 ms on (p = 0.20; p95 20.9 against 18.9, p = 0.65). That is the direction of the −12 to −15 % of 2026-10-27, but not significant.
+- *Final round, five runs each:* **12.3 → 11.3 ms (−8 %, p = 0.001)** with identical counters ([table](#final-round-the-build-of-2026-10-28-against-263-11-and-plain-leaf)). This is the figure the option is measured on now.
+
+The absolute tick times of this day (11 to 13 ms) are far above those of the 2026-10-27 runs (7 to 8 ms in the same scenario), so only same-session comparisons count.
 
 With an `InventoryMoveItemEvent` listener (common with protection plugins), awake hoppers take Paper's transfer code instead of Lithium's shortcut so that plugins see what Paper gives them. The plain bases scenario registers no such listener; that cost was not measured.
 
@@ -226,7 +325,9 @@ Patch `0326` ports four things from Lithium with the vanilla result: the redston
 | CPU time | 368 s | 365 s | 0.59 |
 | Peak RSS | 2 742 MB | 2 725 MB | 0.74 |
 
-All 15 counters were identical in all six runs. That is about −7 % average, −10 % p95 and −19 % p99. The jar differs from the previous one by all four ports, so the A/B does not separate them; the redstone wire calculation is the likely source. The build was measured with a Lithium shortcut for the nitwit's job search that was removed afterwards (it skipped calls to the level's random, so it was not vanilla-identical); the bases scenario has no villagers, so the result should not depend on it, but the final build was not measured again.
+All 15 counters were identical in all six runs. That is about −7 % average, −10 % p95 and −19 % p99. The jar differs from the previous one by all four ports, so the A/B does not separate them; the redstone wire calculation is the likely source. The build was measured with a Lithium shortcut for the nitwit's job search that was removed afterwards (it skipped calls to the level's random, so it was not vanilla-identical); the bases scenario has no villagers, so the result should not depend on it.
+
+Against release 26.3-11 the gain does not show: in the [final round](#final-round-the-build-of-2026-10-28-against-263-11-and-plain-leaf) the build with the ports and every later fix ran the bases at 11.7 ±0.4 ms, the release at 11.7 ±0.1 ms (p = 0.99, 3 runs each). The only later change to what the bases tick is the hopper cooldown after a failed transfer. Whether that change takes the gain back was not measured.
 
 Villagers (the sensor port): 2 players × 4 plots, `villagers-active`, 60 s warm-up, 90 s measured, 3 runs each: tick time avg 8.2 ±0.0 against 8.5 ±0.3 ms (p = 0.18), p95 9.6 against 10.9 (p = 0.17), p99 13.2 against 14.7 (p = 0.26), CPU 230 against 226 s (p = 0.16). No difference; the scenario's villagers are adults, so the skipped sensors had nothing to save there. Claims stayed at 384 and 384 with 0 shared. The goat sensor, the rain and ice early exit and the framed maps are not covered by any scenario.
 
@@ -514,7 +615,13 @@ The readings agree within about half a percentage point; the machine was 99 % id
 
 Other lines checked in a second short run (world on a 1 GiB tmpfs, an older `leaf-global.yml` with async pathfinding and sleeping block entities off, then `host-monitor: false`): disk space was an `INFO` at 936.7 GiB free and a `WARN` at 832 MiB of 1.0 GiB (also logged at start-up); the older file produced the hint that Kindling's defaults apply only to a fresh file and named both options; with `host-monitor: false` the `LIVE` section is absent; the pregenerator paused itself for lack of disk and `/pregen status` showed the `disk:` line. The advice for a direct class path start (AOT cache) was not exercised, because the server started with `java -jar`.
 
-**A finding that is not understood.** Stopping the server while a pregeneration ran logged an ERROR stack trace ("Thread failed main thread check: Accessing poi chunk off-main", a chunk worker running a main-thread task inline during shutdown through the beehive feature). The server stopped cleanly afterwards. It looks like a shutdown race of the upstream chunk system, but it was not compared with the previous build, so it is not known whether it is new.
+**A shutdown race in upstream code.** Stopping the server while a pregeneration ran can log an ERROR stack trace: "Thread failed main thread check: Accessing poi chunk off-main".
+
+- *Where it was seen:* first while a beehive was generated, then once in the [final round's stops](#final-round-the-build-of-2026-10-28-against-263-11-and-plain-leaf) while a jigsaw structure piece (a village part) was placed. The server stopped cleanly both times.
+- *The path, all of it vanilla, Paper or Moonrise code:* a chunk worker generating features sets a block through `WorldGenRegion.setBlock`. `ServerLevel.updatePOIOnBlockStateChange` then hands the POI update to the server with `execute`. Once the server is stopping, that runs the task at once on the calling worker. `PoiManager.getOrLoad` then fails the main-thread check, and the server logs "Error executing task on Server".
+- *Kindling:* no Kindling frame is in the stack. A pregeneration only makes it likely that generations are in flight at the stop, as any generation would.
+- *Frequency:* once in four stops of the new build and in none of four stops of release 26.3-11. That does not tell the builds apart.
+- *Not checked:* whether the skipped POI update for that block is repaired when the chunk loads again.
 
 ## The lagging check of the tick loop
 
