@@ -1,0 +1,4 @@
+# a downloaded vanilla jar and the server folders of a run are never committed
+/jars/
+/runs/
+__pycache__/
