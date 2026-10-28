@@ -1,0 +1,81 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Wed, 28 Oct 2026 20:50:18 +0100
+Subject: [PATCH] Kindling: Restore vanilla movement flags, entity age and
+ float math
+
+
+diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
+index 42b99ddade93be2901199fae53161a4942062a03..45bb7f5d463bd6fa9e5a729f6b6d071c4fb9fc4b 100644
+--- a/net/minecraft/world/entity/Entity.java
++++ b/net/minecraft/world/entity/Entity.java
+@@ -953,6 +953,11 @@ public abstract class Entity
+ 
+     // Leaf start - Rewrite entity despawn time
+     private int calculateMissedTicks() {
++        // Kindling start - count only ticked ticks like Paper unless a despawn time limit applies to this entity
++        if (this.despawnTime < 0) {
++            return 0;
++        }
++        // Kindling end - count only ticked ticks like Paper unless a despawn time limit applies to this entity
+         return net.minecraft.server.MinecraftServer.currentTick - this.lastTickTime;
+     }
+ 
+@@ -1319,10 +1324,14 @@ public abstract class Entity
+                 // Reset state flags and use setOnGroundWithMovement,
+                 // to update the value for the Entity#isOnGround API
+                 this.horizontalCollision = false;
+-                this.verticalCollision = false;
+-                this.verticalCollisionBelow = false;
+                 this.minorHorizontalCollision = false;
+-                this.setOnGroundWithMovement(false, false, Vec3.ZERO);
++                // Kindling start - a client-controlled entity keeps its vertical flags and ground state like vanilla
++                if (this.isLocalInstanceAuthoritative()) {
++                    this.verticalCollision = false;
++                    this.verticalCollisionBelow = false;
++                    this.setOnGroundWithMovement(false, false, Vec3.ZERO);
++                }
++                // Kindling end - a client-controlled entity keeps its vertical flags and ground state like vanilla
+                 profiler.pop();
+                 return;
+             }
+@@ -1417,9 +1426,9 @@ public abstract class Entity
+ 
+                 // Gale start - skip negligible planar movement multiplication
+                 Vec3 oldDeltaMovement = this.getDeltaMovement();
+-                if (oldDeltaMovement.x < -1e-6 || oldDeltaMovement.x > 1e-6 || oldDeltaMovement.z < -1e-6 || oldDeltaMovement.z > 1e-6) {
++                if (oldDeltaMovement.x != 0.0 || oldDeltaMovement.z != 0.0) { // Kindling - scale tiny velocities like vanilla, skip only where scaling changes nothing
+                     float blockSpeedFactor = this.getBlockSpeedFactor();
+-                    if (blockSpeedFactor < 1 - 1e-6 || blockSpeedFactor > 1 + 1e-6) {
++                    if (blockSpeedFactor != 1.0F) { // Kindling - scale tiny velocities like vanilla, skip only where scaling changes nothing
+                         this.setDeltaMovement(oldDeltaMovement.multiply(blockSpeedFactor, 1.0, blockSpeedFactor));
+                     }
+                 }
+@@ -5956,6 +5965,14 @@ public abstract class Entity
+     // Use Math#sqrt instead of Mojang's Mth#sqrt - only cast once
+     // Added option to enable FMA acceleration
+     public final float distanceTo(final Entity entity) {
++        // Kindling start - compute in float like vanilla unless FMA is turned on
++        if (!org.dreeam.leaf.util.LeafConstants.ENABLE_FMA) {
++            final float xd = (float) (this.getX() - entity.getX());
++            final float yd = (float) (this.getY() - entity.getY());
++            final float zd = (float) (this.getZ() - entity.getZ());
++            return Mth.sqrt(xd * xd + yd * yd + zd * zd);
++        }
++        // Kindling end - compute in float like vanilla unless FMA is turned on
+         final double dx = this.getX() - entity.getX();
+         final double dy = this.getY() - entity.getY();
+         final double dz = this.getZ() - entity.getZ();
+diff --git a/net/minecraft/world/entity/ai/attributes/AttributeInstance.java b/net/minecraft/world/entity/ai/attributes/AttributeInstance.java
+index 084922a0630a24c8111f383703e893eed56f322b..fae5172f2ffc5580ea0623b2dbceeeebdc293e9d 100644
+--- a/net/minecraft/world/entity/ai/attributes/AttributeInstance.java
++++ b/net/minecraft/world/entity/ai/attributes/AttributeInstance.java
+@@ -51,7 +51,7 @@ public class AttributeInstance {
+ 
+     @VisibleForTesting
+     Map<Identifier, AttributeModifier> getModifiers(final AttributeModifier.Operation operation) {
+-        return this.modifiersByOperation.computeIfAbsent(operation, key -> new Object2ObjectArrayMap<>()); // Leaf - optimize attribute
++        return this.modifiersByOperation.computeIfAbsent(operation, key -> new Object2ObjectOpenHashMap<>()); // Kindling - sum the modifiers in the vanilla order
+     }
+ 
+     // Leaf start - optimize attribute

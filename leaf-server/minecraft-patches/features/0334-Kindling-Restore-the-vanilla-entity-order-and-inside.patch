@@ -1,0 +1,247 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Wed, 28 Oct 2026 20:50:18 +0100
+Subject: [PATCH] Kindling: Restore the vanilla entity order and inside-block
+ visiting order
+
+
+diff --git a/ca/spottedleaf/moonrise/patches/chunk_system/level/entity/ChunkEntitySlices.java b/ca/spottedleaf/moonrise/patches/chunk_system/level/entity/ChunkEntitySlices.java
+index fc55f9ad34fab700eede3fc48f1cb4ffe147517a..c1807b09d5b6c98c1ee4dd6559b3b10b7c7b14a5 100644
+--- a/ca/spottedleaf/moonrise/patches/chunk_system/level/entity/ChunkEntitySlices.java
++++ b/ca/spottedleaf/moonrise/patches/chunk_system/level/entity/ChunkEntitySlices.java
+@@ -489,15 +489,18 @@ public final class ChunkEntitySlices {
+                 return false;
+             }
+ 
+-            // move the entity at the end to this index
+-            final int endIndex = --this.size;
+-            final E end = this.storage[endIndex];
+-            if (index != endIndex) {
+-                // not empty after this call
+-                this.entityToIndex.put(end.getId(), index); // update index
++            // Kindling start - keep the insertion order like Moonrise, entity queries return entities in this order
++            final int size = --this.size;
++            final E[] storage = this.storage;
++            if (index != size) {
++                System.arraycopy(storage, index + 1, storage, index, size - index);
++                for (int i = index; i < size; ++i) {
++                    this.entityToIndex.put(storage[i].getId(), i);
++                }
+             }
+-            this.storage[index] = end;
+-            this.storage[endIndex] = null;
++
++            storage[size] = null;
++            // Kindling end - keep the insertion order like Moonrise, entity queries return entities in this order
+             // Sakura end - use methods from EntityList
+ 
+             return true;
+diff --git a/net/minecraft/world/level/BlockGetter.java b/net/minecraft/world/level/BlockGetter.java
+index 4fb03447398608d48618a1b52e1ad1800c51029e..496fb62aa259190db8d9bfda142bea058b314747 100644
+--- a/net/minecraft/world/level/BlockGetter.java
++++ b/net/minecraft/world/level/BlockGetter.java
+@@ -209,7 +209,7 @@ public interface BlockGetter extends LevelHeightAccessor {
+     static boolean forEachBlockIntersectedBetween(final Vec3 from, final Vec3 to, final AABB aabbAtTarget, final BlockGetter.BlockStepVisitor visitor) {
+         Vec3 travel = to.subtract(from);
+         if (travel.lengthSqr() < Mth.square(1.0E-5F)) {
+-            for (BlockPos blockPos : org.dreeam.leaf.util.list.SimpleBlockPosIterator.iterable(aabbAtTarget)) {
++            for (BlockPos blockPos : BlockPos.betweenClosed(aabbAtTarget)) { // Kindling - visit the blocks in the vanilla order
+                 if (!visitor.visit(blockPos, 0)) {
+                     return false;
+                 }
+@@ -217,20 +217,9 @@ public interface BlockGetter extends LevelHeightAccessor {
+ 
+             return true;
+         } else {
+-            // Leaf start - Sakura - optimise check inside blocks
+-            final boolean xZero = travel.x() == 0.0;
+-            final boolean yZero = travel.y() == 0.0;
+-            final boolean zZero = travel.z() == 0.0;
+-            if ((xZero && yZero || yZero && zZero || xZero && zZero)
+-                && Double.isFinite(travel.x())
+-                && Double.isFinite(travel.y())
+-                && Double.isFinite(travel.z())) {
+-                return forEachBlockIntersectedAlongSingleAxis(travel, aabbAtTarget, visitor);
+-            }
+-            // Leaf end - Sakura - optimise check inside blocks
+             LongSet visitedBlocks = new LongOpenHashSet();
+ 
+-            for (BlockPos blockPos : org.dreeam.leaf.util.list.SimpleBlockPosIterator.iterable(aabbAtTarget.move(travel.scale(-1.0)))) { // Leaf - Sakura - optimise check inside blocks
++            for (BlockPos blockPos : BlockPos.betweenCornersInDirection(aabbAtTarget.move(travel.scale(-1.0)), travel)) { // Kindling - visit the blocks in the vanilla order
+                 if (!visitor.visit(blockPos, 0)) {
+                     return false;
+                 }
+@@ -243,7 +232,7 @@ public interface BlockGetter extends LevelHeightAccessor {
+                 return false;
+             }
+ 
+-            for (BlockPos blockPos : org.dreeam.leaf.util.list.SimpleBlockPosIterator.iterable(aabbAtTarget)) { // Leaf - Sakura - optimise check inside blocks
++            for (BlockPos blockPos : BlockPos.betweenCornersInDirection(aabbAtTarget, travel)) { // Kindling - visit the blocks in the vanilla order
+                 if (visitedBlocks.add(blockPos.asLong()) && !visitor.visit(blockPos, iterations + 1)) {
+                     return false;
+                 }
+@@ -253,164 +242,6 @@ public interface BlockGetter extends LevelHeightAccessor {
+         }
+     }
+ 
+-    // Leaf start - Sakura - optimise check inside blocks
+-    private static boolean forEachBlockIntersectedAlongSingleAxis(final Vec3 deltaMove, final AABB aabbAtTarget, final BlockGetter.BlockStepVisitor visitor) {
+-        final AABB aabbAtStart = aabbAtTarget.move(-deltaMove.x, -deltaMove.y, -deltaMove.z);
+-        final int startMinX = Mth.floor(aabbAtStart.minX);
+-        final int startMinY = Mth.floor(aabbAtStart.minY);
+-        final int startMinZ = Mth.floor(aabbAtStart.minZ);
+-        final int startMaxX = Mth.floor(aabbAtStart.maxX);
+-        final int startMaxY = Mth.floor(aabbAtStart.maxY);
+-        final int startMaxZ = Mth.floor(aabbAtStart.maxZ);
+-        // The clamped DDA cross-sections can differ from the start bounds by one block on a perpendicular axis.
+-        // Track both cuboids separately; the accumulated single-axis cross-sections themselves remain contiguous.
+-        boolean hasSweepBounds = false;
+-        int sweepMinX = 0;
+-        int sweepMinY = 0;
+-        int sweepMinZ = 0;
+-        int sweepMaxX = 0;
+-        int sweepMaxY = 0;
+-        int sweepMaxZ = 0;
+-
+-        for (BlockPos blockPos : org.dreeam.leaf.util.list.SimpleBlockPosIterator.iterable(aabbAtStart)) {
+-            if (!visitor.visit(blockPos, 0)) {
+-                return false;
+-            }
+-        }
+-
+-        double boxSizeX = aabbAtTarget.getXsize();
+-        double boxSizeY = aabbAtTarget.getYsize();
+-        double boxSizeZ = aabbAtTarget.getZsize();
+-        Vec3i cornerDir = getFurthestCorner(deltaMove);
+-        Vec3 toCenter = aabbAtTarget.getCenter();
+-        Vec3 toCorner = new Vec3(
+-            toCenter.x() + boxSizeX * 0.5 * cornerDir.getX(),
+-            toCenter.y() + boxSizeY * 0.5 * cornerDir.getY(),
+-            toCenter.z() + boxSizeZ * 0.5 * cornerDir.getZ()
+-        );
+-        Vec3 fromCorner = toCorner.subtract(deltaMove);
+-        int cornerVisitedBlockX = Mth.floor(fromCorner.x);
+-        int cornerVisitedBlockY = Mth.floor(fromCorner.y);
+-        int cornerVisitedBlockZ = Mth.floor(fromCorner.z);
+-        int signX = Mth.sign(deltaMove.x);
+-        int signY = Mth.sign(deltaMove.y);
+-        int signZ = Mth.sign(deltaMove.z);
+-        double tDeltaX = signX == 0 ? Double.MAX_VALUE : signX / deltaMove.x;
+-        double tDeltaY = signY == 0 ? Double.MAX_VALUE : signY / deltaMove.y;
+-        double tDeltaZ = signZ == 0 ? Double.MAX_VALUE : signZ / deltaMove.z;
+-        double tX = tDeltaX * (signX > 0 ? 1.0 - Mth.frac(fromCorner.x) : Mth.frac(fromCorner.x));
+-        double tY = tDeltaY * (signY > 0 ? 1.0 - Mth.frac(fromCorner.y) : Mth.frac(fromCorner.y));
+-        double tZ = tDeltaZ * (signZ > 0 ? 1.0 - Mth.frac(fromCorner.z) : Mth.frac(fromCorner.z));
+-        int iterations = 0;
+-
+-        while (tX <= 1.0 || tY <= 1.0 || tZ <= 1.0) {
+-            if (tX < tY) {
+-                if (tX < tZ) {
+-                    cornerVisitedBlockX += signX;
+-                    tX += tDeltaX;
+-                } else {
+-                    cornerVisitedBlockZ += signZ;
+-                    tZ += tDeltaZ;
+-                }
+-            } else if (tY < tZ) {
+-                cornerVisitedBlockY += signY;
+-                tY += tDeltaY;
+-            } else {
+-                cornerVisitedBlockZ += signZ;
+-                tZ += tDeltaZ;
+-            }
+-
+-            Optional<Vec3> hitPointOpt = AABB.clip(
+-                cornerVisitedBlockX,
+-                cornerVisitedBlockY,
+-                cornerVisitedBlockZ,
+-                cornerVisitedBlockX + 1,
+-                cornerVisitedBlockY + 1,
+-                cornerVisitedBlockZ + 1,
+-                fromCorner,
+-                toCorner
+-            );
+-            if (!hitPointOpt.isEmpty()) {
+-                iterations++;
+-                Vec3 hitPoint = hitPointOpt.get();
+-                double cornerHitX = Mth.clamp(hitPoint.x, cornerVisitedBlockX + 1.0E-5F, cornerVisitedBlockX + 1.0 - 1.0E-5F);
+-                double cornerHitY = Mth.clamp(hitPoint.y, cornerVisitedBlockY + 1.0E-5F, cornerVisitedBlockY + 1.0 - 1.0E-5F);
+-                double cornerHitZ = Mth.clamp(hitPoint.z, cornerVisitedBlockZ + 1.0E-5F, cornerVisitedBlockZ + 1.0 - 1.0E-5F);
+-                int oppositeCornerX = Mth.floor(cornerHitX - boxSizeX * cornerDir.getX());
+-                int oppositeCornerY = Mth.floor(cornerHitY - boxSizeY * cornerDir.getY());
+-                int oppositeCornerZ = Mth.floor(cornerHitZ - boxSizeZ * cornerDir.getZ());
+-                int currentIteration = iterations;
+-
+-                for (BlockPos pos : BlockPos.betweenCornersInDirection(
+-                    cornerVisitedBlockX, cornerVisitedBlockY, cornerVisitedBlockZ, oppositeCornerX, oppositeCornerY, oppositeCornerZ, deltaMove
+-                )) {
+-                    final boolean inStartBounds = pos.getX() >= startMinX
+-                        && pos.getX() <= startMaxX
+-                        && pos.getY() >= startMinY
+-                        && pos.getY() <= startMaxY
+-                        && pos.getZ() >= startMinZ
+-                        && pos.getZ() <= startMaxZ;
+-                    final boolean inSweepBounds = hasSweepBounds
+-                        && pos.getX() >= sweepMinX
+-                        && pos.getX() <= sweepMaxX
+-                        && pos.getY() >= sweepMinY
+-                        && pos.getY() <= sweepMaxY
+-                        && pos.getZ() >= sweepMinZ
+-                        && pos.getZ() <= sweepMaxZ;
+-                    if (!inStartBounds && !inSweepBounds && !visitor.visit(pos, currentIteration)) {
+-                        return false;
+-                    }
+-                }
+-
+-                final int sectionMinX = Math.min(cornerVisitedBlockX, oppositeCornerX);
+-                final int sectionMinY = Math.min(cornerVisitedBlockY, oppositeCornerY);
+-                final int sectionMinZ = Math.min(cornerVisitedBlockZ, oppositeCornerZ);
+-                final int sectionMaxX = Math.max(cornerVisitedBlockX, oppositeCornerX);
+-                final int sectionMaxY = Math.max(cornerVisitedBlockY, oppositeCornerY);
+-                final int sectionMaxZ = Math.max(cornerVisitedBlockZ, oppositeCornerZ);
+-                if (hasSweepBounds) {
+-                    sweepMinX = Math.min(sweepMinX, sectionMinX);
+-                    sweepMinY = Math.min(sweepMinY, sectionMinY);
+-                    sweepMinZ = Math.min(sweepMinZ, sectionMinZ);
+-                    sweepMaxX = Math.max(sweepMaxX, sectionMaxX);
+-                    sweepMaxY = Math.max(sweepMaxY, sectionMaxY);
+-                    sweepMaxZ = Math.max(sweepMaxZ, sectionMaxZ);
+-                } else {
+-                    sweepMinX = sectionMinX;
+-                    sweepMinY = sectionMinY;
+-                    sweepMinZ = sectionMinZ;
+-                    sweepMaxX = sectionMaxX;
+-                    sweepMaxY = sectionMaxY;
+-                    sweepMaxZ = sectionMaxZ;
+-                    hasSweepBounds = true;
+-                }
+-            }
+-        }
+-
+-        final int finalIteration = iterations + 1;
+-        for (BlockPos blockPos : org.dreeam.leaf.util.list.SimpleBlockPosIterator.iterable(aabbAtTarget)) {
+-            final boolean inStartBounds = blockPos.getX() >= startMinX
+-                && blockPos.getX() <= startMaxX
+-                && blockPos.getY() >= startMinY
+-                && blockPos.getY() <= startMaxY
+-                && blockPos.getZ() >= startMinZ
+-                && blockPos.getZ() <= startMaxZ;
+-            final boolean inSweepBounds = hasSweepBounds
+-                && blockPos.getX() >= sweepMinX
+-                && blockPos.getX() <= sweepMaxX
+-                && blockPos.getY() >= sweepMinY
+-                && blockPos.getY() <= sweepMaxY
+-                && blockPos.getZ() >= sweepMinZ
+-                && blockPos.getZ() <= sweepMaxZ;
+-            if (!inStartBounds && !inSweepBounds && !visitor.visit(blockPos, finalIteration)) {
+-                return false;
+-            }
+-        }
+-
+-        return true;
+-    }
+-    // Leaf end - Sakura - optimise check inside blocks
+-
+     private static int addCollisionsAlongTravel(
+         final LongSet visitedBlocks, final Vec3 deltaMove, final AABB aabbAtTarget, final BlockGetter.BlockStepVisitor visitor
+     ) {

@@ -1,0 +1,132 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Wed, 28 Oct 2026 20:50:18 +0100
+Subject: [PATCH] Kindling: Restore vanilla game event listener changes during
+ dispatch
+
+
+diff --git a/net/minecraft/world/level/chunk/LevelChunk.java b/net/minecraft/world/level/chunk/LevelChunk.java
+index 1c6781787648fca9b02c218870d9a530952e9e6f..76df4d7c4d4056e12996bdb771645f16e9d608e8 100644
+--- a/net/minecraft/world/level/chunk/LevelChunk.java
++++ b/net/minecraft/world/level/chunk/LevelChunk.java
+@@ -102,6 +102,7 @@ public class LevelChunk extends ChunkAccess implements DebugValueSource, ca.spot
+     }
+ 
+     // Leaf end - petal - reduce work done by game event system
++    private @Nullable Int2ObjectMap<GameEventListenerRegistry> farGameEventListenerRegistrySections; // Kindling - keep listeners far outside the build height like vanilla
+     private final LevelChunkTicks<Block> blockTicks;
+     private final LevelChunkTicks<Fluid> fluidTicks;
+     private LevelChunk.UnsavedListener unsavedListener = chunkPos -> {};
+@@ -288,11 +289,11 @@ public class LevelChunk extends ChunkAccess implements DebugValueSource, ca.spot
+         if (this.level instanceof ServerLevel serverLevel) {
+             int sectionIndex = getGameEventSectionIndex(this.getSectionIndexFromSectionY(section));
+ 
+-            // drop game events that are too far away (32 blocks) from loaded sections
+-            // this matches the highest radius of game events in the game
+-            if (sectionIndex < 0 || sectionIndex >= this.gameEventListenerRegistrySections.length) {
+-                return GameEventListenerRegistry.NOOP;
++            // Kindling start - keep listeners far outside the build height like vanilla
++            if (this.isFarGameEventSection(sectionIndex)) {
++                return this.getFarListenerRegistry(serverLevel, section);
+             }
++            // Kindling end - keep listeners far outside the build height like vanilla
+ 
+             var dispatcher = this.gameEventListenerRegistrySections[sectionIndex];
+ 
+@@ -678,8 +679,31 @@ public class LevelChunk extends ChunkAccess implements DebugValueSource, ca.spot
+     }
+ 
+     private void removeGameEventListenerRegistry(final int sectionY) {
+-        this.gameEventListenerRegistrySections[getGameEventSectionIndex(this.getSectionIndexFromSectionY(sectionY))] = null; // Leaf - petal - reduce work done by game event system
++        // Kindling start - keep listeners far outside the build height like vanilla
++        final int sectionIndex = getGameEventSectionIndex(this.getSectionIndexFromSectionY(sectionY));
++        if (this.isFarGameEventSection(sectionIndex)) {
++            this.farGameEventListenerRegistrySections.remove(sectionY);
++            return;
++        }
++        // Kindling end - keep listeners far outside the build height like vanilla
++        this.gameEventListenerRegistrySections[sectionIndex] = null; // Leaf - petal - reduce work done by game event system
++    }
++
++    // Kindling start - keep listeners far outside the build height like vanilla
++    private boolean isFarGameEventSection(final int gameEventSectionIndex) {
++        return gameEventSectionIndex < 0 || gameEventSectionIndex >= this.gameEventListenerRegistrySections.length;
++    }
++
++    private GameEventListenerRegistry getFarListenerRegistry(final ServerLevel level, final int sectionY) {
++        if (this.farGameEventListenerRegistrySections == null) {
++            this.farGameEventListenerRegistrySections = new Int2ObjectOpenHashMap<>();
++        }
++
++        return this.farGameEventListenerRegistrySections.computeIfAbsent(
++            sectionY, key -> new EuclideanGameEventListenerRegistry(level, sectionY, this::removeGameEventListenerRegistry)
++        );
+     }
++    // Kindling end - keep listeners far outside the build height like vanilla
+ 
+     private void removeBlockEntityTicker(final BlockPos pos) {
+         LevelChunk.RebindableTickingBlockEntityWrapper ticker = this.tickersInLevel.remove(pos);
+diff --git a/net/minecraft/world/level/gameevent/EuclideanGameEventListenerRegistry.java b/net/minecraft/world/level/gameevent/EuclideanGameEventListenerRegistry.java
+index 21441c639fca02c3035fd076872ba93e7ec8a24d..5a35ccf00bbceaf021e86abd987f37e37374a640 100644
+--- a/net/minecraft/world/level/gameevent/EuclideanGameEventListenerRegistry.java
++++ b/net/minecraft/world/level/gameevent/EuclideanGameEventListenerRegistry.java
+@@ -16,8 +16,10 @@ import net.minecraft.world.phys.Vec3;
+ 
+ public class EuclideanGameEventListenerRegistry implements GameEventListenerRegistry {
+     private final List<GameEventListener> listeners = Lists.newArrayList();
+-    //private final Set<GameEventListener> listenersToRemove = Sets.newHashSet(); // Leaf - petal - reduce work done by game event system - Not necessary
+-    //private final List<GameEventListener> listenersToAdd = Lists.newArrayList(); // Leaf - petal - reduce work done by game event system
++    // Kindling start - defer changes during a visit like vanilla, a listener may add or remove listeners while it handles an event
++    private final Set<GameEventListener> listenersToRemove = Sets.newHashSet();
++    private final List<GameEventListener> listenersToAdd = Lists.newArrayList();
++    // Kindling end - defer changes during a visit like vanilla, a listener may add or remove listeners while it handles an event
+     private boolean processing;
+     private final ServerLevel level;
+     private final int sectionY;
+@@ -37,7 +39,7 @@ public class EuclideanGameEventListenerRegistry implements GameEventListenerRegi
+     @Override
+     public void register(final GameEventListener listener) {
+         if (this.processing) {
+-            throw new java.util.ConcurrentModificationException(); // Leaf - petal - reduce work done by game event system - Disallow concurrent modification
++            this.listenersToAdd.add(listener); // Kindling - defer changes during a visit like vanilla
+         } else {
+             this.listeners.add(listener);
+         }
+@@ -63,7 +65,7 @@ public class EuclideanGameEventListenerRegistry implements GameEventListenerRegi
+     @Override
+     public void unregister(final GameEventListener listener) {
+         if (this.processing) {
+-            throw new java.util.ConcurrentModificationException(); // Leaf - petal - reduce work done by game event system - Disallow concurrent modification
++            this.listenersToRemove.add(listener); // Kindling - defer changes during a visit like vanilla
+         } else {
+             this.listeners.remove(listener);
+         }
+@@ -85,7 +87,7 @@ public class EuclideanGameEventListenerRegistry implements GameEventListenerRegi
+ 
+             while (iterator.hasNext()) {
+                 GameEventListener listener = iterator.next();
+-                if (false) { // Leaf - petal - reduce work done by game event system - Disallow concurrent modification
++                if (this.listenersToRemove.remove(listener)) { // Kindling - defer changes during a visit like vanilla
+                     iterator.remove();
+                 } else {
+                     Optional<Vec3> optionalPosition = getPostableListenerPosition(this.level, sourcePosition, listener);
+@@ -99,8 +101,7 @@ public class EuclideanGameEventListenerRegistry implements GameEventListenerRegi
+             this.processing = false;
+         }
+ 
+-        // Leaf start - petal - reduce work done by game event system
+-        /*
++        // Kindling start - defer changes during a visit like vanilla
+         if (!this.listenersToAdd.isEmpty()) {
+             this.listeners.addAll(this.listenersToAdd);
+             this.listenersToAdd.clear();
+@@ -110,8 +111,7 @@ public class EuclideanGameEventListenerRegistry implements GameEventListenerRegi
+             this.listeners.removeAll(this.listenersToRemove);
+             this.listenersToRemove.clear();
+         }
+-        */
+-        // Leaf end - petal - reduce work done by game event system
++        // Kindling end - defer changes during a visit like vanilla
+ 
+         return applicable;
+     }
