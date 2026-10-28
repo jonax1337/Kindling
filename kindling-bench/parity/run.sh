@@ -67,9 +67,20 @@ check_sleeping() {
     local status=0
     check_pair parity-sleeping "$scenario" parity-sleeping-on parity-sleeping-off || status=1
     check_pair parity-sleeping-rates "$scenario" parity-sleeping-on parity-sleeping-off parity-hopper-rates || status=1
-    # The bases contraptions with a plugin listening to InventoryMoveItemEvent, so the hoppers take Paper's event path.
-    check_pair parity-bases-listener "type=bases,players=1,plots-per-player=2,warmup-seconds=20,steady-seconds=90" \
-        parity-sleeping-listener-on parity-sleeping-listener-off || status=1
+    check_bases_listener || status=1
+    return $status
+}
+
+# The bases contraptions with a plugin listening to InventoryMoveItemEvent, so the hoppers take Paper's event path, with
+# sleeping block entities on and off. Both runs must count exactly what bases-ci.json holds.
+check_bases_listener() {
+    local scenario="type=bases,players=1,plots-per-player=2,warmup-seconds=20,steady-seconds=90"
+    local status=0
+    local mode
+    for mode in on off; do
+        run_bench "parity-bases-listener-$mode" "$scenario" "parity-sleeping-listener-$mode"
+        python -I "$here/check.py" "$bench/runs/parity-bases-listener-$mode.json" || status=1
+    done
     return $status
 }
 
