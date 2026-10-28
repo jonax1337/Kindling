@@ -28,6 +28,8 @@ final class ChunkLead implements Listener {
     private static final int CHUNK_SIZE = 16;
     private static final int TICKS_PER_SECOND = 20;
     private static final int WINDOW_SECONDS = 10;
+    /** A last window that began on the final ticks of the flight says nothing; its samples still count in the totals. */
+    private static final double SHORTEST_LAST_WINDOW_SECONDS = 1;
     private static final int[] RAY_DEGREES = {-90, -45, 0, 45, 90};
     private static final int AHEAD_RAY = 2;
     private static final List<String> TOTAL_FIGURES = List.of("wall_seconds", "own_chunk_missing_pct",
@@ -131,6 +133,10 @@ final class ChunkLead implements Listener {
     private List<Map<String, Object>> windowSummaries() {
         List<Map<String, Object>> summaries = new ArrayList<>();
         for (int index = 0; index < windows.size(); index++) {
+            boolean last = index > 0 && index == windows.size() - 1;
+            if (last && windows.get(index).wallSeconds() < SHORTEST_LAST_WINDOW_SECONDS) {
+                continue;
+            }
             Map<String, Object> summary = new LinkedHashMap<>();
             summary.put("start_s", index * WINDOW_SECONDS);
             summary.putAll(windows.get(index).summary());

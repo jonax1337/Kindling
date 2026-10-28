@@ -45,7 +45,7 @@ Where `/proc` is missing (Windows), the Linux figures are left out; `compare.py`
 
 **Known quirks (seen in the first runs on the bench host).**
 
-- `chunk_lead.windows` ends with an empty trailing window (`start_s` equal to the flight length, `wall_seconds` 0.0, no new chunks); it does not affect the averages.
+- `chunk_lead.windows` leaves out a last window shorter than a second (one that began on the final ticks of the flight); its samples still count in the totals.
 - `rss_last_mb` and `rss_idle_mb` are 0 when the server exits within the one-second sampling window of `run_bench.py`; `compare.py` then shows `RSS end MB 0.0` or a huge spread. Ignore those rows or sample `/proc` yourself.
 - The kicked fake players leave the world but stay in the server's player list, so a server feature that waits for an empty server (`performance.idle-memory`, `pause-when-empty-seconds`) never sees one in the idle phase; the idle-memory measurement used a helper plugin that completes their disconnect.
 - Long runs on the bench host (WSL2) have to be started through a detached Windows process (for example `Invoke-CimMethod Win32_Process Create` running `wsl.exe ... bash script`); a `nohup` job in an SSH session dies with the session, and WSL shuts down.
