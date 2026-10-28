@@ -19,7 +19,7 @@ class DoctorTest {
         final List<Finding> findings = Doctor.examine(scenario.facts());
 
         assertEquals(List.of(), findings.stream().filter(finding -> finding.severity() != Severity.OK).toList());
-        assertEquals(12, findings.size());
+        assertEquals(13, findings.size());
     }
 
     @Test

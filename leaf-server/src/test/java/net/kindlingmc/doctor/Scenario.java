@@ -36,6 +36,7 @@ final class Scenario {
     int compressionThreshold = 256;
     ProxyLocation proxyLocation = ProxyLocation.SAME_HOST;
     List<String> recommendedOptionsOff = List.of();
+    List<VanillaParity.Deviation> vanillaDeviations = List.of();
     boolean idleMemory = false;
 
     Optional<DiskSpace> worldDisk = Optional.empty();
@@ -53,7 +54,7 @@ final class Scenario {
 
     ServerSettings server() {
         return new ServerSettings(workerThreads, viewDistance, simulationDistance, maxPlayers, behindProxy, compressionThreshold,
-            proxyLocation, recommendedOptionsOff, idleMemory);
+            proxyLocation, recommendedOptionsOff, vanillaDeviations, idleMemory);
     }
 
     DoctorFacts facts() {

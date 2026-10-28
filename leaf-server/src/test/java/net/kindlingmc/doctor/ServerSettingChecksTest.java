@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 import static net.kindlingmc.doctor.Scenario.assertSeverity;
 import static net.kindlingmc.doctor.Scenario.assertSkipped;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ServerSettingChecksTest {
@@ -153,6 +154,32 @@ class ServerSettingChecksTest {
         assertTrue(finding.what().contains("async.async-pathfinding.enabled, performance.sleeping-block-entity"), finding.what());
         assertTrue(finding.what().contains("fresh file"), finding.what());
         assertTrue(finding.fix().contains("config/leaf-global.yml"), finding.fix());
+    }
+
+    @Test
+    void recommendedOptionsNoLongerIncludeAsyncPathfinding() {
+        assertFalse(ServerSettingChecks.recommendedOptions(scenario.server()).orElseThrow().what().contains("pathfinding"));
+    }
+
+    @Test
+    void settingsThatAllBehaveLikeVanillaAreFine() {
+        assertSeverity(Severity.OK, ServerSettingChecks.vanillaParity(scenario.server()));
+    }
+
+    @Test
+    void settingsThatDeviateFromVanillaAreAHintNamingTheirValueAndTheVanillaValue() {
+        scenario.vanillaDeviations = List.of(
+            new VanillaParity.Deviation("gale-global.yml: small-optimizations.reduced-intervals.update-entity-line-of-sight", "4", "1"),
+            new VanillaParity.Deviation("leaf-global.yml: async.async-pathfinding.enabled", "true", "false"));
+
+        final Finding finding = ServerSettingChecks.vanillaParity(scenario.server()).orElseThrow();
+
+        assertEquals(Severity.INFO, finding.severity());
+        assertTrue(finding.what().startsWith("2 performance setting(s)"), finding.what());
+        assertTrue(finding.what().contains("update-entity-line-of-sight is 4"), finding.what());
+        assertTrue(finding.fix().contains("update-entity-line-of-sight to 1"), finding.fix());
+        assertTrue(finding.fix().contains("async.async-pathfinding.enabled to false"), finding.fix());
+        assertTrue(finding.fix().contains("fresh file"), finding.fix());
     }
 
     @Test

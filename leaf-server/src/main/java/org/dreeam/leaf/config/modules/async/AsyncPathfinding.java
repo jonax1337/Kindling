@@ -11,7 +11,7 @@ public class AsyncPathfinding extends ConfigModule {
         return ConfigCategory.ASYNC.basePath() + ".async-pathfinding";
     }
 
-    public static boolean enabled = true; // Kindling - on by default: measured faster, vanilla behaviour kept
+    public static boolean enabled = false; // Kindling - vanilla default: with async pathfinding a mob follows a new path a tick or more late
     public static int asyncPathfindingMaxThreads = 0;
     public static int asyncPathfindingKeepalive = 60;
     public static int asyncPathfindingQueueSize = 0;
@@ -20,6 +20,14 @@ public class AsyncPathfinding extends ConfigModule {
 
     @Override
     public void onLoaded() {
+        globalConfig.addCommentRegionBased(basePath() + ".enabled", """
+                Whether or not paths should be computed asynchronously.
+                Off by default (Kindling): a mob follows a newly computed path a tick or more late,
+                so its movement differs slightly from vanilla.""",
+            """
+                是否异步计算寻路.
+                Kindling 默认关闭: 生物会晚一刻或更久才沿着新计算出的路径移动, 与原版略有不同."""
+        );
         globalConfig.addCommentRegionBased(basePath() + ".reject-policy", """
                 The policy to use when the queue is full and a new task is submitted.
                 FLUSH_ALL: All pending tasks will be run on server thread.

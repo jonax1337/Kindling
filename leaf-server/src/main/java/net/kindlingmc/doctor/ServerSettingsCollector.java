@@ -8,17 +8,25 @@ import java.net.SocketAddress;
 import java.net.SocketException;
 import java.net.UnknownHostException;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.OptionalInt;
+import java.util.Set;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import org.bukkit.Bukkit;
 import org.bukkit.craftbukkit.CraftServer;
+import org.galemc.gale.configuration.GaleGlobalConfiguration;
+import org.galemc.gale.configuration.GaleWorldConfiguration;
 import org.dreeam.leaf.config.ConfigCategory;
+import org.dreeam.leaf.config.modules.async.AsyncMobSpawning;
 import org.dreeam.leaf.config.modules.async.AsyncPathfinding;
 import org.dreeam.leaf.config.modules.async.AsyncPlayerDataSave;
 import org.dreeam.leaf.config.modules.async.MultithreadedTracker;
 import org.dreeam.leaf.config.modules.opt.IdleMemory;
+import org.dreeam.leaf.config.modules.opt.OptimizePlayerMovementProcessing;
+import org.dreeam.leaf.config.modules.opt.SkipMapItemDataUpdates;
 import org.dreeam.leaf.config.modules.opt.SleepingBlockEntity;
 import org.spigotmc.SpigotConfig;
 
@@ -39,6 +47,7 @@ final class ServerSettingsCollector {
             server.getCompressionThreshold(),
             proxyLocation(server),
             recommendedOptionsOff(),
+            vanillaDeviations(server),
             IdleMemory.enabled);
     }
 
@@ -90,10 +99,34 @@ final class ServerSettingsCollector {
     private static List<String> recommendedOptionsOff() {
         final List<String> off = new ArrayList<>();
         addIfOff(off, MultithreadedTracker.enabled, ConfigCategory.ASYNC.basePath() + ".async-entity-tracker.enabled");
-        addIfOff(off, AsyncPathfinding.enabled, ConfigCategory.ASYNC.basePath() + ".async-pathfinding.enabled");
         addIfOff(off, AsyncPlayerDataSave.enabled, ConfigCategory.ASYNC.basePath() + ".async-playerdata-save.enabled");
         addIfOff(off, SleepingBlockEntity.enabled, ConfigCategory.PERF.basePath() + ".sleeping-block-entity");
         return off;
+    }
+
+    /** Gale's world settings can differ per world, so every world is read and a value that differs shows up on its own. */
+    private static List<VanillaParity.Deviation> vanillaDeviations(final MinecraftServer server) {
+        final Set<VanillaParity.Deviation> deviations = new LinkedHashSet<>();
+        for (final ServerLevel level : server.getAllLevels()) {
+            deviations.addAll(VanillaParity.deviations(runningValues(level.galeConfig())));
+        }
+        return List.copyOf(deviations);
+    }
+
+    private static VanillaParity.Values runningValues(final GaleWorldConfiguration world) {
+        final var projectileChunkLoads = world.smallOptimizations.maxProjectileChunkLoads;
+        final var reducedIntervals = world.smallOptimizations.reducedIntervals;
+        return new VanillaParity.Values(
+            projectileChunkLoads.perTick,
+            projectileChunkLoads.perProjectile.max,
+            reducedIntervals.checkStuckInWall,
+            GaleGlobalConfiguration.get().smallOptimizations.reducedIntervals.updateEntityLineOfSight,
+            reducedIntervals.villagerItemRepickup,
+            world.gameplayMechanics.entityWakeUpDurationRatioStandardDeviation,
+            SkipMapItemDataUpdates.enabled,
+            OptimizePlayerMovementProcessing.enabled,
+            AsyncPathfinding.enabled,
+            AsyncMobSpawning.enabled);
     }
 
     private static void addIfOff(final List<String> off, final boolean enabled, final String configKey) {

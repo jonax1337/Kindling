@@ -37,6 +37,7 @@ public final class Doctor {
                 ServerSettingChecks.viewDistance(machine, server),
                 ServerSettingChecks.proxyCompression(server),
                 ServerSettingChecks.recommendedOptions(server),
+                ServerSettingChecks.vanillaParity(server),
                 StorageChecks.worldDisk(facts.worldDisk()),
                 HostChecks.mainThreadWait(live),
                 HostChecks.chunkWorkerWait(live),

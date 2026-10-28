@@ -9,7 +9,7 @@ public class OptimizePlayerMovementProcessing extends ConfigModule {
         return ConfigCategory.PERF.basePath();
     }
 
-    public static boolean enabled = true;
+    public static boolean enabled = false; // Kindling - vanilla default: the server keeps checking the sneak edge of a player
 
     @Override
     public void onLoaded() {

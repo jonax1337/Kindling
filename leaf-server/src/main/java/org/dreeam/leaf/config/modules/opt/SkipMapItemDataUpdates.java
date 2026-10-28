@@ -9,7 +9,7 @@ public class SkipMapItemDataUpdates extends ConfigModule {
         return ConfigCategory.PERF.basePath();
     }
 
-    public static boolean enabled = true;
+    public static boolean enabled = false; // Kindling - vanilla default: maps without the default renderer keep updating their colours
 
     @Override
     public void onLoaded() {

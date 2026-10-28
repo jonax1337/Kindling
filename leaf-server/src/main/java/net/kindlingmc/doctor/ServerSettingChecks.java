@@ -1,6 +1,8 @@
 package net.kindlingmc.doctor;
 
+import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 import net.kindlingmc.chunk.ChunkWorkers;
 
 /** Checks of server settings against the machine. */
@@ -85,7 +87,7 @@ final class ServerSettingChecks {
 
     static Optional<Finding> recommendedOptions(final ServerSettings server) {
         if (server.recommendedOptionsOff().isEmpty()) {
-            return Optional.of(Finding.ok("Kindling's recommended options (async entity tracker, async pathfinding, async player data saving, "
+            return Optional.of(Finding.ok("Kindling's recommended options (async entity tracker, async player data saving, "
                 + "sleeping block entities) are on"));
         }
         return Optional.of(Finding.info(
@@ -93,5 +95,19 @@ final class ServerSettingChecks {
                 + "but the defaults only apply to a fresh file, so a file from before keeps its old values",
             "Set them to true in config/leaf-global.yml and restart, unless they are off on purpose; Kindling measured them faster with vanilla behaviour kept",
             Basis.KINDLING_MEASUREMENT));
+    }
+
+    /** Defaults only apply to a fresh config file, so a server that keeps an older file can still run non-vanilla values. */
+    static Optional<Finding> vanillaParity(final ServerSettings server) {
+        final List<VanillaParity.Deviation> deviations = server.vanillaDeviations();
+        if (deviations.isEmpty()) {
+            return Optional.of(Finding.ok("The performance settings behave like vanilla and Paper"));
+        }
+        return Optional.of(Finding.info(
+            deviations.size() + " performance setting(s) make the server differ from vanilla and Paper: "
+                + deviations.stream().map(deviation -> deviation.setting() + " is " + deviation.running()).collect(Collectors.joining("; ")),
+            "Set " + deviations.stream().map(deviation -> deviation.setting() + " to " + deviation.vanilla()).collect(Collectors.joining("; "))
+                + " and restart, unless the difference is on purpose; Kindling writes vanilla values into a fresh file, an existing file keeps its old ones",
+            Basis.LIVE_READING));
     }
 }
