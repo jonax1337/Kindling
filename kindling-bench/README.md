@@ -75,6 +75,8 @@ Hopper events are not used for counting: Paper skips them when no plugin listens
 
 `hopper-guard-seconds=10` adds a stand-in protection plugin that holds every hopper back for the first 10 seconds after the build (it hides their sources and cancels transfers and pickups, as a claim plugin does until its claims are loaded) and then lets everything through. Its counters compare only with other guarded runs: a server whose hoppers stay stuck after the release reports far lower counters than one without sleeping hoppers.
 
+`move-event-listener=true` (default `false`) registers a stand-in plugin (`PassiveMoveListener`) that listens to `InventoryMoveItemEvent` at `MONITOR` with `ignoreCancelled=true` and does nothing, for the whole run and for every scenario type. A listener makes hoppers take Paper's event path, as protection and logging plugins do, so it is the load for measuring whether sleeping hoppers stay asleep through Paper's temporary stack count. `type=sleeping` and `hopper-guard-seconds` runs already have a listener (`HopperRewriter`, `HopperGuard`), so the key changes mostly `type=bases` and `type=mixed` runs. The run records it as `scenario.moveEventListener`.
+
 ## Parity check (CI)
 
 `parity/run.sh <server.jar>` runs the bases scenario in a size a GitHub runner finishes in a few minutes (one player over two plots, 20 s warm-up, 90 s measured; every contraption type is in each plot) and compares its counters with [`parity/bases-ci.json`](parity/bases-ci.json). A counter that differs makes `parity/check.py` print `name: expected X, got Y` and exit 1. The workflows [`parity.yml`](../.github/workflows/parity.yml) (patch, Kindling code and bench changes) and [`leaf-upstream.yml`](../.github/workflows/leaf-upstream.yml) (after the weekly Leaf merge; it reports the result in the `upstream` issue) run it.
@@ -152,7 +154,7 @@ bash kindling-bench/matrix.sh <server.jar> <prefix> [variant ...]   # all varian
 | `--heap` | Sets `-Xmx` (default 3G) and, unless `--jvm` names its own `-Xms`, also `-Xms` |
 | `--overlay <folder>` | Copies files over the server folder before the start, for example `overlays/leaf-safe/config/leaf-global.yml`. Leaf fills in missing keys, so an overlay only needs the keys it changes. May be given more than once; later folders overwrite earlier ones |
 | `--world <folder>` | Copies a world in as `world` before the start |
-| `--scenario "players=4,travel-seconds=30"` | Overrides single scenario keys |
+| `--scenario "players=4,travel-seconds=30"` | Overrides single scenario keys. An overlay may also ship `plugins/KindlingBench/scenario.properties`; its keys are written first and the `--scenario` keys after them, so the command line wins when both set a key |
 | `--cpus N` | Pins the server to the first N logical cores as a stand-in for a smaller machine (pair it with `-XX:ActiveProcessorCount=N` in `--jvm`, so the JVM sizes its thread pools accordingly). On Linux the server starts under `taskset -c 0-(N-1)`, so every thread inherits the mask; on Windows the affinity is set after the start |
 
 | Script | Measures |
@@ -188,6 +190,11 @@ A variant is a name. Its JVM arguments come from the `jvm` table in `matrix.sh` 
 | The Kindling jar without an overlay | `fork` |
 | Used by `elytra.sh` and `pregen.sh` | `workers-5`, `workers-7`, `vd-8` (view distance 8), `pregen-w5` (automatic pregeneration, 5 workers) |
 | Worker priority and the pregenerator's main-thread wait throttle (A/B, Linux only) | `worker-priority-off`, `worker-priority-on` (chunk and I/O workers at nice 10) for flights; `pregen-w5-prio-off`, `pregen-w5-prio-on`, `pregen-w5-wait`, `pregen-w5-prio-on-wait`: like `pregen-w5` with `worker-priority` off or on and `max-main-thread-wait` 0 (off) or 0.10. Plain `pregen-w5` runs with the default `max-main-thread-wait: 0` (off) |
+| Hoppers with a move event listener (A/B, for sleeping hoppers) | `parity-sleeping-listener-on` (`performance.sleeping-block-entity: true`) and `parity-sleeping-listener-off` (`false`), each with `move-event-listener=true`; for example `python -I kindling-bench/run_bench.py --jar <jar> --plugin kindling-bench/build/libs/kindling-bench.jar --label x --scenario "type=bases" --overlay kindling-bench/overlays/parity-sleeping-listener-on`. `parity/run.sh` has no pair for them yet, and nothing was run with them |
 | Functional check of the pregenerator's disk guard | `pregen-disk-guard` (like `pregen-w5` with `min-free-disk-gb: 100000000`): the run must stop by itself at the first tick and `pregeneration.properties` must stay at `next=0` |
+
+## Comparing a jar with Mojang's server
+
+[`vanilla-diff/`](vanilla-diff/README.md) is not a performance test: it runs the official server jar and the jar under test on one seed with the same console script, then compares the saved worlds block by block, entity by entity (redstone contraptions, and a world generation mode). It has not run against a real server yet.
 
 What each variant showed is in [docs/MEASUREMENTS.md](../docs/MEASUREMENTS.md). Results land in `runs/<prefix>-<variant>.json` (a list of runs). `runs/`, `jars/` and `worlds/` are not checked in.

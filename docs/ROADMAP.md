@@ -35,6 +35,20 @@ New items need the 7.5 bar of the review.
 | Memory return and a rejoin | The tick spike when players come back after the heap shrank was not measured; the bench needs a rejoin mode |
 | Repeat the "0 % void" test with five lines | The figures of 2026-10-26 followed one line straight ahead, and the bench host spent about half of an elytra flight in the void |
 
+**Built, not measured yet** (each needs three runs per side in `kindling-bench`, `compare.py` marking the gap `*`)
+
+| Open item | Why it is open |
+| --- | --- |
+| `performance.biome-zoom-shortcut` | Off by default. The result is the same as without it (checked against a copy of vanilla's algorithm), but whether it is faster is unknown. It only applies where the eight cells lie in one chunk column (9 of 16 positions), so it catches fewer neighbourhoods than a whole-world count would suggest. Needs a world-generation profile with it on and off |
+| The cost of vanilla's `Vec3i` hash | Leaf's mixing hash (patch 0260) was replaced by vanilla's to restore `HashSet<BlockPos>` order and redstone update order. Dense, structured position sets collide more again. Needs a bases run against the build before the change |
+| The cost of vanilla's goal order | Leaf's array-based goal selector (patch 0236) was replaced by Paper's `ObjectLinkedOpenHashSet`. Runs per mob per tick and allocates iterators again; unmeasured. Same for the restored entity-section order (O(n) removal, one int-map write per shifted entity) and the inside-block iteration (one `LongOpenHashSet` per moving entity per call) |
+| The cost of the vanilla defaults | Async pathfinding and mob spawning off, in-wall and line-of-sight checks every tick, unlimited projectile chunk loads. The older "async fixes cost nothing" figures apply only with the options on |
+| `performance.worker-governor` | Off by default, Linux only. Whether it lowers the main thread's wait on a crowded host, what it costs in generation speed, and whether 2 samples down and 60 s up are good values are all unknown. Also untried on a live pool: a `/paper reload` while it holds a lower count |
+| `performance.pregeneration.frontier` | Off by default. Throughput against `/pregen` (a tile's in-flight chunks drain at each tile boundary), the real disk growth per visited tile, and a run on a server with players coming and going. The disk forecast counts the visited tiles' chunks as still to be written, so it is conservative |
+| Sleeping hoppers with an `InventoryMoveItemEvent` listener | Whether fewer wake-ups show in tick time. `type=bases` with the overlays `parity-sleeping-listener-on` against a build without the change; `parity/run.sh` has no pair for the listener yet |
+| A first real run of `vanilla-diff` | `./run.sh --self-check` first (vanilla against vanilla must say identical), then the contraptions and worldgen modes against the Kindling jar. Until then it is not known that the designs do anything (a piston that never extends tests nothing) |
+| Entity-parity and parity fixes in the game | Hopper pull order with several items, pressure plate and tripwire order for falling entities, a plugin's `BlockReceiveGameEvent` handler placing a sculk sensor, a client-steered vehicle standing still, lightning frequency, the cure discount, a border-clipped automatic pregeneration run across a restart, a full disk that frees up while the server sleeps |
+
 **Tests and parity**
 
 | Open item | Why it is open |
@@ -67,7 +81,8 @@ Recorded so they are not proposed again without new facts.
 | Leaf pull request #952 (hopper rates) | Not ported; the tuned rates are honoured by taking Paper's transfer code when `hopper-amount` is not 1, with the cooldowns derived from `ticks-per.hopper-transfer` |
 | Making hoppers sleep with `ticks-per.hopper-check` above 1 | A woken sleeper cannot keep Paper's check interval, so these hoppers stay awake |
 | Lithium's nitwit job-search shortcut | Taken out again: it skipped calls to the level's random, so it was not vanilla-identical |
-| Quarantine for entities and POI data, and for chunks the region file reports as missing | Only chunk data that throws is copied. A truncated header or an invalid compression id can be recovered by the region file itself, and its raw bytes are not reliably at hand |
+| Quarantine for entities and POI data | Only chunk data is copied. (Chunks the region file gives up on are covered since patch `0340`) |
+| Reusing a built chunk packet for several players | Evaluated, not built: the packet cannot be invalidated safely. A spawner's `Delay` changes the block entity update tag without a notification, light changes arrive from neighbouring chunks on light threads, and Paper's Anti-Xray and plugin packet listeners change a packet's buffer and lists in place. A narrower cache of the section bytes only, keyed by modification counters on `PalettedContainer`, could be exact but would need a profile showing section serialisation is a large share of `PlayerChunkSender.sendChunk` first |
 | A quarantine copy of a chunk saved by a newer Minecraft version | Paper stops the server first (verified), so nothing is lost |
 | `SCHED_IDLE` for pregeneration | Not attempted: a priority inversion with synchronous chunk loads is a risk, and `nice` was measured first |
 | Direction smoothing in directional loading | Not added: samples from the first ticks and jumps are ignored instead, which keeps the order logic small |

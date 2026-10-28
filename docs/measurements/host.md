@@ -8,6 +8,7 @@ How long Kindling's threads wait for a CPU on a shared host, what worker priorit
 
 - [Waiting for a CPU on the VPS](#waiting-for-a-cpu-on-the-vps)
 - [Worker priority and the main thread's wait for a CPU](#worker-priority-and-the-main-threads-wait-for-a-cpu)
+- [Worker governor](#worker-governor)
 - [The doctor's live readings](#the-doctors-live-readings)
 
 ---
@@ -118,6 +119,15 @@ Two cautions: in the mixed load the time in the void rose from 3.1 to 6.3 % (p =
 A limit such as 0.20 was not tested; the throttle's switching on and off could not be observed because the run does not log the progress over time. On the VPS the main thread of an idle test server already sat above 10 % ([see above](#waiting-for-a-cpu-on-the-vps)), so a share of the last minute is a poor criterion there; judging the absolute wait per tick, or only a busy machine, is an open item on the [roadmap](../ROADMAP.md).
 
 </details>
+
+## Worker governor
+
+> [!NOTE]
+> ⏸️ **Opt-in (`performance.worker-governor.enabled`, default `false`, Linux, needs `doctor.host-monitor`); not measured, never run on a live pool** · unit tests of the decision logic (`GovernorStateTest` 14, `HostPressureTest` 8, `ThreadChecksTest`, `ChunkWorkersTest`) · 2026-10-28
+
+After every 5-second host sample the pressure on the main thread is **high** (it waited for a CPU above the doctor's contention threshold, or the container throttled at least 1 % of its periods), **low** (wait share at most 5 % or under 10 ms per second, throttling under 0.5 %, steal at most 5 %), **unknown** (no readings) or **moderate** (anything else; steal above 5 % only blocks steps up). Two high samples in a row remove one chunk worker; `quiet-seconds` (default 60) of low samples add one back; a worker added and removed again within one quiet period doubles the wait, up to 8 times. Bounds: a quarter of the available processors (at least 1, never above the ceiling) up to the configured or measured default. It calls `adjustThreadCount` of the Moonrise pool, which halts the newest workers after their current task (no chunk task is lost) and starts new ones through the same thread factory, so worker priority applies to them. A Paper config reload sets the configured count again until the next sample. The doctor's LIVE section shows the current count, its bounds and the latest reading.
+
+Expected, not measured: less main-thread wait on a crowded shared host, in exchange for slower chunk generation. Open: whether 2 samples down and 60 s up are good defaults, a `/paper reload` while it holds a lower count, and the effect on pregeneration and flights. Decisions use single 5-second samples, not the doctor's one-minute window.
 
 ## The doctor's live readings
 

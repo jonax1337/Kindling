@@ -30,6 +30,16 @@ Why each Kindling change exists, and what was tried and left out. The scoreboard
 | Pregenerator hardening | Expected behaviour | Nine functional checks hold; none is a speed measurement | 🛡️ | [pregeneration.md](measurements/pregeneration.md#pregenerator-hardening-checks) |
 | Lagging check of the tick loop | Build without the change | Same value; TPS averaging 13.6 % → 3.4 % of the main thread when idle | 🛡️ | [ticking.md](measurements/ticking.md#the-lagging-check-of-the-tick-loop) |
 | The doctor's live readings | `/proc` read from outside | Agree within about half a percentage point | 🛡️ | [host.md](measurements/host.md#the-doctors-live-readings) |
+| Vanilla defaults of a fresh configuration (ten settings) | The vanilla code that reads each value | Async pathfinding and mob spawning off, Gale limits and intervals vanilla; no speed measured | 🛡️ | [vanilla-parity.md](measurements/vanilla-parity.md#defaults-a-fresh-configuration-writes) |
+| `Vec3i` hash, goal order, entity-section order | The vanilla code | Restored; the cost against Leaf's faster versions is not measured | 🛡️ | [vanilla-parity.md](measurements/vanilla-parity.md#hash-goals-and-entity-order) |
+| Lightning, cure reputation, failed spawn attempts, brownian walk, tile entity count, shapeless recipes | The vanilla and Paper code | Restored; unit tests for the recipe helper only, no speed measured | 🛡️ | [vanilla-parity.md](measurements/vanilla-parity.md#smaller-restorations) |
+| Inside-block order, movement flags, entity age, floating point, game events | The vanilla code | Restored; 6 unit tests, no speed measured | 🛡️ | [vanilla-parity.md](measurements/vanilla-parity.md#entity-movement-age-and-game-events) |
+| Biome zoom cell | A copy of vanilla's algorithm, 4 × 10 000 000 random positions | Same cell as vanilla, including a pinned case Leaf got wrong (2 in 200 million) | 🛡️ | [vanilla-parity.md](measurements/vanilla-parity.md#biome-zoom) |
+| Async pathfinding targets, trimming, completion (option on) | Vanilla's `PathNavigation` | Four unit tests; no server test, no speed measured | 🛡️ | [vanilla-parity.md](measurements/vanilla-parity.md#async-pathfinding-when-switched-on) |
+| Sleeping hoppers with a move event listener | The build before the change | Unit tests only; the parity pairs and a bench run were not done | 🛡️ | [vanilla-parity.md](measurements/vanilla-parity.md#sleeping-hoppers-with-a-move-event-listener) |
+| Biome zoom shortcut | Setting off | Same result by construction; no speed measured; off by default | ⏸️ | [vanilla-parity.md](measurements/vanilla-parity.md#biome-zoom) |
+| Worker governor | Setting off | No speed measured; off by default | ⏸️ | [host.md](measurements/host.md#worker-governor) |
+| Frontier pregeneration | Setting off | No speed or disk figure measured; off by default; the world folder grows | ⏸️ | [pregeneration.md](measurements/pregeneration.md#frontier-pregeneration) |
 | Idle memory | Setting off, 3 runs | Resident memory with nobody online 2 492 → 1 032 MiB (−59 %); off by default | ⏸️ | [memory-jvm.md](measurements/memory-jvm.md#idle-memory) |
 | Worker priority | Setting off, 3 runs | Main-thread wait roughly halves (5 430 → 2 673 ms in the elytra flight); off by default | ⏸️ | [host.md](measurements/host.md#worker-priority-and-the-main-threads-wait-for-a-cpu) |
 | Pregenerator wait throttle (0.10) | Setting off, 3 runs | Pregeneration alone 140.3 → 65 chunks/s (−55 %); off by default | ⏸️ | [host.md](measurements/host.md#worker-priority-and-the-main-threads-wait-for-a-cpu) |
@@ -51,11 +61,12 @@ Why each Kindling change exists, and what was tried and left out. The scoreboard
 
 - [Kindling against Leaf](measurements/vs-leaf.md): the final round against plain Leaf and release 26.3-11, the older mixed load, and Leaf's options one by one.
 - [Chunk generation and loading](measurements/chunks.md): directional loading, chunk workers, the generation cap, the palette decoder, copies of unreadable chunks and the dropped client-paced sending.
-- [Pregeneration](measurements/pregeneration.md): the tiled pregenerator, its hardening checks, the stop during a run and the chunk workers' profile.
+- [Pregeneration](measurements/pregeneration.md): the tiled pregenerator, its hardening checks, the stop during a run, frontier pregeneration and the chunk workers' profile.
+- [Vanilla parity](measurements/vanilla-parity.md): what Kindling restores where Leaf or Gale changed vanilla, the defaults of a fresh configuration, and what still differs. No speed figures.
 - [World ticking](measurements/ticking.md): sleeping block entities, Lithium ports, natural spawning, the lagging check, the main thread's profile and what was left alone.
 - [Async defaults](measurements/async.md): villager parity and the cost of the fixes for async pathfinding, tracker and saving.
 - [JVM, start time and memory](measurements/memory-jvm.md): JVM flags and heap, AOT cache and native heap trim, idle memory.
-- [The host: waiting for a CPU](measurements/host.md): run-queue waits on the VPS, worker priority, the pregenerator's wait throttle and the doctor's live readings.
+- [The host: waiting for a CPU](measurements/host.md): run-queue waits on the VPS, worker priority, the pregenerator's wait throttle, the worker governor and the doctor's live readings.
 
 ## How to read the numbers
 

@@ -9,6 +9,7 @@ The built-in pregenerator: its speed against its first version, its safety check
 - [Pregeneration](#pregeneration)
 - [Pregenerator hardening checks](#pregenerator-hardening-checks)
 - [Stop during a pregeneration](#stop-during-a-pregeneration)
+- [Frontier pregeneration](#frontier-pregeneration)
 - [Where the time goes: chunk workers (profile)](#where-the-time-goes-chunk-workers-profile)
 
 ---
@@ -57,6 +58,9 @@ Now the generated chunks of the last two tiles keep a ticket one level below ful
 </details>
 
 ## Pregenerator hardening checks
+
+> [!NOTE]
+> The second hardening round (an automatic run cut short by the border counts as done, a failed run stays paused and resumable, a full disk is re-checked while an empty server sleeps, the state loads before the first write, the final write never races another, a radius above 3 750 000 chunks is dropped as damaged) is covered by unit tests only (`PregenStateTest`, `PregenTaskTest`, `TaskSupervisorTest`, `StateStoreTest`, `StateWriterTest`); no server check yet.
 
 > [!NOTE]
 > 🛡️ **Nine functional checks show that the safety behaviour holds (border, crash, disk, status, stop, empty server, unloaded world); none is a speed measurement** · no baseline, expected behaviour · one run per check · undated
@@ -126,6 +130,25 @@ The slow save of the round did not come back in three more stops; its cause was 
 <summary><b>Caveats and open points</b></summary>
 
 - *Not checked:* whether the skipped POI update for that block is repaired when the chunk loads again.
+
+</details>
+
+## Frontier pregeneration
+
+> [!NOTE]
+> ⏸️ **Opt-in (`performance.pregeneration.frontier.enabled`, default `false`); no speed or disk figure was measured** · unit tests with a fake world (61 tests: `TileSetTest`, `FrontierPlanTest`, `FrontierStateTest`, `FrontierTaskTest`, `FrontierPregenTest`), nothing run on a server · 2026-10-28
+
+While at least one player is online, every 20 ticks the 16x16-chunk tile each player stands in is noted (a hash-set add per player, no per-move hook) and saved in `<world>/pregeneration-frontier.properties`. With nobody online the server stays awake and generates the tiles within `margin-chunks` (default 32, rounded up to whole tiles, so 5x5 tiles around each visited tile; clamped to 0 to 512) that are not done yet, nearest first, one tile at a time (256 chunks, chunk-system priority `IDLE`). Chunks outside the world border are never requested. It reuses the pregenerator's throttle (`max-mspt`, `max-parallel`, `max-main-thread-wait`), disk guard (`min-free-disk-gb`; the forecast counts every pending tile as still to be written, so it is conservative) and kept-chunk tickets. It pauses and releases its tickets on the first tick with a player online, and leaves a world to an explicit or automatic `/pregen` run. A failure switches off only that world's frontier until restart. `/pregen status` shows `frontier <world>: N tiles visited, M generated`.
+
+**The world folder grows.** With the default margin each isolated visited tile adds up to 25 tiles, 6 400 chunks; at the disk guard's 16 KiB-per-chunk assumption (not measured for this feature) about 100 MiB. Generation is deterministic, so the world's content does not change, only when it is generated.
+
+<details>
+<summary><b>Caveats</b></summary>
+
+- A tile drains its in-flight chunks before the next starts, which should cost some throughput against `/pregen`'s continuous spiral; not measured.
+- A chunk the chunk system returns as not loaded still counts toward its tile, and the tile is then saved as done.
+- The visited tile's chunks are mostly generated already and are only read again.
+- Nothing ran on a server: join, move, log out, join again, restart and `/pregen start` on the same world need a manual check.
 
 </details>
 

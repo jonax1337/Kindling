@@ -53,7 +53,7 @@ Kindling makes the parts that hurt on a cheap VPS cheaper: fast players outrunni
 
 Leaf `66f99f8e` against Kindling 26.3-12, each with its own defaults, 3 runs each on a 4-core, 8-thread Intel i7-7700 under Linux. 🏆 Kindling better · 🤝 no significant difference · 🔻 Kindling costs more. \* Leaf was still generating the players' surroundings while they stood, which flatters Kindling.
 
-**In short:** Kindling wins where players outrun world generation. In survival bases it is a draw, and it uses more CPU time. Release 26.3-11 measured the same as 26.3-12. [Details and method →](docs/measurements/vs-leaf.md#final-round-the-build-of-2026-10-28-against-263-11-and-plain-leaf)
+**In short:** Kindling wins where players outrun world generation. In survival bases it is a draw, and it uses more CPU time. Release 26.3-11 measured the same as 26.3-12. These figures are of build 26.3-12, whose defaults had async pathfinding and mob spawning on; later builds default to vanilla behaviour there and were not measured. [Details and method →](docs/measurements/vs-leaf.md#final-round-the-build-of-2026-10-28-against-263-11-and-plain-leaf)
 
 ## ✨ What Kindling adds on top of Leaf
 
@@ -64,19 +64,36 @@ Leaf `66f99f8e` against Kindling 26.3-12, each with its own defaults, 3 runs eac
 | ⚙️ | **Chunk workers sized for fast players** | Five eighths of the cores, at most five, never fewer than Paper (2 → 5 on 8 cores) | 🧪 0 % instead of 24 % void with eight fliers on 12 cores, against Paper's count · [more](docs/measurements/chunks.md#default-number-of-chunk-workers) |
 | 🚦 | **Shorter generation queues** | Paper's automatic number of concurrent generations per player is capped at 32, so the order keeps up | 🧪 0.9 % instead of 38.5 % void on the 8-thread bench host, same CPU time · [more](docs/measurements/chunks.md#concurrent-generations-per-player) |
 | 📦 | **Chunk loading without DataFixerUpper** | Saved block and biome palettes are read straight from NBT | 🛡️ same result, checked block by block; less chunk-worker time · [more](docs/measurements/chunks.md#loading-chunks-from-disk) |
-| 🛟 | **Copies of unreadable chunks** | A stored chunk that cannot be read is copied to `<world>/kindling-quarantine/` before it is generated anew | 🛡️ checked with damaged region files · [more](docs/measurements/chunks.md#copies-of-unreadable-chunks) |
-| 💤 | **Sleeping block entities, plugin-safe** | Idle hoppers, furnaces, brewing stands, crafters and chests stop ticking; Kindling makes Leaf's port act as Paper | 🏆 −8 % tick time in survival bases with identical items (on against off) · 🛡️ no duplicated items · [more](docs/measurements/ticking.md#sleeping-block-entities-after-the-fixes) |
+| 🛟 | **Copies of unreadable chunks** | A stored chunk that cannot be read, including one the region file gives up on (truncated header or stream, bad length or compression), is copied to `<world>/kindling-quarantine/` before it is generated anew | 🛡️ checked with damaged region files; the region-file cases by unit tests · [more](docs/measurements/chunks.md#copies-of-unreadable-chunks) |
+| 💤 | **Sleeping block entities, plugin-safe** | Idle hoppers, furnaces, brewing stands, crafters and chests stop ticking; Kindling makes Leaf's port act as Paper. Paper's temporary stack count during `InventoryMoveItemEvent` no longer wakes sleeping hoppers, and furnaces and brewing stands wake on in-place stack changes | 🏆 −8 % tick time in survival bases with identical items (on against off) · 🛡️ no duplicated items · [more](docs/measurements/ticking.md#sleeping-block-entities-after-the-fixes) |
 | 🔌 | **Lithium ports** | Redstone wire power, unused mob sensors, the rain tick and map names, with vanilla's results | 🏆 −7 % in the bases in their own A/B · 🤝 not visible against 26.3-11 · [more](docs/measurements/ticking.md#lithium-ports) |
 | 🐑 | **Cheaper natural spawning** | Entity types without a spawn cost skip the biome lookup | 🤝 no measurable change, equal spawn counts · [more](docs/measurements/ticking.md#natural-spawning-skipped-spawn-cost-lookups) |
 | ⏱️ | **Cheaper lagging check** | Computes only the 5-second TPS average the check uses; proposed to Leaf as [#970](https://github.com/Winds-Studio/Leaf/pull/970) | 🧪 13.6 % → 3.4 % of an idle main thread (one profile each) · [more](docs/measurements/ticking.md#the-lagging-check-of-the-tick-loop) |
-| 🧵 | **Async defaults, vanilla-safe** | Leaf's async entity tracker, pathfinding, player data saving and mob spawning are on, with Kindling's fixes (one mirrors Leaf PR #937) | 🛡️ shared villager beds 5 and 3 → 0; the fixes cost nothing measurable · [more](docs/measurements/async.md#async-pathfinding-tracker-and-saving-after-the-fixes) |
-| 🩺 | **`/kindling doctor`** | Checks the machine and the settings and names the fix; on Linux also live CPU wait, steal and throttling | 🛡️ live readings agree with `/proc` within half a point · [more](docs/measurements/host.md#the-doctors-live-readings) |
+| 🧵 | **Async features, vanilla-safe** | Leaf's async entity tracker and player data saving are on, with Kindling's fixes (one mirrors Leaf PR #937). Async pathfinding and async mob spawning are opt-in, because a mob follows a new path a tick or more late and spawn counts can be stale | 🛡️ shared villager beds 5 and 3 → 0; the fixes cost nothing measurable · [more](docs/measurements/async.md#async-pathfinding-tracker-and-saving-after-the-fixes) |
+| 🧬 | **Vanilla parity** | Where Leaf or Gale changed vanilla behaviour unconditionally, Kindling restores it: the `Vec3i` hash (redstone update order), goal order, entity order in a chunk section, the order inside-block checks visit blocks, the biome zoom cell, lightning, zombie villager cure, shapeless recipes and more; ten Gale and Leaf defaults are vanilla in a fresh config ([list](docs/measurements/vanilla-parity.md)) | 🛡️ correctness, no speed claim; the cost of the restored vanilla code is not measured |
+| 🔍 | **Differential test against the vanilla jar** | [`kindling-bench/vanilla-diff`](kindling-bench/vanilla-diff/README.md) runs Mojang's server and the jar under test on one seed and compares the saved worlds | 🧪 comparer unit-tested; not yet run against a real server |
+| 🌍 | **Frontier pregeneration** | Opt-in: while nobody is online, generates a margin around the tiles players have visited | ⏸️ not measured · [more](docs/measurements/pregeneration.md#frontier-pregeneration) |
+| 🎚️ | **Worker governor** | Opt-in (Linux): lowers the chunk worker count while the host crowds the main thread, raises it again when it is quiet | ⏸️ not measured · [more](docs/measurements/host.md#worker-governor) |
+| 🔬 | **Biome zoom shortcut** | Opt-in: skips the zoom's distance math where all eight candidate biome cells hold one biome; the zoom itself now picks exactly vanilla's cell | ⏸️ not measured · 🛡️ the cell choice is checked against vanilla's algorithm · [more](docs/measurements/vanilla-parity.md#biome-zoom) |
+| 🩺 | **`/kindling doctor`** | Checks the machine and the settings and names the fix, including a "vanilla parity" finding for settings that differ from vanilla; on Linux also live CPU wait, steal and throttling | 🛡️ live readings agree with `/proc` within half a point · [more](docs/measurements/host.md#the-doctors-live-readings) |
 | 🧠 | **Measured JVM advice** | G1 with `-XX:+UseCompactObjectHeaders` and a 2 GB heap | 🧪 −29 % resident memory at the same tick time · [more](docs/measurements/memory-jvm.md#jvm-and-heap) |
 | 💾 | **Idle memory return** | Opt-in: gives memory back while nobody is online | ⏸️ about 1.45 GiB less resident memory with nobody online · [more](docs/measurements/memory-jvm.md#idle-memory) |
 | 🪫 | **Worker priority** | Opt-in: chunk and I/O workers run at a lower OS priority on Linux | ⏸️ halves the main thread's wait for a CPU on the bench host · [more](docs/measurements/host.md#worker-priority-and-the-main-threads-wait-for-a-cpu) |
 | 🏷️ | **Own `/version`** | Shows the Kindling build, commit and date, and checks for a newer release | — |
 
 🏆 better, significant · 🤝 no measurable difference · 🛡️ correctness, no speed claim · 🧪 fewer than three runs or one profile, below the [three-run rule](docs/MEASUREMENTS.md#how-to-read-the-numbers) · ⏸️ opt-in, off by default. Every measurement names what it was compared with; the overview is in [docs/MEASUREMENTS.md](docs/MEASUREMENTS.md).
+
+### How vanilla is Kindling?
+
+Kindling aims at vanilla behaviour and has restored the deviations found in Leaf's and Gale's unconditional patches ([list](docs/measurements/vanilla-parity.md), [Leaf patches involved](docs/UPSTREAM.md#fixes-leaf-could-take)). That rests on reading code and unit tests, not on a differential run: the [vanilla-diff test](kindling-bench/vanilla-diff/README.md) exists but has not run against a real server yet. Known deviations that remain:
+
+- **Opt-in options differ from vanilla by design:** async pathfinding (a path arrives a tick or more late; with several target positions the navigation target is set when the result arrives), async mob spawning, and Leaf's optional options (`cache-biome` keys its cache by quart cell while the biome zoom depends on the position inside it, so it can return another block's biome).
+- **Gale's zero-movement skip** (Leaf patch 0051) still skips side effects of a zero-length move that vanilla runs: the record for inside-block checks, `LivingEntity.checkFallDamage`'s fluid update when not in water, and the empty movement emission. Only the vertical collision flags and the ground state are restored.
+- **Sculk catalysts** drop game events through Leaf's `listensToEvent` pre-filter when their block entity was removed but the listener is still registered.
+- **Entity age with a despawn time:** where Paper's `entities.spawning.despawn-time` is set for a type, Leaf's compensation for ticks spent in weak-loaded chunks stays (it backs Leaf's despawn fix), so `getTicksLived()` and the saved age are larger than on Paper; a thrown projectile also checks despawn before its physics there. Without that setting the age counts as on Paper.
+- **`-DLeaf.enableFMA=true`** (off by default) changes the rounding of `Entity.distanceTo`.
+- **Sleeping hoppers** skip the `InventoryMoveItemEvent` attempts Paper fires on every check against a full destination, so a plugin sees fewer events than on Paper. With `gameplay.use-vanilla-hopper` a pull still wakes them.
+- **`performance.optimize-block-entities`** no longer affects `World#getTileEntityCount`.
 
 Everything else is Leaf, unchanged: Paper, Gale, Pufferfish and Purpur patches, Leaf's configuration (`config/leaf-global.yml`), its commands and its plugin compatibility. Swapping Leaf for Kindling needs no config migration. Kindling reports the brand id `winds-studio:leaf`, so plugins that check for Leaf keep working.
 
@@ -91,7 +108,7 @@ Everything else is Leaf, unchanged: Paper, Gale, Pufferfish and Purpur patches, 
 4. Pregenerate the area your players will use: `/pregen start world 5000`. Watch it with `/pregen status`.
 
 > [!TIP]
-> Kindling's defaults only apply when Leaf writes `config/leaf-global.yml` fresh. Coming from Leaf with an existing file, set `async.async-entity-tracker.enabled`, `async.async-pathfinding.enabled`, `async.async-playerdata-save.enabled` and `performance.sleeping-block-entity` to `true` yourself.
+> Kindling's defaults only apply when Leaf writes `config/leaf-global.yml` (and the Gale files) fresh. Coming from Leaf with an existing file, set `async.async-entity-tracker.enabled`, `async.async-playerdata-save.enabled` and `performance.sleeping-block-entity` to `true` yourself. For vanilla behaviour, `async.async-pathfinding.enabled`, `async.async-mob-spawning.enabled`, `performance.optimize-player-movement` and `performance.skip-map-item-data-updates-if-map-does-not-have-craftmaprenderer` must be `false`. `/kindling doctor` lists every setting of an old file that differs from vanilla (the "vanilla parity" finding) with the value to set; the Gale values are in [the parity list](docs/measurements/vanilla-parity.md#defaults-a-fresh-configuration-writes).
 
 ## 🔧 Configuration
 
@@ -113,6 +130,16 @@ performance:
       end-radius: 3000
 ```
 
+```yaml
+performance:
+  pregeneration:
+    frontier:
+      enabled: false      # true: while nobody is online, generate a margin around the tiles players visited
+      margin-chunks: 32   # 0 to 512, rounded up to whole 16-chunk tiles (32 = 5x5 tiles around each visited tile)
+```
+
+The frontier option notes the 16x16-chunk tile each player stands in (every second, only while someone is online) and, with nobody online, generates the tiles within the margin that do not exist yet, nearest first, at the chunk system's idle priority. It keeps the server awake while it works, pauses on the first join, leaves a world to an explicit or automatic `/pregen` run, stops at `min-free-disk-gb` and is throttled by `max-mspt`, `max-parallel` and `max-main-thread-wait`. **The world folder grows**: with the default margin every isolated visited tile adds up to 25 tiles (6 400 chunks, about 100 MiB at the disk guard's 16 KiB-per-chunk assumption, which was not measured for this feature). Its state is kept in `<world>/pregeneration-frontier.properties`. Off by default; not measured.
+
 `/pregen start <world> <radius> [<x> <z>]` centres on the world spawn unless both `<x> <z>` are given, rounds the radius down to whole chunks, cuts it to the world border and says what it started. Permission: `kindling.command.pregen` (operators by default).
 
 <details>
@@ -122,7 +149,9 @@ performance:
 - Progress is kept in `<world>/pregeneration.properties` and belongs to the world's seed: a world regenerated under the same name starts over.
 - While a run is working, `pause-when-empty-seconds` does not pause the server.
 - The main thread's wait for a CPU comes from the doctor's host monitor (below); where it has no data (Windows, `host-monitor: false`) only `max-mspt` throttles.
-- A run that throws pauses itself and the server goes on; a world that is unloaded and loaded again resumes; the state file is written on a thread of its own and, at a clean stop, with the exact index.
+- A run that throws pauses itself and stays resumable with `/pregen resume`, and the server goes on; a world that is unloaded and loaded again resumes; the state file is written on a thread of its own and, at a clean stop, with the exact index (a write still running at the stop is waited for up to 10 s, never raced).
+- An automatic run that the border cut short counts as done and no longer starts over on every boot; if the border grew since, it runs again. A saved radius above 3 750 000 chunks is dropped with the "state is damaged" warning.
+- If an empty server stopped for lack of disk space, the free space is checked every 30 s and the server wakes when there is room again. `/pregen start` before the first tick (for example from a plugin's `onEnable`) keeps the progress of the other worlds.
 
 </details>
 
@@ -150,7 +179,8 @@ performance:
 - view and simulation distance against the processors;
 - network compression behind a proxy (a warning when the proxy runs on this machine or its place is unknown, a hint when it runs elsewhere);
 - free disk space of the worlds (a warning below 5 GiB or 10 %);
-- Kindling's recommended options in `leaf-global.yml` (a fresh file has them on, an older file keeps its values).
+- Kindling's recommended options in `leaf-global.yml` (a fresh file has them on, an older file keeps its values);
+- vanilla parity: ten Leaf and Gale settings (projectile chunk-load limits, in-wall and line-of-sight intervals, villager item re-pickup, entity wake-up deviation, map updates, player movement processing, async pathfinding and async mob spawning) that an older file may still run at non-vanilla values. One `INFO` names each deviating value and the vanilla one; with none it is `OK`.
 
 </details>
 
@@ -168,6 +198,27 @@ In plain sentences over the last minute (with the last 15 minutes in brackets):
 A background thread samples these every 5 seconds from `/proc` and the cgroup files; it needs a minute to say something about the last minute. On a virtual machine a nearly idle main thread already shows 10 to 14 % wait (wake-up latency) but only about 3 ms per second, so the doctor names that as wake-up latency instead of warning about contention. How well the readings agree with `/proc`: [host measurements](docs/measurements/host.md).
 
 </details>
+
+### Worker governor
+
+```yaml
+performance:
+  worker-governor:
+    enabled: false    # true (Linux, needs doctor.host-monitor): lower the chunk worker count while the host crowds the main thread
+    quiet-seconds: 60 # 5 to 3600: how long the host must stay quiet before a worker is added back
+```
+
+After every 5-second host sample the governor sorts the pressure on the main thread into four levels using the doctor's thresholds. Two high samples in a row (10 s) take one chunk worker away; `quiet-seconds` of quiet samples add one back. A worker that comes back and goes again within one quiet period doubles the wait (up to 8 times). The count stays between a quarter of the available processors (at least 1) and the configured or measured default; a Paper config reload sets the configured count again until the next sample. A removed worker finishes its current task, no chunk task is lost. `/kindling doctor` shows the status in the LIVE section. Gameplay does not change, only how fast chunks are generated. Off by default; not measured.
+
+### Biome zoom shortcut
+
+```yaml
+performance:
+  biome-zoom-shortcut:
+    enabled: false   # true: answer a biome without the zoom's distance math when the 8 candidate cells hold one biome
+```
+
+Where the eight cells the zoom chooses from lie in one chunk column and the chunk sections store one identical biome each, the shortcut returns it, which is what the zoom would pick. It only reads, and takes the exact zoom otherwise. The zoom itself (always on) now chooses exactly vanilla's cell. Off by default; not measured.
 
 ### Worker priority
 

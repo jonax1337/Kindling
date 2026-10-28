@@ -117,7 +117,7 @@ The new build and 26.3-11 differ in no row. Against plain Leaf:
 > [!NOTE]
 > 🧪 **Kindling defaults: flight 16.1 → 15.6 ms, standing 26.0 → 22.5 ms, peak RSS 3 590 → 2 555 MB** · only the memory gap is far beyond the gap between two runs, the tick times are not a finding · against Leaf with `-Xms3G -Xmx3G` (Leaf `4c3d5689`) · 2 runs each, Windows machine · 2026-10-26
 
-Plain Leaf against the Kindling defaults (2 GB heap, compact object headers, async tracker, pathfinding and saving) and against Leaf's synchronous optimisations added on top.
+Plain Leaf against the Kindling defaults of that day (2 GB heap, compact object headers, async tracker, pathfinding and saving; async pathfinding is no longer a default, so a fresh Kindling no longer matches this row) and against Leaf's synchronous optimisations added on top.
 
 | Variant | Tick time flight | Tick time standing | p95 standing | Peak RSS | CPU time |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -185,7 +185,7 @@ No option is both faster and the same behaviour, so none became a default. Toget
 The time in the void varies a lot between runs (±5 points) and says more about this machine than about the options: see [the elytra test](chunks.md#elytra-test-new-chunks-ahead-of-fast-players).
 
 > [!IMPORTANT]
-> Defaults only apply when Leaf writes `config/leaf-global.yml` fresh. A server with an existing file keeps its values; set `async.async-entity-tracker.enabled`, `async.async-pathfinding.enabled`, `async.async-playerdata-save.enabled` and `performance.sleeping-block-entity` to `true` there.
+> Defaults only apply when Leaf writes `config/leaf-global.yml` fresh. A server with an existing file keeps its values; set `async.async-entity-tracker.enabled`, `async.async-playerdata-save.enabled` and `performance.sleeping-block-entity` to `true` there. The figures above were measured with `async.async-pathfinding.enabled` on, which a fresh configuration no longer writes.
 
 </details>
 

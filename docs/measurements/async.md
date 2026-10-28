@@ -2,7 +2,7 @@
 
 [← Overview](../MEASUREMENTS.md)
 
-Leaf's async entity tracker, pathfinding, player data saving and mob spawning are on by default in Kindling; this page measures what the fixes that make them act as vanilla cost.
+Leaf's async entity tracker, pathfinding, player data saving and mob spawning are the subject here. Since the vanilla-defaults change, only the tracker and the player data saving are on in a fresh Kindling configuration; async pathfinding and async mob spawning are opt-in. This page measures what the fixes that make them act as vanilla cost, and the figures below were taken with pathfinding switched on (the default at the time); nothing was measured with the new defaults.
 
 **Contents**
 
@@ -15,7 +15,7 @@ Leaf's async entity tracker, pathfinding, player data saving and mob spawning ar
 > [!NOTE]
 > 🛡️ **Villager parity: 5 and 3 shared beds on release 26.3-11, 0 with the fix; standing tick time 37.0 → 36.8 ms (p = 0.77), so no cost is measurable** · against release 26.3-11 (villagers) and the previous build (cost) · 1 run per side, then 3 runs each · 2026-10-28
 
-Leaf's async entity tracker, async pathfinding, async player data saving and async mob spawning are on by default. Plain Leaf lets them differ from vanilla in places; Kindling fixed those: a villager takes a bed or job site only if it really got it, partial paths and the brain's path are kept, mob costs are read on the main thread; a pending player save is never discarded, `save-all flush` and the stop wait for the writes, and a failed encode writes nothing; a failed async mob count no longer stops spawning (Leaf pull request #937); the tracker's sync flags are not lost.
+Leaf's async entity tracker, async pathfinding, async player data saving and async mob spawning were on by default in Kindling when this was measured (pathfinding and mob spawning are now off in a fresh configuration). Plain Leaf lets them differ from vanilla in places; Kindling fixed those: a villager takes a bed or job site only if it really got it, partial paths and the brain's path are kept, mob costs are read on the main thread; a pending player save is never discarded, `save-all flush` and the stop wait for the writes, and a failed encode writes nothing; a failed async mob count no longer stops spawning (Leaf pull request #937); the tracker's sync flags are not lost.
 
 | Build | `shared_beds`, on | `shared_beds`, off | `shared_job_sites` | `bed_claims`, `job_site_claims` |
 | --- | ---: | ---: | ---: | ---: |

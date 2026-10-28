@@ -156,7 +156,7 @@ Since 26.x, Minecraft decodes every palette entry of a saved chunk section (a bl
 > [!NOTE]
 > 🛡️ **Damaged chunk data is copied to `<world>/kindling-quarantine/` before the usual handling continues; nothing else changes** · against the build before the patch · functional check, one run per case · undated
 
-Patch `0328` copies the stored bytes of a chunk that cannot be decompressed, read as NBT, or upgraded and parsed to `<world>/kindling-quarantine/` before the existing handling continues.
+Patch `0328` copies the stored bytes of a chunk that cannot be decompressed, read as NBT, or upgraded and parsed to `<world>/kindling-quarantine/` before the existing handling continues. Patch `0340` extends it to chunks the region file gives up on: a truncated header, an allocated chunk whose stream is missing or truncated, a negative length, an unknown compression byte, an unreadable external `.mcc` stream and an unrecognised custom compression. The table below was measured for `0328`; the region-file cases are covered by unit tests only (`UnreadableRegionFileTest` 9, `ChunkQuarantineTest` 21), no server check.
 
 Vanilla and Paper log the error and generate the chunk anew, and the next save overwrites what was stored. The copy is `<world>/kindling-quarantine/<dimension>/r.<x>.<z>/c.<x>.<z>-<n>.bin` next to the exception, and one `WARN` line names the path.
 
