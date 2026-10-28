@@ -12,7 +12,11 @@
     "idleSeconds": 60,
     "clientViewDistance": 12,
     "plotsPerPlayer": 2,
-    "hopperGuardSeconds": 0
+    "hopperGuardSeconds": 0,
+    "gameMode": "CREATIVE",
+    "chunkAcks": 0.0,
+    "warmupQuietSeconds": 5,
+    "warmupMaxSeconds": 120
   },
   "counters": {
     "brewing_brews_finished": 20,
