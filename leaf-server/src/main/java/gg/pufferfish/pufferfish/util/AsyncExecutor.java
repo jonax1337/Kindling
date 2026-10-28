@@ -59,7 +59,7 @@ public class AsyncExecutor implements Runnable {
                 }
 
                 runnable.run();
-            } catch (Exception e) {
+            } catch (Throwable e) { // Kindling - an Error must not end the thread, or nothing would run its queue again
                 LOGGER.error("Failed to execute async job for thread {}", thread.getName(), e);
             }
         }
