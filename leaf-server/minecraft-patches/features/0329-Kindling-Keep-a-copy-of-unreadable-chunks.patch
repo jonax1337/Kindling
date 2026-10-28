@@ -1,0 +1,101 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Wed, 28 Oct 2026 01:14:53 +0100
+Subject: [PATCH] Kindling: Keep a copy of unreadable chunks
+
+
+diff --git a/net/minecraft/world/level/chunk/storage/RegionFile.java b/net/minecraft/world/level/chunk/storage/RegionFile.java
+index be2cc2d741afed63e7aef7286012640c53fff344..f8b9d1fc4226f48b16f3d18c7767b1c7e1bfbfce 100644
+--- a/net/minecraft/world/level/chunk/storage/RegionFile.java
++++ b/net/minecraft/world/level/chunk/storage/RegionFile.java
+@@ -636,6 +636,50 @@ public class RegionFile implements AutoCloseable, ca.spottedleaf.moonrise.patche
+         }
+     }
+ 
++    // Kindling start - raw chunk bytes for the unreadable chunk quarantine
++    // the chunk as stored: its five header bytes and stream, followed by the content of its file when it is external
++    public synchronized byte[] readRawChunk(final ChunkPos pos, final long maxBytes) throws IOException {
++        final byte[] record = this.readStoredRecord(pos, maxBytes);
++        if (!isExternalStreamChunk(record[4])) {
++            return record;
++        }
++
++        final Path externalFile = this.getExternalChunkPath(pos);
++        final long externalSize = Files.size(externalFile);
++        if (record.length + externalSize > maxBytes) {
++            throw new IOException("External chunk file " + externalFile + " is larger than the " + maxBytes + " bytes allowed");
++        }
++        final byte[] external = Files.readAllBytes(externalFile);
++        final byte[] both = new byte[record.length + external.length];
++        System.arraycopy(record, 0, both, 0, record.length);
++        System.arraycopy(external, 0, both, record.length, external.length);
++        return both;
++    }
++
++    private byte[] readStoredRecord(final ChunkPos pos, final long maxBytes) throws IOException {
++        final int offset = this.getOffset(pos);
++        if (offset == 0) {
++            throw new IOException("Chunk " + pos + " is not stored in " + this.path.toAbsolutePath());
++        }
++
++        final long sector = getSectorNumber(offset);
++        final long recordStart = sector * 4096L;
++        final long recordSize = Math.min(4L + Math.max(this.readLength(sector), 1), this.file.size() - recordStart);
++        if (recordSize < CHUNK_HEADER_SIZE) {
++            throw new IOException("Chunk " + pos + " in " + this.path.toAbsolutePath() + " is truncated");
++        }
++        if (recordSize > maxBytes) {
++            throw new IOException("Chunk " + pos + " in " + this.path.toAbsolutePath() + " is larger than the " + maxBytes + " bytes allowed");
++        }
++
++        final ByteBuffer record = ByteBuffer.allocate((int) recordSize);
++        if (recordSize != this.readFully(record, recordStart)) {
++            throw new IOException("Unexpected end of file reading chunk " + pos + " in " + this.path.toAbsolutePath());
++        }
++        return record.array();
++    }
++    // Kindling end - raw chunk bytes for the unreadable chunk quarantine
++
+     private static int getTimestamp() {
+         return (int)(Util.getEpochMillis() / 1000L);
+     }
+diff --git a/net/minecraft/world/level/chunk/storage/RegionFileStorage.java b/net/minecraft/world/level/chunk/storage/RegionFileStorage.java
+index 663242e01950c314af4891a4a8ecd412fe63cb88..d91cb35702dcd6dd10a26f4df4b9efe40e5f456b 100644
+--- a/net/minecraft/world/level/chunk/storage/RegionFileStorage.java
++++ b/net/minecraft/world/level/chunk/storage/RegionFileStorage.java
+@@ -206,6 +206,10 @@ public class RegionFileStorage implements AutoCloseable, ca.spottedleaf.moonrise
+         final CompoundTag ret;
+         try {
+             ret = ca.spottedleaf.moonrise.patches.nbt_rw.FastNBTParser.nbtIoRead(readData.input()); // Paper - Optimize NBT reading/writing
++        } catch (final IOException | RuntimeException ex) { // Kindling start - keep a copy of unreadable chunks
++            this.keepUnreadableChunk(chunkX, chunkZ, ex);
++            throw ex;
++            // Kindling end - keep a copy of unreadable chunks
+         } finally {
+             readData.input().close();
+         }
+@@ -238,6 +242,24 @@ public class RegionFileStorage implements AutoCloseable, ca.spottedleaf.moonrise
+     }
+     // Paper end - rewrite chunk system
+ 
++    // Kindling start - keep a copy of unreadable chunks
++    private void keepUnreadableChunk(final int chunkX, final int chunkZ, final Exception cause) {
++        if (!ca.spottedleaf.moonrise.patches.chunk_system.storage.RegionFileRecovery.isChunkStorage(this.info)) {
++            return;
++        }
++
++        net.kindlingmc.chunk.ChunkQuarantine.forRegionFolder(this.info.level(), this.info.dimension().identifier().toString(), this.folder)
++            .keep(chunkX, chunkZ, maxBytes -> this.readRawChunk(chunkX, chunkZ, maxBytes), cause);
++    }
++
++    private byte[] readRawChunk(final int chunkX, final int chunkZ, final long maxBytes) throws IOException {
++        if (this.moonrise$getRegionFileIfExists(chunkX, chunkZ) instanceof RegionFile regionFile) {
++            return regionFile.readRawChunk(new ChunkPos(chunkX, chunkZ), maxBytes);
++        }
++        throw new IOException("The region file format of " + this.folder + " cannot hand out raw chunk bytes");
++    }
++    // Kindling end - keep a copy of unreadable chunks
++
+     public RegionFileStorage(final RegionStorageInfo info, final Path folder, final boolean sync) {
+         this.folder = folder;
+         this.sync = sync;
