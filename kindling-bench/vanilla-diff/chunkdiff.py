@@ -13,7 +13,7 @@ CELLS_PER_SECTION_BIOMES = 64
 MIN_BITS_BLOCKS = 4
 MIN_BITS_BIOMES = 1
 AIR = "minecraft:air"
-_AIR_CONTAINER = {"palette": [{"Name": AIR}]}
+_AIR_CONTAINER = {"palette": [AIR]}
 _SUMMARY_LIMIT = 240
 _MAX_PATHS_PER_BLOCK_ENTITY = 6
 
@@ -48,12 +48,17 @@ def canonical(value) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"))
 
 
-def block_state_name(palette_entry: dict) -> str:
-    properties = palette_entry.get("Properties")
+def block_state_name(palette_entry) -> str:
+    """A block palette entry as "id[key=value,...]". Minecraft 26 writes a bare id string or {id, properties};
+    older versions wrote {Name, Properties}."""
+    if isinstance(palette_entry, str):
+        return palette_entry
+    name = palette_entry.get("id", palette_entry.get("Name"))
+    properties = palette_entry.get("properties", palette_entry.get("Properties"))
     if not properties:
-        return palette_entry["Name"]
+        return name
     inner = ",".join(f"{key}={value}" for key, value in sorted(properties.items()))
-    return f"{palette_entry['Name']}[{inner}]"
+    return f"{name}[{inner}]"
 
 
 def unpack_indices(data: tuple, bits: int, count: int) -> list[int]:
