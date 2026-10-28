@@ -57,8 +57,6 @@ const COMMANDS = [
       "async:",
       "  async-entity-tracker:",
       "    enabled: true",
-      "  async-pathfinding:",
-      "    enabled: true",
       "  async-playerdata-save:",
       "    enabled: true",
       "performance:",
