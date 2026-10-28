@@ -1,0 +1,20 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Wed, 28 Oct 2026 20:36:29 +0100
+Subject: [PATCH] Kindling: Count the block entities of the loaded chunks like
+ Paper
+
+
+diff --git a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+index 7e2626bf5eaaf3f9c28b167b83221ab85afd9510..5f577e2a015ee3e5967a84f2f67a07f931acd93f 100644
+--- a/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
++++ b/src/main/java/org/bukkit/craftbukkit/CraftWorld.java
+@@ -227,7 +227,7 @@ public class CraftWorld extends CraftRegionAccessor implements World {
+ 
+     @Override
+     public int getTileEntityCount() {
+-        if (org.dreeam.leaf.config.modules.opt.OptimizeBlockEntities.enabled) return world.blockEntityTickers.size(); // Leaf - Optimize block entities count
++        // Kindling - Paper's result: the ticker count left out block entities without a ticker and sleeping ones, so count the chunks' block entities again
+         // We don't use the full world block entity list, so we must iterate chunks
+         int size = 0;
+         for (ChunkHolder playerchunk : ca.spottedleaf.moonrise.common.PlatformHooks.get().getVisibleChunkHolders(this.world)) {

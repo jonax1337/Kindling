@@ -1,0 +1,50 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Wed, 28 Oct 2026 20:36:10 +0100
+Subject: [PATCH] Kindling: Match shapeless recipes like vanilla when an item
+ fits two ingredients
+
+
+diff --git a/net/minecraft/world/item/crafting/ShapelessRecipe.java b/net/minecraft/world/item/crafting/ShapelessRecipe.java
+index 431316a2d2f1e14cdf2edc7bf414b00416de645e..d7a9bd7ec37abe3fc90704b0bae36085f886937f 100644
+--- a/net/minecraft/world/item/crafting/ShapelessRecipe.java
++++ b/net/minecraft/world/item/crafting/ShapelessRecipe.java
+@@ -85,25 +85,30 @@ public class ShapelessRecipe extends NormalCraftingRecipe {
+         if (!this.isBukkit) {
+             List<Ingredient> ingredients = com.google.common.collect.Lists.newArrayList(this.ingredients.toArray(new Ingredient[0]));
+ 
+-            inventory:
++            // Kindling start - first fit is only vanilla's answer while no item can go to two different ingredients, otherwise use the stacked-contents matching below
+             for (int index = 0; index < input.size(); index++) {
+                 ItemStack itemStack = input.getItem(index);
+ 
+                 if (!itemStack.isEmpty()) {
+-                    for (int i = 0; i < ingredients.size(); i++) {
+-                        if (ingredients.get(i).test(itemStack)) {
+-                            ingredients.remove(i);
+-                            continue inventory;
+-                        }
++                    int ingredientIndex = net.kindlingmc.recipe.SoleMatch.indexOf(ingredients, itemStack, Ingredient::test);
++                    if (ingredientIndex == net.kindlingmc.recipe.SoleMatch.AMBIGUOUS) {
++                        return this.matchesByStackedContents(input);
+                     }
+-
+-                    return false;
++                    if (ingredientIndex == net.kindlingmc.recipe.SoleMatch.NONE) {
++                        return false;
++                    }
++                    ingredients.remove(ingredientIndex);
+                 }
+             }
+ 
+             return ingredients.isEmpty();
++            // Kindling end - first fit is only vanilla's answer while no item can go to two different ingredients, otherwise use the stacked-contents matching below
+         }
+         // Gale end - Airplane - simpler ShapelessRecipe comparison for vanilla
++        return this.matchesByStackedContents(input); // Kindling - the vanilla matching moved into its own method
++    }
++
++    private boolean matchesByStackedContents(final CraftingInput input) { // Kindling - the vanilla matching, shared by Bukkit recipes and ambiguous input
+         // Paper start - Improve exact choice recipe ingredients & unwrap ternary
+         if (input.ingredientCount() != this.ingredients.size()) {
+             return false;

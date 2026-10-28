@@ -1,0 +1,117 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Wed, 28 Oct 2026 20:34:53 +0100
+Subject: [PATCH] Kindling: Restore vanilla lightning, cure reputation, spawn
+ tag and brownian walk
+
+
+diff --git a/net/minecraft/server/level/ServerLevel.java b/net/minecraft/server/level/ServerLevel.java
+index 8897523741d69c03dc13c304e4300deb5f729418..3f5d37ca2305252c41c14ed9d71a8f0ec0281539 100644
+--- a/net/minecraft/server/level/ServerLevel.java
++++ b/net/minecraft/server/level/ServerLevel.java
+@@ -1295,7 +1295,7 @@ public class ServerLevel extends Level implements WorldGenLevel, ServerEntityGet
+         int minZ = chunkPos.getMinBlockZ();
+         ProfilerFiller profiler = Profiler.get();
+         profiler.push("thunder");
+-        if (!this.paperConfig().environment.disableThunder && raining && this.isThundering() && this.spigotConfig.thunderChance > 0 /*&& this.random.nextInt(this.spigotConfig.thunderChance) == 0*/ && chunk.shouldDoLightning(this.random)) { // Spigot // Paper - Option to disable thunder // Gale - Airplane - optimize random calls in chunk ticking - replace random with shouldDoLightning
++        if (!this.paperConfig().environment.disableThunder && raining && this.isThundering() && this.spigotConfig.thunderChance > 0 && this.random.nextInt(this.spigotConfig.thunderChance) == 0) { // Spigot // Paper - Option to disable thunder // Kindling - vanilla per-tick lightning draw instead of Gale's per-chunk countdown
+             BlockPos pos = this.findLightningTargetAround(this.getBlockRandomPos(minX, 0, minZ, 15));
+             if (this.isRainingAt(pos)) {
+                 DifficultyInstance difficulty = this.getCurrentDifficultyAt(pos);
+diff --git a/net/minecraft/world/entity/ai/behavior/InsideBrownianWalk.java b/net/minecraft/world/entity/ai/behavior/InsideBrownianWalk.java
+index 04c5afb2805ec1b5b382432cafccbc6d45be6fb1..1eb88ce78b652f17b19ce410b21e726c3a243e18 100644
+--- a/net/minecraft/world/entity/ai/behavior/InsideBrownianWalk.java
++++ b/net/minecraft/world/entity/ai/behavior/InsideBrownianWalk.java
+@@ -28,8 +28,9 @@ public class InsideBrownianWalk {
+                         );
+ 
+                         // Fisher-Yates shuffle is faster for this case
++                        java.util.concurrent.ThreadLocalRandom shuffleRandom = java.util.concurrent.ThreadLocalRandom.current(); // Kindling - vanilla's Collections.shuffle never drew from the mob's own random
+                         for (int index = poses.length - 1; index > 0; index--) {
+-                            int j = body.getRandom().nextInt(index + 1);
++                            int j = shuffleRandom.nextInt(index + 1); // Kindling - vanilla's Collections.shuffle never drew from the mob's own random
+                             BlockPos temp = poses[index];
+                             poses[index] = poses[j];
+                             poses[j] = temp;
+diff --git a/net/minecraft/world/entity/monster/zombie/ZombieVillager.java b/net/minecraft/world/entity/monster/zombie/ZombieVillager.java
+index 1357d5e06b77d53d7dc79b4cb775e24eae7346b0..488fb0c9ae64b13fdaedab5f93921a6bd41a7a96 100644
+--- a/net/minecraft/world/entity/monster/zombie/ZombieVillager.java
++++ b/net/minecraft/world/entity/monster/zombie/ZombieVillager.java
+@@ -334,10 +334,9 @@ public class ZombieVillager extends Zombie implements VillagerDataHolder {
+                 villager.refreshBrain(level);
+                 if (this.conversionStarter != null) {
+                     Player player = level.getGlobalPlayerByUUID(this.conversionStarter); // Paper - check global player list where appropriate
+-                    villager.onReputationEventFromUUID(ReputationEventType.ZOMBIE_VILLAGER_CURED, this.conversionStarter); // Leaf - Use UUID for cure reputation
+                     if (player instanceof ServerPlayer serverPlayer) {
+                         CriteriaTriggers.CURED_ZOMBIE_VILLAGER.trigger(serverPlayer, this, villager);
+-                        //level.onReputationEvent(ReputationEventType.ZOMBIE_VILLAGER_CURED, player, villager); // Leaf - Use UUID for cure reputation - move up
++                        level.onReputationEvent(ReputationEventType.ZOMBIE_VILLAGER_CURED, player, villager); // Kindling - vanilla: only an online player earns the cure discount (undoes Leaf's UUID variant)
+                     }
+                 }
+ 
+diff --git a/net/minecraft/world/level/NaturalSpawner.java b/net/minecraft/world/level/NaturalSpawner.java
+index d799eaa15d4d0278154069ce800d4d560c493331..9accd4dc6e0fc8b5190a8e4558cd4d09b0041b2e 100644
+--- a/net/minecraft/world/level/NaturalSpawner.java
++++ b/net/minecraft/world/level/NaturalSpawner.java
+@@ -277,11 +277,13 @@ public final class NaturalSpawner {
+                 // Paper PR start - throttle failed spawn attempts
+                 int spawnCount = spawnCategoryForChunk(mobCategory, level, chunk, state::canSpawn, state::afterSpawn,
+                     maxSpawns, level.paperConfig().entities.spawning.perPlayerMobSpawns ? level.getChunkSource().chunkMap::updatePlayerMobTypeMap : null, generator); // Leaf - optimize mob spawning
+-                if (spawnCount == 0) {
+-                    chunk.failedSpawnAttempts[mobCategory.ordinal()]++;
+-                } else {
++                // Kindling start - count failed attempts only while a spawn throttle reads them
++                if (spawnCount != 0) {
+                     chunk.failedSpawnAttempts[mobCategory.ordinal()] = 0;
++                } else if (net.kindlingmc.spawn.FailedSpawnThrottle.isEnabled(level)) {
++                    chunk.failedSpawnAttempts[mobCategory.ordinal()]++;
+                 }
++                // Kindling end - count failed attempts only while a spawn throttle reads them
+                 // Paper end PR - throttle failed spawn attempts
+                 // Paper end - Optional per player mob spawns
+             }
+diff --git a/net/minecraft/world/level/chunk/LevelChunk.java b/net/minecraft/world/level/chunk/LevelChunk.java
+index 9851a60140f9989fbac317db200d8484d43ee16c..1c6781787648fca9b02c218870d9a530952e9e6f 100644
+--- a/net/minecraft/world/level/chunk/LevelChunk.java
++++ b/net/minecraft/world/level/chunk/LevelChunk.java
+@@ -152,18 +152,6 @@ public class LevelChunk extends ChunkAccess implements DebugValueSource, ca.spot
+     }
+     // Paper end - get block chunk optimisation
+ 
+-    // Gale start - Airplane - optimize random calls in chunk ticking - instead of using a random every time the chunk is ticked, define when lightning strikes preemptively
+-    private int lightningTick;
+-    // shouldDoLightning compiles down to 29 bytes, which with the default of 35 byte inlining should guarantee an inline
+-    public final boolean shouldDoLightning(net.minecraft.util.RandomSource random) {
+-        if (this.lightningTick-- <= 0) {
+-            this.lightningTick = random.nextInt(this.level.spigotConfig.thunderChance) << 1;
+-            return true;
+-        }
+-        return false;
+-    }
+-    // Gale end - Airplane - optimize random calls in chunk ticking - instead of using a random every time the chunk is ticked, define when lightning strikes preemptively
+-
+     // Leaf start - optimize random tick
+     public boolean leaf$tickingBlocksDirty = true;
+     public int[] leaf$tickingCount = {};
+@@ -205,8 +193,6 @@ public class LevelChunk extends ChunkAccess implements DebugValueSource, ca.spot
+         this.debug = !empty && this.level.isDebug();
+         this.defaultBlockState = empty ? VOID_AIR_BLOCKSTATE : AIR_BLOCKSTATE;
+         // Paper end - get block chunk optimisation
+-
+-        this.lightningTick = this.level.simpleRandom.nextInt(100000) << 1; // Gale - Airplane - optimize random calls in chunk ticking - initialize lightning tick
+     }
+ 
+     public LevelChunk(final ServerLevel level, final ProtoChunk protoChunk, final LevelChunk.@Nullable PostLoadProcessor postLoad) {
+diff --git a/net/minecraft/world/level/chunk/storage/SerializableChunkData.java b/net/minecraft/world/level/chunk/storage/SerializableChunkData.java
+index af6bd977c5578446782453bf19873ced99f84b34..0abd865924b2119aeeaa55735312a852d3c9f052 100644
+--- a/net/minecraft/world/level/chunk/storage/SerializableChunkData.java
++++ b/net/minecraft/world/level/chunk/storage/SerializableChunkData.java
+@@ -566,7 +566,7 @@ public record SerializableChunkData(
+             persistentDataContainer = chunk.persistentDataContainer.toTagCompound();
+         }
+         // CraftBukkit end
+-        final long[] failedSpawnAttemptsData = chunk.failedSpawnAttempts; // Paper PR - throttle failed spawn attempts
++        final long[] failedSpawnAttemptsData = net.kindlingmc.spawn.FailedSpawnThrottle.isEnabled(level) ? chunk.failedSpawnAttempts : null; // Paper PR - throttle failed spawn attempts // Kindling - vanilla chunks carry no failed-attempt tag while no throttle reads it
+         return new SerializableChunkData(
+             level.palettedContainerFactory(),
+             pos,
