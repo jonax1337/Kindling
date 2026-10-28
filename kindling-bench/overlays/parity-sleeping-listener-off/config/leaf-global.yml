@@ -1,0 +1,3 @@
+# Parity check, option off, with a plugin listening to InventoryMoveItemEvent: every block entity ticks as in Paper.
+performance:
+  sleeping-block-entity: false

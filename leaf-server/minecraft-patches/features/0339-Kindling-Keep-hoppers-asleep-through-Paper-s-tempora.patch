@@ -1,0 +1,108 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Wed, 28 Oct 2026 21:52:33 +0100
+Subject: [PATCH] Kindling: Keep hoppers asleep through Paper's temporary move
+ counts and wake furnaces and brewing stands on in-place stack changes
+
+
+diff --git a/net/minecraft/world/item/ItemStack.java b/net/minecraft/world/item/ItemStack.java
+index f9a0e3fee0b234c9ef9fdcba35a0b64389d01e4b..21ef0d24fb4cae074e498aa4b6bc585597728cc6 100644
+--- a/net/minecraft/world/item/ItemStack.java
++++ b/net/minecraft/world/item/ItemStack.java
+@@ -1404,6 +1404,21 @@ public final class ItemStack implements DataComponentHolder, ItemInstance, net.c
+         this.count = count;
+     }
+ 
++    // Kindling start - Paper's hopper changes a count for its move event and sets it back
++    /**
++     * Sets a count that the caller sets back with {@link #setCount(int)}, or replaces this stack in its inventory after,
++     * before it returns. Hoppers sleeping on the inventory are not woken by the count that is set back.
++     */
++    public void setCountTemporarily(final int count) {
++        if (count > 0 && count != this.count && this.subscriber instanceof net.caffeinemc.mods.lithium.common.util.change_tracking.ChangeSubscriber.CountChangeSubscriber<ItemStack> countChangeSubscriber) {
++            countChangeSubscriber.kindling$notifyTemporaryCount(this, this.subscriberData, count);
++            this.count = count;
++        } else {
++            this.setCount(count);
++        }
++    }
++    // Kindling end - Paper's hopper changes a count for its move event and sets it back
++
+     public void limitSize(final int maxStackSize) {
+         if (!this.isEmpty() && this.getCount() > maxStackSize) {
+             this.setCount(maxStackSize);
+diff --git a/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java b/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
+index 8815ee7722aa27ed4d5cc58722edf22afa93956d..9d8f6ed81b0b7636ae111890b13c5ca790971e23 100644
+--- a/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/AbstractFurnaceBlockEntity.java
+@@ -44,7 +44,7 @@ import net.minecraft.world.level.storage.loot.providers.number.ints.ResolvableIn
+ import net.minecraft.world.phys.Vec3;
+ import org.jspecify.annotations.Nullable;
+ 
+-public abstract class AbstractFurnaceBlockEntity extends BaseContainerBlockEntity implements WorldlyContainer, StackedContentsCompatible, RecipeCraftingHolder, net.caffeinemc.mods.lithium.common.block.entity.inventory_change_tracking.InventoryChangeTracker, net.caffeinemc.mods.lithium.common.block.entity.SleepingBlockEntity, net.caffeinemc.mods.lithium.common.block.entity.SetChangedHandlingBlockEntity, net.caffeinemc.mods.lithium.api.inventory.LithiumInventory { // Leaves - Lithium Sleeping Block Entity
++public abstract class AbstractFurnaceBlockEntity extends BaseContainerBlockEntity implements WorldlyContainer, StackedContentsCompatible, RecipeCraftingHolder, net.caffeinemc.mods.lithium.common.block.entity.inventory_change_tracking.InventoryChangeTracker, net.caffeinemc.mods.lithium.common.block.entity.SleepingBlockEntity, net.caffeinemc.mods.lithium.common.block.entity.SetChangedHandlingBlockEntity, net.caffeinemc.mods.lithium.api.inventory.LithiumInventory, net.kindlingmc.sleeping.WakesOnContentChange { // Leaves - Lithium Sleeping Block Entity // Kindling - Wake sleeping block entities on in-place stack changes
+     protected static final int SLOT_INPUT = 0;
+     protected static final int SLOT_FUEL = 1;
+     protected static final int SLOT_RESULT = 2;
+@@ -593,7 +593,7 @@ public abstract class AbstractFurnaceBlockEntity extends BaseContainerBlockEntit
+     private void checkSleep(final BlockState state) {
+         if (!this.isLit() && this.cookingTimer == 0 && (state.is(net.minecraft.world.level.block.Blocks.FURNACE) || state.is(net.minecraft.world.level.block.Blocks.BLAST_FURNACE) || state.is(net.minecraft.world.level.block.Blocks.SMOKER)) && this.level != null
+             && !this.waitsForLavaFromUnderneath()) { // Kindling - Fix sleeping block entity behaviour differences
+-            this.lithium$startSleeping();
++            this.sleepUntilContentChanges(); // Kindling - Wake sleeping block entities on in-place stack changes
+         }
+     }
+ 
+diff --git a/net/minecraft/world/level/block/entity/BrewingStandBlockEntity.java b/net/minecraft/world/level/block/entity/BrewingStandBlockEntity.java
+index f3e2c1ab83e9605566206d6cf68b3baba473002a..0999fd1071d1e0b4321dd4ee8cc764b1f30f5356 100644
+--- a/net/minecraft/world/level/block/entity/BrewingStandBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/BrewingStandBlockEntity.java
+@@ -36,7 +36,7 @@ import net.minecraft.world.level.storage.ValueInput;
+ import net.minecraft.world.level.storage.ValueOutput;
+ import org.jspecify.annotations.Nullable;
+ 
+-public class BrewingStandBlockEntity extends BaseContainerBlockEntity implements WorldlyContainer, net.caffeinemc.mods.lithium.common.block.entity.inventory_change_tracking.InventoryChangeTracker, net.caffeinemc.mods.lithium.common.block.entity.SleepingBlockEntity, net.caffeinemc.mods.lithium.common.block.entity.SetChangedHandlingBlockEntity, net.caffeinemc.mods.lithium.api.inventory.LithiumInventory { // Leaves - Lithium Sleeping Block Entity-
++public class BrewingStandBlockEntity extends BaseContainerBlockEntity implements WorldlyContainer, net.caffeinemc.mods.lithium.common.block.entity.inventory_change_tracking.InventoryChangeTracker, net.caffeinemc.mods.lithium.common.block.entity.SleepingBlockEntity, net.caffeinemc.mods.lithium.common.block.entity.SetChangedHandlingBlockEntity, net.caffeinemc.mods.lithium.api.inventory.LithiumInventory, net.kindlingmc.sleeping.WakesOnContentChange { // Leaves - Lithium Sleeping Block Entity- // Kindling - Wake sleeping block entities on in-place stack changes
+     private static final int INGREDIENT_SLOT = 3;
+     private static final int FUEL_SLOT = 4;
+     private static final int[] SLOTS_FOR_UP = new int[]{3};
+@@ -431,7 +431,7 @@ public class BrewingStandBlockEntity extends BaseContainerBlockEntity implements
+ 
+     private void checkSleep(final BlockState state) {
+         if (this.brewTime == 0 && state.is(net.minecraft.world.level.block.Blocks.BREWING_STAND) && this.level != null) {
+-            this.lithium$startSleeping();
++            this.sleepUntilContentChanges(); // Kindling - Wake sleeping block entities on in-place stack changes
+         }
+     }
+ 
+diff --git a/net/minecraft/world/level/block/entity/HopperBlockEntity.java b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
+index fd7bc0b51c4484c7c54ec353f902607bf12c52b8..2dce2cfb1da0b758035c74689f9d96cc5cec4609 100644
+--- a/net/minecraft/world/level/block/entity/HopperBlockEntity.java
++++ b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
+@@ -249,7 +249,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+ 
+                 final int originalItemCount = origItemStack.getCount();
+                 final int movedItemCount = Math.min(level.spigotConfig.hopperAmount, originalItemCount);
+-                origItemStack.setCount(movedItemCount);
++                origItemStack.setCountTemporarily(movedItemCount); // Kindling - Paper's hopper changes a count for its move event and sets it back
+ 
+                 // We only need to fire the event once to give protection plugins a chance to cancel this event
+                 // Because nothing uses getItem, every event call should end up the same result.
+@@ -288,7 +288,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+         final int movedItemCount = Math.min(level.spigotConfig.hopperAmount, originalItemCount);
+         // Leaves start - Vanilla hopper
+         if (org.dreeam.leaf.config.modules.gameplay.VanillaHopper.enabled && movedItemCount == 1) {
+-            movedItem.setCount(movedItemCount);
++            movedItem.setCountTemporarily(movedItemCount); // Kindling - Paper's hopper changes a count for its move event and sets it back
+             if (!skipPullModeEventFire) {
+                 movedItem = callPullMoveEvent(hopper, container, movedItem);
+                 if (movedItem == null) { // cancelled
+@@ -320,7 +320,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+             origItemStack.setCount(originalItemCount);
+             container.setItem(i, origItemStack);
+         } else {
+-            movedItem.setCount(movedItemCount);
++            movedItem.setCountTemporarily(movedItemCount); // Kindling - Paper's hopper changes a count for its move event and sets it back
+ 
+             if (!skipPullModeEventFire) {
+                 movedItem = callPullMoveEvent(hopper, container, movedItem);

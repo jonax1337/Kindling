@@ -43,6 +43,7 @@ public class LithiumStackList extends NonNullList<ItemStack> implements LithiumD
     LithiumDoubleStackList parent; //only used for double chests
 
     InventoryChangeTracker nextInventoryModificationCallback;
+    private final net.kindlingmc.sleeping.TemporaryCountChange<ItemStack> temporaryCountChange = new net.kindlingmc.sleeping.TemporaryCountChange<>(); // Kindling - Paper's hopper changes a count for its move event and sets it back
 
     public LithiumStackList(NonNullList<ItemStack> original, int maxCountPerStack) {
         super(original.list, ItemStack.EMPTY);
@@ -113,9 +114,7 @@ public class LithiumStackList extends NonNullList<ItemStack> implements LithiumD
      * early or too late, behavior might be incorrect.
      */
     public void changed() {
-        this.cachedSignalStrength = -1;
-        this.cachedComparatorUpdatePattern = null;
-        this.modCount++;
+        this.recordChangeWithoutWaking(); // Kindling - Paper's hopper changes a count for its move event and sets it back
 
         InventoryChangeTracker inventoryModificationCallback = this.nextInventoryModificationCallback;
         if (inventoryModificationCallback != null) {
@@ -123,6 +122,16 @@ public class LithiumStackList extends NonNullList<ItemStack> implements LithiumD
             inventoryModificationCallback.lithium$emitContentModified();
         }
     }
+
+    // Kindling start - Paper's hopper changes a count for its move event and sets it back
+    /** What {@link #changed()} does except waking the listeners; the next change wakes them as usual. */
+    private void recordChangeWithoutWaking() {
+        this.cachedSignalStrength = -1;
+        this.cachedComparatorUpdatePattern = null;
+        this.modCount++;
+        this.temporaryCountChange.end();
+    }
+    // Kindling end - Paper's hopper changes a count for its move event and sets it back
 
     @Override
     public ItemStack set(int index, ItemStack element) {
@@ -288,7 +297,7 @@ public class LithiumStackList extends NonNullList<ItemStack> implements LithiumD
 
     @Override
     public void lithium$notify(@Nullable ItemStack publisher, int subscriberData) {
-        //Item component changes: LithiumStackList does not care about this
+        this.changed(); // Kindling - Wake sleeping block entities on in-place stack changes: a plugin's component change through the Bukkit mirror can make a transfer, a recipe or a brew possible
     }
 
     @Override
@@ -298,6 +307,34 @@ public class LithiumStackList extends NonNullList<ItemStack> implements LithiumD
 
     @Override
     public void lithium$notifyCount(ItemStack stack, int index, int newCount) {
+        // Kindling start - Paper's hopper changes a count for its move event and sets it back
+        this.updateSlotCounts(stack, index, newCount);
+        if (this.temporaryCountChange.isUndoneBy(stack, newCount)) {
+            this.recordChangeWithoutWaking();
+        } else {
+            this.changed();
+        }
+    }
+
+    /**
+     * A count the caller sets back, or replaces the stack after, before it returns (see
+     * {@link ItemStack#setCountTemporarily(int)}). It wakes nobody, nor does setting it back; any other change wakes the
+     * listeners as usual.
+     */
+    @Override
+    public void kindling$notifyTemporaryCount(ItemStack stack, int index, int newCount) {
+        if (newCount <= 0 || this.temporaryCountChange.isOpen()) {
+            this.lithium$notifyCount(stack, index, newCount);
+            return;
+        }
+        final int countBefore = stack.getCount();
+        this.updateSlotCounts(stack, index, newCount);
+        this.recordChangeWithoutWaking();
+        this.temporaryCountChange.begin(stack, countBefore);
+    }
+
+    private void updateSlotCounts(ItemStack stack, int index, int newCount) {
+        // Kindling end - Paper's hopper changes a count for its move event and sets it back
         assert stack == this.get(index);
         int count = stack.getCount();
         if (newCount <= 0) {
@@ -306,7 +343,5 @@ public class LithiumStackList extends NonNullList<ItemStack> implements LithiumD
         int maxCount = stack.getMaxStackSize();
         this.occupiedSlots -= newCount <= 0 ? 1 : 0;
         this.fullSlots += (newCount >= maxCount ? 1 : 0) - (count >= maxCount ? 1 : 0);
-
-        this.changed();
     }
 }

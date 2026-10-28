@@ -117,6 +117,16 @@ public interface ChangeSubscriber<T> {
          * @param newCount       The new count of the publisher
          */
         void lithium$notifyCount(T publisher, int subscriberData, int newCount);
+
+        // Kindling start - Paper's hopper changes a count for its move event and sets it back
+        /**
+         * Like {@link #lithium$notifyCount}, for a count the caller sets back, or replaces the publisher after, before
+         * it returns. A subscriber that does not tell the two apart treats it as any count change.
+         */
+        default void kindling$notifyTemporaryCount(T publisher, int subscriberData, int newCount) {
+            this.lithium$notifyCount(publisher, subscriberData, newCount);
+        }
+        // Kindling end - Paper's hopper changes a count for its move event and sets it back
     }
 
     interface EnchantmentSubscriber<T> extends ChangeSubscriber<T> {

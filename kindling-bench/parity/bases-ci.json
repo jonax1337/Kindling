@@ -16,7 +16,8 @@
     "gameMode": "CREATIVE",
     "chunkAcks": 0.0,
     "warmupQuietSeconds": 5,
-    "warmupMaxSeconds": 120
+    "warmupMaxSeconds": 120,
+    "moveEventListener": false
   },
   "counters": {
     "brewing_brews_finished": 20,

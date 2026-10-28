@@ -97,13 +97,18 @@ def prepare_folder(args: argparse.Namespace, attempt: int) -> Path:
     (folder / "eula.txt").write_text("eula=true\n", encoding="utf-8")
     (folder / "server.properties").write_text(SERVER_PROPERTIES, encoding="utf-8")
     shutil.copy(args.plugin, folder / "plugins" / "kindling-bench.jar")
-    (folder / "plugins" / "KindlingBench" / "scenario.properties").write_text(
-        "\n".join(args.scenario.split(",")) + "\n", encoding="utf-8")
     if args.world:
         shutil.copytree(args.world, folder / "world")
     for overlay in args.overlay:
         shutil.copytree(overlay, folder, dirs_exist_ok=True)
+    write_scenario(folder / "plugins" / "KindlingBench" / "scenario.properties", args.scenario)
     return folder
+
+
+def write_scenario(file: Path, scenario: str) -> None:
+    """Writes the --scenario keys after the scenario keys the overlays brought, so the command line wins a key both set."""
+    overlay_keys = file.read_text(encoding="utf-8").splitlines() if file.exists() else []
+    file.write_text("\n".join(overlay_keys + scenario.split(",")) + "\n", encoding="utf-8")
 
 
 def java_command(args: argparse.Namespace) -> list[str]:

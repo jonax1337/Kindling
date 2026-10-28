@@ -25,6 +25,9 @@ public final class KindlingBench extends JavaPlugin implements Listener {
     }
 
     private void run(Scenario scenario) {
+        if (scenario.moveEventListener()) {
+            getServer().getPluginManager().registerEvents(new PassiveMoveListener(), this);
+        }
         FakePlayers fakePlayers = new ServerFakePlayers(
                 (delayTicks, action) -> Bukkit.getScheduler().runTaskLater(this, action, delayTicks),
                 scenario.clientViewDistance(), scenario.chunkAcks());

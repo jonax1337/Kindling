@@ -1,0 +1,3 @@
+# Parity check, option on, with a plugin listening to InventoryMoveItemEvent: sleeping block entities (hoppers, furnaces, brewing stands stop ticking while nothing can change).
+performance:
+  sleeping-block-entity: true

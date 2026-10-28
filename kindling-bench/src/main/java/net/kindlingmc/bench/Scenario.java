@@ -13,7 +13,8 @@ import org.bukkit.GameMode;
  * The {@link ScenarioType#BASES bases} run uses only {@code players}, {@code plots-per-player}, {@code warmup-seconds},
  * {@code steady-seconds}, {@code client-view-distance}, {@code chunk-acks} and {@code hopper-guard-seconds}; its players
  * are always in creative mode. The {@link ScenarioType#SLEEPING sleeping} and {@link ScenarioType#VILLAGERS villagers}
- * runs use the same keys except {@code hopper-guard-seconds}, whose waits are fixed in their layouts.
+ * runs use the same keys except {@code hopper-guard-seconds}, whose waits are fixed in their layouts. Every type reads
+ * {@code move-event-listener}.
  *
  * @param type which load the run puts on the server
  * @param players fake players that join, spread on a circle around the world origin
@@ -36,13 +37,16 @@ import org.bukkit.GameMode;
  * @param warmupQuietSeconds after the shortest warm-up, how long no chunk may have been generated before the flight
  *        starts; 0 for a fixed warm-up
  * @param warmupMaxSeconds the longest warm-up; the flight starts then even if chunks are still being generated
+ * @param moveEventListener whether a stand-in plugin listens to {@code InventoryMoveItemEvent} for the whole run without
+ *        acting on it ({@link PassiveMoveListener}), as protection and logging plugins do; Paper then fires the event
+ *        for every hopper transfer
  * @throws IllegalArgumentException for an unknown type or game mode, a value that is not a number, too many plots per
  *         player or a negative wait
  */
 record Scenario(ScenarioType type, int players, int circleRadius, int warmupSeconds, int travelSeconds, double blocksPerTick,
                 int mobsPerPlayer, int settleSeconds, int steadySeconds, int idleSeconds, int clientViewDistance,
                 int plotsPerPlayer, int hopperGuardSeconds, GameMode gameMode, double chunkAcks, int warmupQuietSeconds,
-                int warmupMaxSeconds) {
+                int warmupMaxSeconds, boolean moveEventListener) {
 
     static final String FILE_NAME = "scenario.properties";
     private static final int DEFAULT_WARMUP_SECONDS = 30;
@@ -90,7 +94,8 @@ record Scenario(ScenarioType type, int players, int circleRadius, int warmupSeco
                 GameMode.valueOf(properties.getProperty("gamemode", "creative").trim().toUpperCase(Locale.ROOT)),
                 Double.parseDouble(properties.getProperty("chunk-acks", "0").trim()),
                 intOf(properties, "warmup-quiet-seconds", 5),
-                intOf(properties, "warmup-max-seconds", Math.max(DEFAULT_WARMUP_MAX_SECONDS, warmupSeconds)));
+                intOf(properties, "warmup-max-seconds", Math.max(DEFAULT_WARMUP_MAX_SECONDS, warmupSeconds)),
+                Boolean.parseBoolean(properties.getProperty("move-event-listener", "false").trim()));
     }
 
     private static int intOf(Properties properties, String key, int fallback) {

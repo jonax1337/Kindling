@@ -4,6 +4,7 @@ import java.nio.file.Path;
 import java.util.OptionalDouble;
 import net.kindlingmc.pregen.PregenState.Phase;
 import net.kindlingmc.pregen.TaskSupervisor.Outcome;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -30,6 +31,12 @@ class TaskSupervisorTest {
     void setUp() {
         this.store = new StateStore(this.folder.resolve("pregeneration.properties"));
         this.supervisor = new TaskSupervisor(this.store);
+    }
+
+    /** The store writes on a thread of its own; the temporary folder can only be deleted once that thread is done. */
+    @AfterEach
+    void finishTheWrites() {
+        this.store.saveAndClose();
     }
 
     @Test
