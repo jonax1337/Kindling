@@ -73,6 +73,7 @@ class HostChecksTest {
         assertTrue(finding.what().contains("100.0 ms per second"), finding.what());
         assertTrue(finding.what().contains("other threads or processes on this machine compete with it"), finding.what());
         assertTrue(finding.fix().contains("CPUs of its own"), finding.fix());
+        assertTrue(finding.fix().contains("performance.worker-priority"), finding.fix());
     }
 
     @Test

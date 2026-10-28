@@ -46,7 +46,8 @@ final class HostChecks {
         return Optional.of(Finding.warn(
             measured + ": other threads or processes on this machine compete with it",
             "Give the server CPUs of its own: stop other programs on this machine, reserve cores for the server (CPU affinity or a container CPU request), "
-                + "or lower the load the server's own helper threads cause, such as chunk worker threads and pregeneration",
+                + "or lower the load the server's own helper threads cause, such as chunk worker threads (performance.worker-priority puts them "
+                + "behind the main thread) and pregeneration",
             Basis.LIVE_READING));
     }
 
