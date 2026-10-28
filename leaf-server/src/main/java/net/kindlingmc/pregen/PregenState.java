@@ -49,6 +49,14 @@ final class PregenState {
 
     /** One world's run; {@code next} counts in the order of {@link TileSpiral}; {@code seed} is empty in runs saved before it was recorded. */
     record Run(int centerX, int centerZ, int radius, long next, Phase phase, OptionalLong seed) {
+
+        /**
+         * Whether this run is done and covers {@code configuredRadius} chunks around its centre as far as the border lets
+         * that area reach; a run is saved with the radius clipped by the border, so it is compared with the clipped one.
+         */
+        boolean isDoneFor(final int configuredRadius, final ChunkBorder border) {
+            return this.phase == Phase.DONE && this.radius >= Math.min(configuredRadius, border.reachFrom(this.centerX, this.centerZ));
+        }
     }
 
     private static final String HEADER = "Progress of the chunk pregeneration; '/pregen' changes it";
@@ -215,10 +223,18 @@ final class PregenState {
         return new Run(
             intOf(properties, prefix, CENTER_X),
             intOf(properties, prefix, CENTER_Z),
-            (int) nonNegative(RADIUS, intOf(properties, prefix, RADIUS)),
+            radiusOf(properties, prefix),
             tileOrder ? next : TileSpiral.fromRingIndex(next),
             Phase.of(valueOf(properties, prefix, STATE)),
             properties.containsKey(prefix + SEED) ? OptionalLong.of(longOf(properties, prefix, SEED)) : OptionalLong.empty());
+    }
+
+    private static int radiusOf(final Properties properties, final String prefix) {
+        final int radius = (int) nonNegative(RADIUS, intOf(properties, prefix, RADIUS));
+        if (radius > TileSpiral.MAX_RADIUS) {
+            throw new IllegalArgumentException(RADIUS + " is larger than any world border: " + radius + " > " + TileSpiral.MAX_RADIUS);
+        }
+        return radius;
     }
 
     private static long nonNegative(final String name, final long value) {

@@ -27,6 +27,8 @@ final class FakeWorld implements PregenWorld, ChunkTickets {
     long freeBytes = UNKNOWN_FREE_BYTES;
     long seed = 42L;
     boolean loaded = true;
+    /** Thrown by {@link #load} instead of taking the request, as a chunk system that fails would. */
+    RuntimeException loadFailure;
 
     @Override
     public String name() {
@@ -50,6 +52,9 @@ final class FakeWorld implements PregenWorld, ChunkTickets {
 
     @Override
     public void load(final int chunkX, final int chunkZ, final ChunkLoaded done) {
+        if (this.loadFailure != null) {
+            throw this.loadFailure;
+        }
         this.requests.add(new Request(chunkX, chunkZ, done));
     }
 

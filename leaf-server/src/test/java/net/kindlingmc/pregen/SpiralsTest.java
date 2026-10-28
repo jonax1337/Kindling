@@ -25,6 +25,15 @@ class SpiralsTest {
     }
 
     @Test
+    void theLargestRadiusAWorldBorderAllowsDoesNotOverflowTheTileSpiral() {
+        final ChunkBorder widest = ChunkBorder.ofBlocks(-30_000_000, 30_000_000, -30_000_000, 30_000_000);
+
+        assertTrue(widest.reachFrom(-1_875_000, -1_875_000) <= TileSpiral.MAX_RADIUS);
+        assertTrue(TileSpiral.size(TileSpiral.MAX_RADIUS) > TileSpiral.size(TileSpiral.MAX_RADIUS / 2));
+        assertTrue(TileSpiral.size(TileSpiral.MAX_RADIUS / 2) > 0);
+    }
+
+    @Test
     void theSquareSpiralStartsAtTheCentreAndGrowsRingByRing() {
         assertEquals(SquareSpiral.pack(0, 0), SquareSpiral.offset(0));
         for (long index = 1; index < SquareSpiral.size(6); index++) {

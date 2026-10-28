@@ -13,6 +13,11 @@ final class TileSpiral {
     static final int TILE_SIDE = 16;
     static final int TILE_CHUNKS = TILE_SIDE * TILE_SIDE;
     static final int BLOCKS_PER_CHUNK = 16;
+    /**
+     * The largest radius a run can need: the world border spans at most 60 million blocks, so no chunk is farther than
+     * 3.75 million chunks from a centre on the opposite edge. Far larger radii overflow {@link #size}.
+     */
+    static final int MAX_RADIUS = 3_750_000;
     private static final int HALF_TILE = TILE_SIDE / 2;
 
     private TileSpiral() {

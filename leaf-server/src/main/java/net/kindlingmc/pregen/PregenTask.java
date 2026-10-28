@@ -79,9 +79,7 @@ final class PregenTask {
         if (tick % TICKS_PER_SECOND == 0) {
             this.deliveryRate.sample(System.nanoTime(), this.delivered.get());
         }
-        if (++this.ticksSinceDiskCheck >= DISK_CHECK_TICKS) {
-            this.checkDisk(limits.minFreeDiskBytes());
-        }
+        this.checkDiskWhenDue(limits.minFreeDiskBytes());
         if (this.paused || this.diskFull || this.next >= this.total) {
             return;
         }
@@ -151,18 +149,41 @@ final class PregenTask {
 
     private void request(final long index, final int chunkX, final int chunkZ) {
         this.inFlight.add(index);
-        this.world.load(chunkX, chunkZ, loaded -> {
-            this.completed.incrementAndGet();
-            this.delivered.incrementAndGet();
+        try {
+            this.world.load(chunkX, chunkZ, loaded -> {
+                this.completed.incrementAndGet();
+                this.delivered.incrementAndGet();
+                this.inFlight.remove(index);
+                if (loaded && !this.stopped()) {
+                    this.kept.keep(TileSpiral.tileOf(index), chunkX, chunkZ);
+                }
+            });
+        } catch (final RuntimeException | Error failure) {
+            // no answer will come: take the chunk back, so a run that continues after the failure still gets it
             this.inFlight.remove(index);
-            if (loaded && !this.stopped()) {
-                this.kept.keep(TileSpiral.tileOf(index), chunkX, chunkZ);
-            }
-        });
+            this.next = index;
+            throw failure;
+        }
     }
 
     private boolean stopped() {
         return this.closed || this.paused || this.diskFull;
+    }
+
+    /**
+     * For a server that is paused for lack of players and therefore does not pump: looks again at a disk that stopped the
+     * run, so the run (and with it the server) wakes up once there is room. Costs nothing for any other task.
+     */
+    void recheckFullDisk(final long minFreeBytes) {
+        if (this.diskFull) {
+            this.checkDiskWhenDue(minFreeBytes);
+        }
+    }
+
+    private void checkDiskWhenDue(final long minFreeBytes) {
+        if (++this.ticksSinceDiskCheck >= DISK_CHECK_TICKS) {
+            this.checkDisk(minFreeBytes);
+        }
     }
 
     /** Compares the free space with what the rest of the run needs and stops or continues the run accordingly. */
@@ -210,6 +231,10 @@ final class PregenTask {
     long crashSafeResumeIndex(final int maxParallel) {
         final long unsaved = ((long) this.kept.tileCount() + 1) * TileSpiral.TILE_CHUNKS + maxParallel;
         return Math.max(0L, this.resumeIndex() - unsaved);
+    }
+
+    Phase phase() {
+        return this.paused ? Phase.PAUSED : Phase.RUNNING;
     }
 
     PregenState.Run snapshot(final Phase phase, final long resumeIndex) {

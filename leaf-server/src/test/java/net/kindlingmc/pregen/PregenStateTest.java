@@ -249,6 +249,46 @@ class PregenStateTest {
     }
 
     @Test
+    void aRadiusBeyondAnyWorldBorderIsAProblemInsteadOfAnOverflowingRun() throws IOException {
+        Files.writeString(file(), run(WORLD, "2147483647", "5") + run("a:b", Integer.toString(TileSpiral.MAX_RADIUS + 1), "5")
+            + run("c:d", Integer.toString(TileSpiral.MAX_RADIUS), "5"));
+
+        final PregenState loaded = PregenState.load(file());
+
+        assertEquals(2, loaded.problems().size());
+        assertTrue(loaded.run(WORLD).isEmpty());
+        assertTrue(loaded.run("a:b").isEmpty());
+        assertEquals(TileSpiral.MAX_RADIUS, loaded.run("c:d").orElseThrow().radius());
+    }
+
+    @Test
+    void aFinishedRunCoversTheConfiguredRadiusClippedByTheBorder() {
+        final ChunkBorder border = new ChunkBorder(-100, 100, -100, 100);
+        final PregenState.Run clipped = new PregenState.Run(0, 0, 100, 0L, PregenState.Phase.DONE, OptionalLong.empty());
+
+        assertTrue(clipped.isDoneFor(1000, border));
+        assertTrue(clipped.isDoneFor(100, border));
+        assertFalse(clipped.isDoneFor(1000, new ChunkBorder(-500, 500, -500, 500)));
+    }
+
+    @Test
+    void aFinishedRunMeasuresTheBorderFromItsOwnCentre() {
+        final ChunkBorder border = new ChunkBorder(-100, 100, -100, 100);
+        final PregenState.Run offCentre = new PregenState.Run(60, 0, 160, 0L, PregenState.Phase.DONE, OptionalLong.empty());
+
+        assertTrue(offCentre.isDoneFor(1000, border));
+        assertFalse(new PregenState.Run(60, 0, 159, 0L, PregenState.Phase.DONE, OptionalLong.empty()).isDoneFor(1000, border));
+    }
+
+    @Test
+    void aRunThatIsNotFinishedIsNeverDone() {
+        final ChunkBorder border = new ChunkBorder(-100, 100, -100, 100);
+
+        assertFalse(new PregenState.Run(0, 0, 100, 0L, PregenState.Phase.RUNNING, OptionalLong.empty()).isDoneFor(50, border));
+        assertFalse(new PregenState.Run(0, 0, 100, 0L, PregenState.Phase.PAUSED, OptionalLong.empty()).isDoneFor(50, border));
+    }
+
+    @Test
     void aSnapshotDoesNotFollowLaterChanges() {
         final PregenState state = new PregenState();
         state.put(WORLD, RUN);

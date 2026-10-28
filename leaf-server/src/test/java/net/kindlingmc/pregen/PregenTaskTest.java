@@ -8,6 +8,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class PregenTaskTest {
@@ -307,6 +308,49 @@ class PregenTaskTest {
         task.pump(++this.tick, CALM_NANOS, NOT_MEASURED, LIMITS);
 
         assertFalse(task.active());
+    }
+
+    @Test
+    void aDiskThatStoppedTheRunIsCheckedAgainWithoutPumping() {
+        this.world.freeBytes = ByteSize.GIB;
+        final PregenTask task = this.task(ANY_RADIUS, 0L);
+        this.pump(task, CALM_NANOS);
+        assertFalse(task.active());
+        this.world.freeBytes = 100 * ByteSize.GIB;
+
+        for (int ticks = 0; ticks < 599; ticks++) {
+            task.recheckFullDisk(RESERVE_BYTES);
+        }
+        assertFalse(task.active());
+        task.recheckFullDisk(RESERVE_BYTES);
+
+        assertTrue(task.active());
+    }
+
+    @Test
+    void theRecheckOfTheDiskLeavesARunThatTheDiskDidNotStop() {
+        this.world.freeBytes = 100 * ByteSize.GIB;
+        final PregenTask task = this.task(ANY_RADIUS, 0L);
+        this.pump(task, CALM_NANOS);
+        this.world.freeBytes = ByteSize.GIB;
+
+        for (int ticks = 0; ticks < 1200; ticks++) {
+            task.recheckFullDisk(RESERVE_BYTES);
+        }
+
+        assertTrue(task.active());
+    }
+
+    @Test
+    void aRequestTheChunkSystemRefusesIsTakenBackSoARunThatContinuesStillGetsEveryChunk() {
+        final PregenTask task = this.task(1, 0L);
+        this.world.loadFailure = new IllegalStateException("the chunk system is down");
+
+        assertThrows(IllegalStateException.class, () -> this.pump(task, CALM_NANOS));
+        this.world.loadFailure = null;
+        this.runToTheEnd(task);
+
+        assertEquals(9, this.world.requests.size());
     }
 
     @Test
