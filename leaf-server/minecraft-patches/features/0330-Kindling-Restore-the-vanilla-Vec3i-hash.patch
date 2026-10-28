@@ -1,0 +1,19 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Wed, 28 Oct 2026 20:26:36 +0100
+Subject: [PATCH] Kindling: Restore the vanilla Vec3i hash
+
+
+diff --git a/net/minecraft/core/Vec3i.java b/net/minecraft/core/Vec3i.java
+index 68e6f9bc112e93b7add377cf839930d0f4c1e7d4..f7db84f0b0f607e7f3545184a667d3f55839422d 100644
+--- a/net/minecraft/core/Vec3i.java
++++ b/net/minecraft/core/Vec3i.java
+@@ -47,7 +47,7 @@ public class Vec3i implements Comparable<Vec3i> {
+ 
+     @Override
+     public final int hashCode() { // Paper - Perf: Final for inline
+-        return org.dreeam.leaf.util.Vec3iHasher.hash(this.x, this.y, this.z); // Leaf - Optimize Vec3i hashing
++        return (this.getY() + this.getZ() * 31) * 31 + this.getX(); // Kindling - vanilla hash, HashSet<BlockPos> order is redstone update order
+     }
+ 
+     @Override
