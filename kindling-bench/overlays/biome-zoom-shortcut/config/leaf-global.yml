@@ -1,0 +1,4 @@
+# Bench A/B: the optional shortcut of the biome zoom for cells whose eight candidates hold one biome.
+performance:
+  biome-zoom-shortcut:
+    enabled: true
