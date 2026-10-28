@@ -49,6 +49,8 @@ public final class Pregenerator {
     private static boolean started;
     /** Read once a second: the host monitor publishes a new value every few seconds. */
     private static OptionalDouble mainThreadWait = OptionalDouble.empty();
+    /** {@link #keepsServerAwake()} as of the last tick, for other threads. */
+    private static volatile boolean working;
 
     private Pregenerator() {
     }
@@ -110,7 +112,14 @@ public final class Pregenerator {
             }
         } catch (final RuntimeException failure) {
             LOGGER.error("Pregeneration failed to tick", failure);
+        } finally {
+            working = keepsServerAwake();
         }
+    }
+
+    /** Whether a run was working at the last tick; unlike {@link #keepsServerAwake()} safe to call from any thread. */
+    public static boolean isWorking() {
+        return working;
     }
 
     private static void pumpTasks(final long tick) {

@@ -172,7 +172,7 @@ performance:
     after-seconds: 300  # how long the server must be empty first
 ```
 
-After `after-seconds` without players, once per idle period, the server runs a full garbage collection (through the JVM's diagnostic command, so it works with `-XX:+DisableExplicitGC`) with the free-heap ratios lowered to 5 and 10 percent for that one collection, then trims the native heap on glibc Linux with Java 25 (unless `-XX:TrimNativeHeapInterval` is set), and logs the heap and resident memory before and after. Nothing runs while a player is online, and the period starts over when someone joins. A heap with `-Xms` equal to `-Xmx` cannot shrink; `/kindling doctor` says so, and `-Xms512M -Xmx2G` lets the idle collection give heap back.
+After `after-seconds` without players, once per idle period, the server runs a full garbage collection (through the JVM's diagnostic command, so it works with `-XX:+DisableExplicitGC`) with the free-heap ratios lowered to 5 and 10 percent for that one collection, then trims the native heap on glibc Linux with Java 25 (unless `-XX:TrimNativeHeapInterval` is set), and logs the heap and resident memory before and after. Nothing runs while a player is online or a pregeneration is working, and the period starts over when either begins. A heap with `-Xms` equal to `-Xmx` cannot shrink; `/kindling doctor` says so, and `-Xms512M -Xmx2G` lets the idle collection give heap back.
 
 Measured on the bench PC (WSL2, Java 25.0.5, G1, a small program that peaked at 1.7 GB resident and kept 150 MB live, `-Xmx2G`): with `-Xms2G` the resident memory stayed at 1.68 GB (the trim freed 14 to 25 MB); with `-Xms256M` a plain full collection brought it to 650 MB, and with the lowered ratios to 306 MB. This is a synthetic test, not a server run.
 

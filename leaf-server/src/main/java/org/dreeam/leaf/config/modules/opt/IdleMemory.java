@@ -18,7 +18,8 @@ public class IdleMemory extends ConfigModule {
             Gives memory back to the system while nobody is online. After `after-seconds` without players, once per idle
             period, the server runs a full garbage collection (which lets the heap shrink down to its live data) and, on
             glibc Linux, trims the native heap; it logs the resident memory before and after. Nothing runs while players
-            are online, and the period starts over when someone joins. A heap with `-Xms` equal to `-Xmx` cannot shrink:
+            are online or a pregeneration is working, and the period starts over when either begins. A heap with `-Xms`
+            equal to `-Xmx` cannot shrink:
             use a lower `-Xms` (for example `-Xms512M -Xmx2G`) to get heap back. The collection pauses the server for a
             moment; with nobody online nobody notices.""",
             """
