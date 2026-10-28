@@ -1,0 +1,222 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Wed, 28 Oct 2026 21:32:14 +0100
+Subject: [PATCH] Kindling: Set async path targets and trim async paths where
+ vanilla does
+
+
+diff --git a/net/minecraft/world/entity/ai/navigation/PathNavigation.java b/net/minecraft/world/entity/ai/navigation/PathNavigation.java
+index 6ab2139edc59ac1af2ac9b4bcc8124d99eada39b..53b20a6ca2f0eba90225667617831a6e3bab982f 100644
+--- a/net/minecraft/world/entity/ai/navigation/PathNavigation.java
++++ b/net/minecraft/world/entity/ai/navigation/PathNavigation.java
+@@ -37,7 +37,9 @@ public abstract class PathNavigation {
+     protected final Mob mob;
+     protected final Level level;
+     protected @Nullable Path path;
+-    private @Nullable Path leaf$preparedPath; // Kindling - apply async paths when they are installed and processed (Leaf PR 943)
++    private org.dreeam.leaf.async.path.@Nullable AsyncPath kindling$pathAwaitingTarget; // Kindling - set the target of an async path as vanilla does, once it is known
++    private int kindling$awaitedReachRange; // Kindling - set the target of an async path as vanilla does, once it is known
++    private @Nullable Path kindling$pathAwaitingTrim; // Kindling - trim an async path only where vanilla trims a path
+     protected double speedModifier;
+     protected int tick;
+     protected int lastStuckCheck;
+@@ -100,11 +102,12 @@ public abstract class PathNavigation {
+     }
+ 
+     public void recomputePath() {
++        this.kindling$applyArrivedTarget(); // Kindling - set the target of an async path as vanilla does, once it is known
+         if (this.level.getGameTime() - this.timeLastRecompute <= 20L || !this.canUpdatePath()) {
+             this.hasDelayedRecomputation = true;
+         } else if (this.targetPos != null) {
+-            this.leaf$setPath(null); // Kindling - apply async paths when they are installed and processed (Leaf PR 943)
+-            this.leaf$setPath(this.createPath(this.targetPos, this.reachRange)); // Kindling - apply async paths when they are installed and processed (Leaf PR 943)
++            this.path = null;
++            this.path = this.createPath(this.targetPos, this.reachRange);
+             this.timeLastRecompute = this.level.getGameTime();
+             this.hasDelayedRecomputation = false;
+         }
+@@ -168,6 +171,7 @@ public abstract class PathNavigation {
+             return null;
+         }
+ 
++        this.kindling$applyArrivedTarget(); // Kindling - set the target of an async path as vanilla does, once it is known
+         // Kaiiju start - petal - async path processing - catch early if it's still processing these positions let it keep processing
+         if (this.path instanceof org.dreeam.leaf.async.path.AsyncPath asyncPath && !asyncPath.isProcessed() && asyncPath.hasSameProcessingPositions(targets)) {
+             return this.path;
+@@ -202,18 +206,13 @@ public abstract class PathNavigation {
+         PathNavigationRegion region = new PathNavigationRegion(this.level, fromPos.offset(-radius, -radius, -radius), fromPos.offset(radius, radius, radius));
+         Path path = this.pathFinder.findPath(region, this.mob, targets, maxPathLength, reachRange, this.maxVisitedNodesMultiplier);
+         profiler.pop();
+-        // Kindling start - apply async paths when they are installed and processed (Leaf PR 943)
+-        if (path != null) {
+-            path.leaf$reachRange = reachRange;
+-            if (path instanceof org.dreeam.leaf.async.path.AsyncPath) {
+-                if (!path.isProcessed()) path.target = targets.iterator().next();
+-            } else if (path.getTarget() != null) {
+-                this.targetPos = path.getTarget();
+-                this.reachRange = reachRange;
+-                this.resetStuckTimeout();
+-            }
++        // Kindling start - set the target of an async path as vanilla does, once it is known
++        if (path instanceof org.dreeam.leaf.async.path.AsyncPath asyncPath) {
++            this.kindling$takeTargetOf(asyncPath, reachRange);
++        } else if (path != null && path.getTarget() != null) {
++            this.kindling$setTarget(path.getTarget(), reachRange);
+         }
+-        // Kindling end - apply async paths when they are installed and processed (Leaf PR 943)
++        // Kindling end - set the target of an async path as vanilla does, once it is known
+ 
+         return path;
+     }
+@@ -257,25 +256,29 @@ public abstract class PathNavigation {
+ 
+     public boolean moveTo(final @Nullable Path newPath, final double speedModifier) {
+         if (newPath == null) {
+-            this.leaf$setPath(null); // Kindling - apply async paths when they are installed and processed (Leaf PR 943)
++            this.path = null;
+             return false;
+         }
+ 
+         if (!newPath.sameAs(this.path)) {
+-            this.leaf$setPath(newPath); // Kindling - apply async paths when they are installed and processed (Leaf PR 943)
++            this.path = newPath;
+         }
+ 
+-        // Kindling start - apply async paths when they are installed and processed (Leaf PR 943)
+-        final Path installedPath = this.path;
+-        final boolean needsAsyncPreparation = installedPath instanceof org.dreeam.leaf.async.path.AsyncPath && this.leaf$preparedPath != installedPath;
+-        if (installedPath.isProcessed()) {
+-            if (!this.leaf$preparePath()) return false;
+-            if (!needsAsyncPreparation) {
+-                this.trimPath();
+-                if (this.path != installedPath || installedPath.getNodeCount() <= 0) return false;
++        if (this.isDone()) {
++            return false;
++        }
++
++        // Kindling start - trim an async path only where vanilla trims a path
++        if (!this.path.isProcessed()) {
++            this.kindling$pathAwaitingTrim = this.path;
++        } else {
++            this.kindling$pathAwaitingTrim = null;
++            this.trimPath();
++            if (this.path.getNodeCount() <= 0) {
++                return false;
+             }
+         }
+-        // Kindling end - apply async paths when they are installed and processed (Leaf PR 943)
++        // Kindling end - trim an async path only where vanilla trims a path
+ 
+         this.speedModifier = speedModifier;
+         Vec3 mobPos = this.getTempMobPos();
+@@ -285,35 +288,61 @@ public abstract class PathNavigation {
+     }
+ 
+     // Kindling start - apply async paths when they are installed and processed (Leaf PR 943)
+-    private void leaf$setPath(final @Nullable Path path) {
+-        this.path = path;
+-        this.leaf$preparedPath = null;
+-        if (path instanceof org.dreeam.leaf.async.path.AsyncPath) {
+-            this.targetPos = path.target;
+-            this.reachRange = path.leaf$reachRange;
+-        }
+-    }
+-
+     /**
+-     * Applies the installed path once it is processed, as vanilla's {@code createPath} and {@code moveTo} do for a
+-     * path computed on the spot. Returns whether a processed path is installed and not yet done.
++     * Brings the navigation up to date with the async paths processed since, as vanilla's {@code createPath} and
++     * {@code moveTo} are for a path computed on the spot. Returns whether a processed path is installed and not yet
++     * done.
+      */
+     public boolean leaf$preparePath() {
++        this.kindling$applyArrivedTarget(); // Kindling - set the target of an async path as vanilla does, once it is known
+         final Path installedPath = this.path;
+         if (installedPath == null || !installedPath.isProcessed()) return false;
+-        if (this.leaf$preparedPath != installedPath) {
+-            this.leaf$preparedPath = installedPath;
+-            if (installedPath instanceof org.dreeam.leaf.async.path.AsyncPath) {
+-                this.targetPos = installedPath.getTarget();
+-                this.reachRange = installedPath.leaf$reachRange;
+-                this.resetStuckTimeout();
+-                if (!installedPath.isDone()) this.trimPath();
+-            }
+-        }
++        this.kindling$trimIfMoveToWasGiven(installedPath); // Kindling - trim an async path only where vanilla trims a path
+         return this.path == installedPath && !installedPath.isDone();
+     }
+     // Kindling end - apply async paths when they are installed and processed (Leaf PR 943)
+ 
++    // Kindling start - trim an async path only where vanilla trims a path
++    /** Vanilla's {@code moveTo} trims the path it is given; an async path it was given unprocessed is trimmed here. */
++    private void kindling$trimIfMoveToWasGiven(final Path processedPath) {
++        final Path pathAwaitingTrim = this.kindling$pathAwaitingTrim;
++        if (pathAwaitingTrim == null) return;
++        this.kindling$pathAwaitingTrim = null;
++        if (pathAwaitingTrim == processedPath && !processedPath.isDone()) this.trimPath();
++    }
++    // Kindling end - trim an async path only where vanilla trims a path
++
++    // Kindling start - set the target of an async path as vanilla does, once it is known
++    /**
++     * Vanilla's {@code createPath} sets the navigation target of every path it returns, also of a path only made to
++     * check what is reachable. A path to several positions has its target only once it is processed; until then the
++     * navigation keeps the target it had.
++     */
++    private void kindling$takeTargetOf(final org.dreeam.leaf.async.path.AsyncPath path, final int reachRange) {
++        final BlockPos knownTarget = path.knownTarget();
++        if (knownTarget != null) {
++            this.kindling$setTarget(knownTarget, reachRange);
++        } else {
++            this.kindling$pathAwaitingTarget = path;
++            this.kindling$awaitedReachRange = reachRange;
++        }
++    }
++
++    private void kindling$applyArrivedTarget() {
++        final org.dreeam.leaf.async.path.AsyncPath awaitedPath = this.kindling$pathAwaitingTarget;
++        if (awaitedPath != null && awaitedPath.isProcessed()) {
++            this.kindling$setTarget(awaitedPath.getTarget(), this.kindling$awaitedReachRange);
++        }
++    }
++
++    private void kindling$setTarget(final BlockPos target, final int reachRange) {
++        this.kindling$pathAwaitingTarget = null;
++        this.targetPos = target;
++        this.reachRange = reachRange;
++        this.resetStuckTimeout();
++    }
++    // Kindling end - set the target of an async path as vanilla does, once it is known
++
+     public @Nullable Path getPath() {
+         return this.path;
+     }
+@@ -453,7 +482,7 @@ public abstract class PathNavigation {
+     }
+ 
+     public void stop() {
+-        this.leaf$setPath(null); // Kindling - apply async paths when they are installed and processed (Leaf PR 943)
++        this.path = null;
+     }
+ 
+     protected abstract Vec3 getTempMobPos();
+diff --git a/net/minecraft/world/level/pathfinder/Path.java b/net/minecraft/world/level/pathfinder/Path.java
+index b74249e3872d271e04c98a3426fdf85884489daa..f02a4997c20e7db7724f5f483cc1f67f375e5552 100644
+--- a/net/minecraft/world/level/pathfinder/Path.java
++++ b/net/minecraft/world/level/pathfinder/Path.java
+@@ -43,7 +43,6 @@ public class Path { // Kaiiju - petal - async path processing - public -> public
+     public BlockPos target; // Kaiiju - petal - async path processing - public -> public-f
+     private final float distToTarget;
+     private final boolean reached;
+-    public int leaf$reachRange; // Kindling - apply async paths when they are installed and processed (Leaf PR 943)
+ 
+     public Path(final List<Node> nodes, final BlockPos target, final boolean reached) {
+         this.nodes = nodes;
+@@ -183,7 +182,6 @@ public class Path { // Kaiiju - petal - async path processing - public -> public
+         Path result = new Path(this.nodes, this.target, reached); // Leaf - Async pathfinding - copy the resolved reachability
+         result.debugData = this.debugData;
+         result.nextNodeIndex = this.nextNodeIndex;
+-        result.leaf$reachRange = this.leaf$reachRange; // Kindling - apply async paths when they are installed and processed (Leaf PR 943)
+         return result;
+     }
+ 

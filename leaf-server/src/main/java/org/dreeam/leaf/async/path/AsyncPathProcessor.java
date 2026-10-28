@@ -93,7 +93,12 @@ public final class AsyncPathProcessor {
                     }
                     case CALLER_RUNS -> rejectedTask.run();
                 }
+            // Kindling start - a path queued after shutdown is computed on the caller, so that it still completes
+            } else {
+                rejectedTask.run();
+                return;
             }
+            // Kindling end - a path queued after shutdown is computed on the caller, so that it still completes
 
             if (System.currentTimeMillis() - lastWarnMillis > 30000L) {
                 LOGGER.warn("Async pathfinding processor is busy! Pathfinding tasks will be treated as policy defined in config. Increasing max-threads in Leaf config may help.");

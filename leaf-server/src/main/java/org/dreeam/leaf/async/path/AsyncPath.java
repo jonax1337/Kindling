@@ -54,11 +54,43 @@ public final class AsyncPath extends Path {
         AsyncPathProcessor.queue(() -> {
             synchronized (finder) {
                 if (this.ret == null) {
-                    this.ret = pathFn.apply(finder);
+                    this.computeOnWorker(pathFn); // Kindling - a queued path always completes
                 }
             }
         });
     }
+
+    // Kindling start - a queued path always completes
+    /**
+     * Fills the result even when the computation throws, without a path then, so that a caller that only polls
+     * {@link #isProcessed()} sees the path complete. The failure still reaches the worker's uncaught exception handler.
+     */
+    private void computeOnWorker(final Function<PathFinder, Path> pathFn) {
+        try {
+            this.ret = pathFn.apply(this.finder);
+        } catch (final Throwable failure) {
+            this.ret = new Path(List.of(), this.firstPosition(), false);
+            throw failure;
+        }
+    }
+
+    private BlockPos firstPosition() {
+        return this.positions.isEmpty() ? BlockPos.ZERO : this.positions.iterator().next();
+    }
+    // Kindling end - a queued path always completes
+
+    // Kindling start - set the navigation target of an async path as vanilla does, once it is known
+    /**
+     * The target this path has once it is processed, or {@code null} while that is still open: a path towards a
+     * single position always has that position as its target, whether it reaches it or not.
+     */
+    public @Nullable BlockPos knownTarget() {
+        if (this.isProcessed()) {
+            return this.target;
+        }
+        return this.positions.size() == 1 ? this.firstPosition() : null;
+    }
+    // Kindling end - set the navigation target of an async path as vanilla does, once it is known
 
     @Override
     public boolean isProcessed() {
