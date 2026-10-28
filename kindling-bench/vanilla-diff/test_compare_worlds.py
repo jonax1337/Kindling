@@ -173,6 +173,12 @@ class NbtTest(unittest.TestCase):
         parsed = nbt.parse_root(encode_nbt(root))
         self.assertEqual({**root, "arr": (1, -2)}, parsed)
 
+    def test_wrapped_list_elements_are_unwrapped_as_list_tag_does(self):
+        root = {"palette": [{"": "minecraft:stone"}, {"id": "minecraft:piston"}], "other": [{"": 1, "x": 2}]}
+        parsed = nbt.parse_root(encode_nbt(root))
+        self.assertEqual(["minecraft:stone", {"id": "minecraft:piston"}], parsed["palette"])
+        self.assertEqual([{"": 1, "x": 2}], parsed["other"])
+
     def test_truncated_data_raises(self):
         with self.assertRaises(nbt.NbtError):
             nbt.parse_root(encode_nbt({"name": "x"})[:-3])

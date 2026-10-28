@@ -67,7 +67,12 @@ class _Reader:
     def _list(self) -> list:
         element_type = self.unpack(">b")
         length = self.unpack(">i")
-        return [self.payload(element_type) for _ in range(length)]
+        elements = [self.payload(element_type) for _ in range(length)]
+        if element_type == TAG_COMPOUND:
+            # A list of mixed types is written as compounds that wrap each value under the empty key
+            # (ListTag.tryUnwrap): {"": "minecraft:stone"} is the string "minecraft:stone".
+            return [_unwrap(element) for element in elements]
+        return elements
 
     def _compound(self) -> dict:
         compound = {}
@@ -83,3 +88,9 @@ class _Reader:
         code = _ARRAY_ELEMENT_CODES[tag_type]
         raw = self.take(length * struct.calcsize(code))
         return struct.unpack(f">{length}{code}", raw)
+
+
+def _unwrap(compound: dict):
+    if len(compound) == 1 and "" in compound:
+        return compound[""]
+    return compound
