@@ -1,0 +1,201 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Wed, 28 Oct 2026 21:09:46 +0100
+Subject: [PATCH] Kindling: Pick the biome zoom cell exactly like vanilla and
+ add an optional shortcut for uniform cells
+
+
+diff --git a/net/minecraft/server/level/WorldGenRegion.java b/net/minecraft/server/level/WorldGenRegion.java
+index 2f01aa468f19a487e0c10db16000b7e71cbb74ad..efab1a7d798e48454b2bc654e926ef1e16eb6024 100644
+--- a/net/minecraft/server/level/WorldGenRegion.java
++++ b/net/minecraft/server/level/WorldGenRegion.java
+@@ -276,6 +276,14 @@ public class WorldGenRegion implements WorldGenLevel {
+         return this.uncachedBiomeResolver.getNoiseBiome(quartX, quartY, quartZ);
+     }
+ 
++    // Kindling start - biome zoom shortcut
++    @Override
++    public net.minecraft.world.level.biome.BiomeResolver chunkResolver(final int quartX, final int quartZ) {
++        final ChunkAccess chunk = this.getChunk(quartX >> 2, quartZ >> 2, ChunkStatus.BIOMES, false);
++        return chunk != null ? chunk : this;
++    }
++    // Kindling end - biome zoom shortcut
++
+     @Override
+     public LevelLightEngine getLightEngine() {
+         return this.level.getLightEngine();
+diff --git a/net/minecraft/world/level/Level.java b/net/minecraft/world/level/Level.java
+index 72933d63550bcc87046de9e80452b951d913a529..eeb084aa75dc8e4ae117589958ae64480f8cef76 100644
+--- a/net/minecraft/world/level/Level.java
++++ b/net/minecraft/world/level/Level.java
+@@ -876,6 +876,14 @@ public abstract class Level implements LevelAccessor, AutoCloseable, ca.spottedl
+     }
+     // Paper end - optimise random ticking
+ 
++    // Kindling start - biome zoom shortcut
++    @Override
++    public net.minecraft.world.level.biome.BiomeResolver chunkResolver(final int quartX, final int quartZ) {
++        final ChunkAccess chunk = this.getChunk(quartX >> 2, quartZ >> 2, ChunkStatus.BIOMES, false);
++        return chunk != null ? chunk : this;
++    }
++    // Kindling end - biome zoom shortcut
++
+     protected Level(
+         final WritableLevelData levelData,
+         final ResourceKey<Level> dimension,
+diff --git a/net/minecraft/world/level/biome/BiomeManager.java b/net/minecraft/world/level/biome/BiomeManager.java
+index 95fa5539748af619762a70746894edac6753eaba..080fe5fb18c075b6d81a088bf8fdbc9d54c7d573 100644
+--- a/net/minecraft/world/level/biome/BiomeManager.java
++++ b/net/minecraft/world/level/biome/BiomeManager.java
+@@ -79,6 +79,16 @@ public class BiomeManager {
+         int x = xMinus2 >> 2; // BlockPos to BiomePos
+         int y = yMinus2 >> 2;
+         int z = zMinus2 >> 2;
++        // Kindling start - biome zoom shortcut
++        BiomeResolver cells = this.noiseBiomeSource;
++        if (org.dreeam.leaf.config.modules.opt.BiomeZoomShortcut.enabled && net.kindlingmc.biome.UniformBiomeCells.shareChunkColumn(x, z)) {
++            cells = chunk != null && chunk.locX == x >> 2 && chunk.locZ == z >> 2 ? chunk : this.noiseBiomeSource.chunkResolver(x, z);
++            Holder<Biome> uniform = cells.getUniformNoiseBiome(x, y, z);
++            if (uniform != null) {
++                return uniform;
++            }
++        }
++        // Kindling end - biome zoom shortcut
+         // Leaf start - Optimized getBiome method - eliminate divisions
+         // any integer & 3 falls in [0,1,2,3]
+         // then the division by 4 result is deterministic [0, 0.25, 0.5, 0.75]
+@@ -102,7 +112,7 @@ public class BiomeManager {
+                 minQuartYY = Mth.square(Math.max(Math.abs(quartYY) - MAX_OFFSET, 0.0));
+                 minQuartZZ = Mth.square(Math.max(Math.abs(quartZZ) - MAX_OFFSET, 0.0));
+                 double minQuartXX = Mth.square(Math.max(Math.abs(quartXX) - MAX_OFFSET, 0.0));
+-                if (smallestDist < minQuartXX + minQuartYY + minQuartZZ) continue;
++                if (smallestDist < minQuartZZ + minQuartYY + minQuartXX) continue; // Kindling - add up in vanilla's order, z + y + x, so a candidate vanilla picks is never skipped
+             }
+             int xx = everyOtherQuad ? x : x + 1;
+             int yy = everyOtherPair ? y : y + 1;
+@@ -117,14 +127,14 @@ public class BiomeManager {
+             seed = LinearCongruentialGenerator.next(seed, zz);
+             double offsetX = getFiddle(seed);
+             double sqrX = Mth.square(quartXX + offsetX);
+-            if (biomeX != 0 && smallestDist < sqrX + minQuartYY + minQuartZZ) continue; //skip the rest of the loop
++            if (biomeX != 0 && smallestDist < minQuartZZ + minQuartYY + sqrX) continue; //skip the rest of the loop // Kindling - add up in vanilla's order
+             seed = LinearCongruentialGenerator.next(seed, this.biomeZoomSeed);
+             double offsetY = getFiddle(seed);
+             double sqrY = Mth.square(quartYY + offsetY);
+-            if (biomeX != 0 && smallestDist < sqrX + sqrY + minQuartZZ) continue; // skip the rest of the loop
++            if (biomeX != 0 && smallestDist < minQuartZZ + sqrY + sqrX) continue; // skip the rest of the loop // Kindling - add up in vanilla's order
+             seed = LinearCongruentialGenerator.next(seed, this.biomeZoomSeed);
+             double offsetZ = getFiddle(seed);
+-            double biomeDist = sqrX + sqrY + Mth.square(quartZZ + offsetZ);
++            double biomeDist = Mth.square(quartZZ + offsetZ) + sqrY + sqrX; // Kindling - add up in vanilla's order, so ties and roundings fall the same way
+ 
+             if (smallestDist > biomeDist) {
+                 smallestX = biomeX;
+@@ -137,7 +147,7 @@ public class BiomeManager {
+         if (chunk != null && chunk.locX == x1 >> 2 && chunk.locZ == z1 >> 2) {
+             return chunk.getNoiseBiome(x1, y1, z1);
+         }
+-        return this.noiseBiomeSource.getNoiseBiome(x1, y1, z1);
++        return cells.getNoiseBiome(x1, y1, z1); // Kindling - biome zoom shortcut: read from the chunk it already looked up
+         // Leaf end - Carpet-Fixes - Optimized getBiome method
+     }
+     // Leaf end - cache getBiome
+diff --git a/net/minecraft/world/level/biome/BiomeResolver.java b/net/minecraft/world/level/biome/BiomeResolver.java
+index 08d358f40efeaa0aeb8b4d4c752d65e2a67d7b25..fd125b965604a4ae8d95fbe82a2e79209a301f4f 100644
+--- a/net/minecraft/world/level/biome/BiomeResolver.java
++++ b/net/minecraft/world/level/biome/BiomeResolver.java
+@@ -9,6 +9,24 @@ import net.minecraft.core.QuartPos;
+ public interface BiomeResolver {
+     Holder<Biome> getNoiseBiome(final int quartX, final int quartY, final int quartZ);
+ 
++    // Kindling start - biome zoom shortcut
++    /**
++     * The resolver that answers for the cells of the chunk holding quart column (quartX, quartZ), found with at most one
++     * chunk lookup: that chunk, or this resolver when it has none to offer.
++     */
++    default BiomeResolver chunkResolver(final int quartX, final int quartZ) {
++        return this;
++    }
++
++    /**
++     * The biome of all eight cells from (quartX, quartY, quartZ) to (quartX + 1, quartY + 1, quartZ + 1) when this
++     * resolver can tell without reading them one by one, else null.
++     */
++    default @org.jspecify.annotations.Nullable Holder<Biome> getUniformNoiseBiome(final int quartX, final int quartY, final int quartZ) {
++        return null;
++    }
++    // Kindling end - biome zoom shortcut
++
+     default Set<Holder<Biome>> getBiomesWithin(final int x, final int y, final int z, final int radius) {
+         int x0 = QuartPos.fromBlock(x - radius);
+         int y0 = QuartPos.fromBlock(y - radius);
+diff --git a/net/minecraft/world/level/chunk/ChunkAccess.java b/net/minecraft/world/level/chunk/ChunkAccess.java
+index 363f0e8579b2f46a6b804b3477923d50182a3455..593375984dda99ebefe831847d98f76030819043 100644
+--- a/net/minecraft/world/level/chunk/ChunkAccess.java
++++ b/net/minecraft/world/level/chunk/ChunkAccess.java
+@@ -586,6 +586,13 @@ public abstract class ChunkAccess implements LightChunk, StructureAccess, BiomeR
+         // Paper end - get block chunk optimisation
+     }
+ 
++    // Kindling start - biome zoom shortcut
++    @Override
++    public @Nullable Holder<Biome> getUniformNoiseBiome(final int quartX, final int quartY, final int quartZ) {
++        return net.kindlingmc.biome.UniformBiomeCells.inChunk(this.sections, this.minSection, quartX, quartY, quartZ);
++    }
++    // Kindling end - biome zoom shortcut
++
+     // CraftBukkit start
+     public void setNoiseBiome(int quartX, int quartY, int quartZ, Holder<Biome> biome) {
+         try {
+diff --git a/net/minecraft/world/level/chunk/EmptyLevelChunk.java b/net/minecraft/world/level/chunk/EmptyLevelChunk.java
+index 9ee8dc12f59ab8ccf03cae451174d023f2870df0..17d2135f5c809bdbdf5f66a7af9a62e4e55c43b2 100644
+--- a/net/minecraft/world/level/chunk/EmptyLevelChunk.java
++++ b/net/minecraft/world/level/chunk/EmptyLevelChunk.java
+@@ -119,4 +119,11 @@ public class EmptyLevelChunk extends LevelChunk implements ca.spottedleaf.moonri
+     public Holder<Biome> getNoiseBiome(final int quartX, final int quartY, final int quartZ) {
+         return this.biome;
+     }
++
++    // Kindling start - biome zoom shortcut
++    @Override
++    public Holder<Biome> getUniformNoiseBiome(final int quartX, final int quartY, final int quartZ) {
++        return this.biome;
++    }
++    // Kindling end - biome zoom shortcut
+ }
+diff --git a/net/minecraft/world/level/chunk/ImposterProtoChunk.java b/net/minecraft/world/level/chunk/ImposterProtoChunk.java
+index 75499e774a386602241e97b27fb8eea59f294aaf..d0a3fa670dc54d7fdf6d5fd91ff8adef334e5024 100644
+--- a/net/minecraft/world/level/chunk/ImposterProtoChunk.java
++++ b/net/minecraft/world/level/chunk/ImposterProtoChunk.java
+@@ -176,6 +176,13 @@ public class ImposterProtoChunk extends ProtoChunk implements ca.spottedleaf.moo
+         return this.wrapped.getNoiseBiome(quartX, quartY, quartZ);
+     }
+ 
++    // Kindling start - biome zoom shortcut
++    @Override
++    public @Nullable Holder<Biome> getUniformNoiseBiome(final int quartX, final int quartY, final int quartZ) {
++        return this.wrapped.getUniformNoiseBiome(quartX, quartY, quartZ);
++    }
++    // Kindling end - biome zoom shortcut
++
+     @Override
+     public ChunkPos getPos() {
+         return this.wrapped.getPos();
+diff --git a/net/minecraft/world/level/chunk/ProtoChunk.java b/net/minecraft/world/level/chunk/ProtoChunk.java
+index d3afcaa32dc9b46147c99972fbcca84be2a8e54d..9ef962635d307ea3d9f1e7abd35d7b1eebf7c857 100644
+--- a/net/minecraft/world/level/chunk/ProtoChunk.java
++++ b/net/minecraft/world/level/chunk/ProtoChunk.java
+@@ -292,6 +292,13 @@ public class ProtoChunk extends ChunkAccess implements ca.spottedleaf.moonrise.p
+         }
+     }
+ 
++    // Kindling start - biome zoom shortcut
++    @Override
++    public @Nullable Holder<Biome> getUniformNoiseBiome(final int quartX, final int quartY, final int quartZ) {
++        return this.getHighestGeneratedStatus().isOrAfter(ChunkStatus.BIOMES) ? super.getUniformNoiseBiome(quartX, quartY, quartZ) : null;
++    }
++    // Kindling end - biome zoom shortcut
++
+     public static short packOffsetCoordinates(final BlockPos pos) {
+         int x = pos.getX();
+         int y = pos.getY();
