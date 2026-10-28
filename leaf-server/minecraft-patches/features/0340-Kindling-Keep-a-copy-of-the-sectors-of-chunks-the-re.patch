@@ -1,0 +1,146 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Wed, 28 Oct 2026 22:09:41 +0100
+Subject: [PATCH] Kindling: Keep a copy of the sectors of chunks the region
+ file cannot read
+
+
+diff --git a/net/minecraft/world/level/chunk/storage/RegionFile.java b/net/minecraft/world/level/chunk/storage/RegionFile.java
+index 0ca236c8854d35a8a1ae20261887c0c5384fbecf..0dafd9118184c88ca2a0cc79782b0573de7b3f11 100644
+--- a/net/minecraft/world/level/chunk/storage/RegionFile.java
++++ b/net/minecraft/world/level/chunk/storage/RegionFile.java
+@@ -566,11 +566,18 @@ public class RegionFile implements AutoCloseable, ca.spottedleaf.moonrise.patche
+         return this.getChunkDataInputStream(pos, true);
+     }
+ 
+-    private @Nullable DataInputStream recalculateAndRetry(final ChunkPos pos, final boolean allowRecalc) throws IOException {
++    private @Nullable DataInputStream recalculateAndRetry(final ChunkPos pos, final boolean allowRecalc, final String problem) throws IOException { // Kindling - say what is wrong with the chunk
++        // Kindling start - keep the sectors of a chunk that stays unreadable, as the header stored them before the recalculation
++        final int storedOffset = this.getOffset(pos);
++        DataInputStream retried = null;
+         if (allowRecalc && this.moonrise$recalculateHeader()) {
+-            return this.getChunkDataInputStream(pos, false);
++            retried = this.getChunkDataInputStream(pos, false);
+         }
+-        return null;
++        if (allowRecalc && retried == null) {
++            this.keepUnreadableSectors(pos, storedOffset, problem);
++        }
++        return retried;
++        // Kindling end - keep the sectors of a chunk that stays unreadable, as the header stored them before the recalculation
+     }
+     // Paper end - rewrite chunk system
+ 
+@@ -595,14 +602,14 @@ public class RegionFile implements AutoCloseable, ca.spottedleaf.moonrise.patche
+         buffer.flip();
+         if (buffer.remaining() < 5) {
+             LOGGER.error("Chunk {} in {} header is truncated: expected {} but read {}", pos, this.path.toAbsolutePath(), sectorsLength, buffer.remaining()); // Paper - rewrite chunk system
+-            return this.recalculateAndRetry(pos, allowRecalc); // Paper - rewrite chunk system
++            return this.recalculateAndRetry(pos, allowRecalc, "has a truncated header"); // Paper - rewrite chunk system // Kindling - say what is wrong with the chunk
+         }
+ 
+         int length = buffer.getInt();
+         byte versionId = buffer.get();
+         if (length == 0) {
+             LOGGER.warn("Chunk {} in {} is allocated, but stream is missing", pos, this.path.toAbsolutePath()); // Paper - rewrite chunk system
+-            return this.recalculateAndRetry(pos, allowRecalc); // Paper - rewrite chunk system
++            return this.recalculateAndRetry(pos, allowRecalc, "is allocated, but its stream is missing"); // Paper - rewrite chunk system // Kindling - say what is wrong with the chunk
+         }
+ 
+         int streamLength = length - 1;
+@@ -618,20 +625,25 @@ public class RegionFile implements AutoCloseable, ca.spottedleaf.moonrise.patche
+ 
+             // Paper start - rewrite chunk system
+             final DataInputStream ret = this.createExternalChunkInputStream(pos, getExternalChunkVersion(versionId));
+-            return ret != null ? ret : this.recalculateAndRetry(pos, allowRecalc);
++            return ret != null ? ret : this.recalculateAndRetry(pos, allowRecalc, "has an external stream that cannot be read"); // Kindling - say what is wrong with the chunk
+             // Paper end - rewrite chunk system
+         } else if (streamLength > buffer.remaining()) {
+             LOGGER.error("Chunk {} in {} stream is truncated: expected {} but read {}", pos, this.path.toAbsolutePath(), streamLength, buffer.remaining()); // Paper - rewrite chunk system
+-            return this.recalculateAndRetry(pos, allowRecalc); // Paper - rewrite chunk system
++            return this.recalculateAndRetry(pos, allowRecalc, "has a truncated stream"); // Paper - rewrite chunk system // Kindling - say what is wrong with the chunk
+         } else if (streamLength < 0) {
+             LOGGER.error("Declared size {} of chunk {} in {} is negative", length, pos, this.path.toAbsolutePath()); // Paper - rewrite chunk system
+-            return this.recalculateAndRetry(pos, allowRecalc); // Paper - rewrite chunk system
++            return this.recalculateAndRetry(pos, allowRecalc, "declares a negative size"); // Paper - rewrite chunk system // Kindling - say what is wrong with the chunk
+         } else {
+             JvmProfiler.INSTANCE.onRegionFileRead(this.info, pos, this.version, streamLength);
+             // Paper start - rewrite chunk system
+             final DataInputStream ret = this.createChunkInputStream(pos, versionId, createStream(buffer, streamLength));
+             // do not recalculate for custom compression, as the data is likely valid but unsupported
+-            return ret != null || versionId == RegionFileVersion.VERSION_CUSTOM.getId() ? ret : this.recalculateAndRetry(pos, allowRecalc);
++            // Kindling start - a custom compression is not recalculated, so keep a copy of the chunk when it cannot be read
++            if (ret == null && versionId == RegionFileVersion.VERSION_CUSTOM.getId()) {
++                this.keepUnreadableSectors(pos, offset, "uses a custom compression that is not recognised");
++            }
++            // Kindling end - a custom compression is not recalculated, so keep a copy of the chunk when it cannot be read
++            return ret != null || versionId == RegionFileVersion.VERSION_CUSTOM.getId() ? ret : this.recalculateAndRetry(pos, allowRecalc, "has an unknown compression"); // Kindling - say what is wrong with the chunk
+             // Paper end - rewrite chunk system
+         }
+     }
+@@ -639,12 +651,16 @@ public class RegionFile implements AutoCloseable, ca.spottedleaf.moonrise.patche
+     // Kindling start - raw chunk bytes for the unreadable chunk quarantine
+     // the chunk as stored: its five header bytes and stream, followed by the content of its file when it is external
+     public synchronized byte[] readRawChunk(final ChunkPos pos, final long maxBytes) throws IOException {
+-        final byte[] record = this.readStoredRecord(pos, maxBytes);
+-        if (!isExternalStreamChunk(record[4])) {
++        return this.withExternalFile(pos, this.readStoredRecord(pos, maxBytes), maxBytes);
++    }
++
++    // the record, followed by the content of the file of the chunk when the record points to one
++    private byte[] withExternalFile(final ChunkPos pos, final byte[] record, final long maxBytes) throws IOException {
++        final Path externalFile = this.getExternalChunkPath(pos);
++        if (record.length < CHUNK_HEADER_SIZE || !isExternalStreamChunk(record[4]) || !Files.isRegularFile(externalFile)) {
+             return record;
+         }
+ 
+-        final Path externalFile = this.getExternalChunkPath(pos);
+         final long externalSize = Files.size(externalFile);
+         if (record.length + externalSize > maxBytes) {
+             throw new net.kindlingmc.chunk.ChunkQuarantine.OverCapException("External chunk file " + externalFile + " is larger than the " + maxBytes + " bytes allowed");
+@@ -678,6 +694,45 @@ public class RegionFile implements AutoCloseable, ca.spottedleaf.moonrise.patche
+         }
+         return record.array();
+     }
++
++    // keeps what the header stored for the chunk, which is not what the header says once it has been recalculated
++    private void keepUnreadableSectors(final ChunkPos pos, final int storedOffset, final String problem) {
++        if (!ca.spottedleaf.moonrise.patches.chunk_system.storage.RegionFileRecovery.isChunkStorage(this.info)) {
++            return;
++        }
++
++        try {
++            final IOException cause = new IOException("Chunk " + pos + " in " + this.path.toAbsolutePath() + " " + problem);
++            net.kindlingmc.chunk.ChunkQuarantine.forRegionFolder(this.info.level(), this.info.dimension().identifier().toString(), this.path.getParent())
++                .keep(pos.x(), pos.z(), maxBytes -> this.readStoredSectors(pos, storedOffset, maxBytes), cause);
++        } catch (final RuntimeException ex) { // the caller reports the chunk as unreadable either way
++            LOGGER.warn("No copy of the unreadable chunk {} in {} could be kept: {}", pos, this.path.toAbsolutePath(), ex.toString());
++        }
++    }
++
++    // every byte of the sectors that the header allotted to the chunk and the file still holds, none when it holds none
++    private byte[] readStoredSectors(final ChunkPos pos, final int storedOffset, final long maxBytes) throws IOException {
++        final long sector = getSectorNumber(storedOffset);
++        final long start = sector * 4096L;
++        long sectors = getNumSectors(storedOffset);
++        if (sectors == MAX_INTERNAL_SECTORS) {
++            sectors = roundToSectors(this.readLength(sector) + 4L);
++        }
++
++        final long size = Math.min(sectors * 4096L, this.file.size() - start);
++        if (size <= 0) {
++            return new byte[0];
++        }
++        if (size > maxBytes) {
++            throw new net.kindlingmc.chunk.ChunkQuarantine.OverCapException("Chunk " + pos + " in " + this.path.toAbsolutePath() + " is larger than the " + maxBytes + " bytes allowed");
++        }
++
++        final ByteBuffer stored = ByteBuffer.allocate((int) size);
++        if (size != this.readFully(stored, start)) {
++            throw new IOException("Unexpected end of file reading chunk " + pos + " in " + this.path.toAbsolutePath());
++        }
++        return this.withExternalFile(pos, stored.array(), maxBytes);
++    }
+     // Kindling end - raw chunk bytes for the unreadable chunk quarantine
+ 
+     private static int getTimestamp() {

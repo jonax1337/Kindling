@@ -4,7 +4,12 @@ import java.io.IOException;
 import java.nio.channels.ClosedChannelException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.util.Optional;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -12,6 +17,7 @@ import org.junit.jupiter.api.io.TempDir;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTimeoutPreemptively;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ChunkQuarantineTest {
@@ -119,16 +125,86 @@ class ChunkQuarantineTest {
     }
 
     @Test
-    void aChunkLargerThanWhatIsLeftFillsTheFolderAndTheNextOnesAreNotRead() {
+    void aChunkLargerThanWhatIsLeftDoesNotKeepSmallerOnesFromBeingCopied() {
         final ChunkQuarantine quarantine = quarantine(ROOMY);
-        final AtomicInteger reads = new AtomicInteger();
 
         assertTrue(quarantine.keep(0, 0, maxBytes -> {
             throw new ChunkQuarantine.OverCapException("larger than " + maxBytes);
         }, CAUSE).isEmpty());
-        assertTrue(quarantine.keep(1, 0, maxBytes -> read(reads), CAUSE).isEmpty());
 
-        assertEquals(0, reads.get());
+        assertTrue(quarantine.keep(1, 0, maxBytes -> BYTES, CAUSE).isPresent());
+    }
+
+    @Test
+    void aChunkThatDoesNotFitIsNotOfferedAgain() {
+        final ChunkQuarantine quarantine = quarantine(ROOMY);
+        final AtomicInteger reads = new AtomicInteger();
+
+        quarantine.keep(0, 0, maxBytes -> {
+            reads.incrementAndGet();
+            throw new ChunkQuarantine.OverCapException("larger than " + maxBytes);
+        }, CAUSE);
+        quarantine.keep(0, 0, maxBytes -> read(reads), CAUSE);
+
+        assertEquals(1, reads.get());
+    }
+
+    @Test
+    void storedBytesThatGrewBeyondWhatIsLeftAreRefusedWithoutAFile() {
+        final ChunkQuarantine quarantine = quarantine(10);
+
+        assertTrue(quarantine.keep(0, 0, maxBytes -> new byte[11], CAUSE).isEmpty());
+
+        assertFalse(Files.exists(this.root.resolve("r.0.0")));
+        assertTrue(quarantine.keep(1, 0, maxBytes -> BYTES, CAUSE).isPresent());
+    }
+
+    @Test
+    void aCopyThatFailedWithAnIoExceptionIsTriedAgainTheNextTimeTheChunkIsRead() {
+        final ChunkQuarantine quarantine = quarantine(ROOMY);
+
+        assertTrue(quarantine.keep(5, 5, maxBytes -> {
+            throw new IOException("disk hiccup");
+        }, CAUSE).isEmpty());
+
+        assertTrue(quarantine.keep(5, 5, maxBytes -> BYTES, CAUSE).isPresent());
+    }
+
+    @Test
+    void aCopyThatFailedWithAnUncheckedExceptionIsNotTriedAgain() {
+        final ChunkQuarantine quarantine = quarantine(ROOMY);
+
+        quarantine.keep(5, 5, maxBytes -> {
+            throw new IllegalStateException("boom");
+        }, CAUSE);
+
+        assertTrue(quarantine.keep(5, 5, maxBytes -> BYTES, CAUSE).isEmpty());
+    }
+
+    @Test
+    void noStoredBytesLeaveNoFile() {
+        final ChunkQuarantine quarantine = quarantine(ROOMY);
+
+        assertTrue(quarantine.keep(6, 6, maxBytes -> new byte[0], CAUSE).isEmpty());
+
+        assertFalse(Files.exists(this.root.resolve("r.0.0")));
+    }
+
+    @Test
+    void theStoredBytesAreReadWithoutHoldingUpOtherChunks() {
+        final ChunkQuarantine quarantine = quarantine(ROOMY);
+        final CountDownLatch otherChunkKept = new CountDownLatch(1);
+        final ExecutorService executor = Executors.newSingleThreadExecutor();
+        try {
+            final Future<Optional<Path>> slow = executor.submit(() -> quarantine.keep(0, 0, maxBytes -> bytesOnceReleased(otherChunkKept), CAUSE));
+
+            assertTimeoutPreemptively(Duration.ofSeconds(10), () -> quarantine.keep(1, 0, maxBytes -> BYTES, CAUSE));
+            otherChunkKept.countDown();
+
+            assertTimeoutPreemptively(Duration.ofSeconds(10), () -> assertTrue(slow.get().isPresent()));
+        } finally {
+            executor.shutdownNow();
+        }
     }
 
     @Test
@@ -172,6 +248,15 @@ class ChunkQuarantineTest {
 
     private ChunkQuarantine quarantine(final long capBytes) {
         return new ChunkQuarantine(this.root, "world/minecraft:overworld", capBytes);
+    }
+
+    private static byte[] bytesOnceReleased(final CountDownLatch release) throws IOException {
+        try {
+            release.await();
+        } catch (final InterruptedException ex) {
+            throw new IOException(ex);
+        }
+        return BYTES;
     }
 
     private static byte[] read(final AtomicInteger reads) {
