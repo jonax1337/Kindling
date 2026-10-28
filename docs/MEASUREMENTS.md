@@ -437,6 +437,8 @@ Functional checks of the pregenerator's safety changes (the list is under [Prege
 
 ## Client-paced chunk sending
 
+The setting was taken out again after this measurement, because it gave no gain ([ROADMAP](ROADMAP.md#reviewed-and-dropped)); the results stay here as the reason.
+
 `performance.client-paced-chunk-sending` sends the chunks a player gets in one tick as one vanilla batch, and the number per tick follows the client's answers (Paper's fixed rate still applies on top unless it is set to -1). Bench host, `chunk-acks` makes the bench's fake players answer batches like a client that takes that many chunks per tick: 32 is a fast client, 2 a slow one, 0 one that never answers. 8 players, 3 GB heap, tail shortened to 30 s standing and 10 s idle; 3 runs per variant, interleaved.
 
 The default mixed scenario generates its world fresh, so generation (join about 43 s) is the bottleneck and off against on is identical there (fast clients: join 42.7 ±0.5 against 44.0 ±0.5 s, p = 0.055, chunk packets and lead equal). The meaningful test ran on a world pregenerated from a previous run (273 MB), where chunks load from disk and the sending shows:
@@ -484,7 +486,7 @@ Since 26.x, Minecraft decodes every palette entry of a saved chunk section (a bl
 
 ## Copies of unreadable chunks
 
-Patch `0329` copies the stored bytes of a chunk that cannot be decompressed, read as NBT, or upgraded and parsed to `<world>/kindling-quarantine/` before the existing handling continues. Functional check on the bench host with a copy of a small generated world, one run per case, the build with the patch against the one before it:
+Patch `0328` copies the stored bytes of a chunk that cannot be decompressed, read as NBT, or upgraded and parsed to `<world>/kindling-quarantine/` before the existing handling continues. Functional check on the bench host with a copy of a small generated world, one run per case, the build with the patch against the one before it:
 
 | Case | Result |
 | --- | --- |

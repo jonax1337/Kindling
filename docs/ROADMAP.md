@@ -43,9 +43,8 @@ From the deep analysis of 2026-10-27. Numbers and method: [MEASUREMENTS.md](MEAS
 | Pregenerator hardening and disk guard (`0327`, Paper `0072`) | Bounded tick work, border-aware radius, failures contained, worlds that unload and return, background state file, exact index at shutdown, pause when the disk would run out, validated `/pregen start`; functional checks passed |
 | Doctor corrected, live host diagnostics | The numbers behind each piece of advice cite their source; the `LIVE` section agrees with `/proc` on the bench host and on the VPS |
 | Worker priority (`performance.worker-priority`, Paper `0073`) and the pregenerator's wait throttle | Opt-in, off by default; main-thread wait halves on the bench host; the throttle is off by default because it stops pregeneration during a flight |
-| Client-paced chunk sending (`0328`) | Opt-in, off by default; the bench shows no gain for fast clients |
 | Idle memory return | Opt-in, off by default; about 1.45 GiB less resident memory with nobody online at `-Xms512M -Xmx2G` |
-| Copies of unreadable chunks (`0329`) | Verified with damaged region files |
+| Copies of unreadable chunks (`0328`) | Verified with damaged region files |
 
 ## Not done, on purpose
 
@@ -107,5 +106,6 @@ Recorded so they are not proposed again without new facts. Scores from the 2026-
 | Lag spike recorder, `/kindling hotspots`, metrics endpoint | 6.5 / 6.0 / 5.0 | spark and exporter plugins already cover them; hotspots needs hooks in hot, heavily patched tick loops |
 | AOT from the jar, profiles, join prefetch | 6.0 / 5.0 / 4.0 | a documented start command covers AOT; profiles write keys across six config systems; join prefetch is unmeasured and collides with Leaf |
 | Lithium framed maps, inactive navigations | — | Framed maps: Lithium's mixin no longer prunes removed players and no longer removes the cursors of players with a map invisibility item when a framed map ticks, and 26.3 already skips the inventory scan it targets, so only the player name is built lazily. Inactive navigations: needs hooks wherever a mob's navigation or vehicle changes, next to Kindling's async path code, in the hot `ServerLevel.sendBlockUpdated`; identical behaviour cannot be shown |
+| Client-paced chunk sending (built as `0328`, taken out again) | — | measured on the bench host: fast clients got their full view no sooner, slow clients took twice as long to join, clients that never answer 4.9 s longer, and no tick time gain ([MEASUREMENTS](MEASUREMENTS.md#client-paced-chunk-sending)) |
 | Sakura explosions | 2.0 | no TNT-heavy server to measure or justify it |
 | Slime world format | — | very large port, own world format; networks that need it use AdvancedSlimePaper |

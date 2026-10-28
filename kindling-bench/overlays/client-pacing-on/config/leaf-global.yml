@@ -1,4 +1,0 @@
-performance:
-  client-paced-chunk-sending:
-    enabled: true
-    max-chunks-per-tick: 32

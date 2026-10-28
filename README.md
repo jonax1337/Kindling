@@ -156,17 +156,6 @@ performance:
 
 It only reorders the queue: which chunks get loaded does not change, only the order.
 
-### Client-paced chunk sending
-
-```yaml
-performance:
-  client-paced-chunk-sending:
-    enabled: false            # true: pace each player's chunks by the client's answers, as vanilla does
-    max-chunks-per-tick: 32   # 1 to 64, the most a fast client gets per tick
-```
-
-Paper's chunk system sends every player its chunks at a fixed rate (`chunk-loading-basic.player-max-chunk-send-rate`) and never asks the client how fast it can take them: a slow client collects megabytes in its send buffer, with keep-alive and movement packets queued behind the chunks, and a fast client never gets more than the fixed rate. With `enabled`, the chunks a player gets in one tick go out as one vanilla chunk batch, and the number per tick follows vanilla's own rules: the client answers each batch with the rate it can take (vanilla starts at 9 chunks per tick and allows 0.01 to 64), and the server waits while ten batches are unanswered (one before the client's first answer). Paper's send rate still applies on top if it is above 0 (its default is 75 chunks per second); set it to -1 to let the client's rate decide. A client that does not answer its first batch within 3 seconds (an old, modded or fake client) gets the fixed rate until it answers. Which chunks are sent, in which order, and unloading do not change; plugins that watch packets see vanilla's batch packets around the chunks. Measured on the bench host (3 runs each, fake clients that answer fast, slowly or never): it gives a fast client its view no sooner (the join is bounded by loading chunks), it doubles a slow client's join time (6.3 → 12.9 s) for about 4 % fewer chunk packets and no measurable tick relief, and a client that never answers waits about 5 s longer at the join. So it stays off; real clients and ViaVersion clients were not tried ([details](docs/MEASUREMENTS.md#client-paced-chunk-sending)).
-
 ### Idle memory
 
 ```yaml
