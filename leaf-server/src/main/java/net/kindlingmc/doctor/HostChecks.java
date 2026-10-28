@@ -11,6 +11,12 @@ final class HostChecks {
     /** The first samples say little: a check needs this much of the last minute. */
     private static final long MIN_COVERED_SECONDS = 10;
     private static final double MAIN_THREAD_WAIT_WARNING = 0.10;
+    /**
+     * Below this the waits are wake-up latency of a thread with little to do, a few microseconds each on a virtual
+     * machine, not CPUs taken by others: a nearly idle server on the VPS waited 11 to 14 % of its time but about
+     * 3 ms per second, a loaded bench host 25 to 50 ms per second.
+     */
+    private static final double MAIN_THREAD_WAIT_MILLIS_PER_SECOND_WARNING = 20;
     private static final double STEAL_WARNING = 0.05;
     private static final double THROTTLED_PERIODS_WARNING = 0.01;
     private static final double SMALL_SHARE_PERCENT = 10;
@@ -25,10 +31,17 @@ final class HostChecks {
         if (share.isEmpty()) {
             return Optional.empty();
         }
+        final double millisPerSecond = live.lastMinute().mainThreadWaitMillisPerSecond().orElse(0);
         final String measured = "Main thread waited for a CPU " + percent(share.getAsDouble()) + " of the time it had work to do in the last "
-            + span(live.lastMinute()) + trend(live, HostLoad::mainThreadWaitShare);
+            + span(live.lastMinute()) + trend(live, HostLoad::mainThreadWaitShare)
+            + String.format(Locale.ROOT, ", %.1f ms per second", millisPerSecond);
         if (share.getAsDouble() <= MAIN_THREAD_WAIT_WARNING) {
             return Optional.of(Finding.note(measured + ": CPU contention is not what slows it down", Basis.LIVE_READING));
+        }
+        if (millisPerSecond < MAIN_THREAD_WAIT_MILLIS_PER_SECOND_WARNING) {
+            return Optional.of(Finding.note(
+                measured + ": a thread with little to do waits a few microseconds each time it wakes up, as on virtual machines, so this is not contention either",
+                Basis.LIVE_READING));
         }
         return Optional.of(Finding.warn(
             measured + ": other threads or processes on this machine compete with it",

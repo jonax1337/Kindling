@@ -20,6 +20,14 @@ record HostLoad(long coveredNanos, HostCounters growth) {
         return this.growth.mainThread().map(SchedTime::waitShare).orElse(OptionalDouble.empty());
     }
 
+    /** How long the main thread waited for a CPU per second of the window, in milliseconds. */
+    OptionalDouble mainThreadWaitMillisPerSecond() {
+        if (this.coveredNanos <= 0) {
+            return OptionalDouble.empty();
+        }
+        return this.growth.mainThread().map(time -> OptionalDouble.of(time.waitNanos() * 1000.0 / this.coveredNanos)).orElse(OptionalDouble.empty());
+    }
+
     OptionalDouble chunkWorkerWaitShare() {
         return this.growth.chunkWorkers().map(SchedTime::waitShare).orElse(OptionalDouble.empty());
     }

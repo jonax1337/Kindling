@@ -66,12 +66,23 @@ class HostChecksTest {
 
     @Test
     void aMainThreadThatWaitsMoreThanTenPercentSaysOtherThreadsCompete() {
-        final Finding finding = HostChecks.mainThreadWait(loads(mainThread(880, 120), mainThread(950, 50))).orElseThrow();
+        final Finding finding = HostChecks.mainThreadWait(loads(mainThread(44_000, 6_000), mainThread(950, 50))).orElseThrow();
 
         assertEquals(Severity.WARN, finding.severity());
         assertTrue(finding.what().startsWith("Main thread waited for a CPU 12 % of the time it had work to do in the last 60 s"), finding.what());
+        assertTrue(finding.what().contains("100.0 ms per second"), finding.what());
         assertTrue(finding.what().contains("other threads or processes on this machine compete with it"), finding.what());
         assertTrue(finding.fix().contains("CPUs of its own"), finding.fix());
+    }
+
+    @Test
+    void aHighShareOfLittleWaitingIsWakeUpLatencyNotContention() {
+        final Finding finding = HostChecks.mainThreadWait(loads(mainThread(880, 120), mainThread(950, 50))).orElseThrow();
+
+        assertEquals(Severity.INFO, finding.severity());
+        assertTrue(finding.what().contains("12 %"), finding.what());
+        assertTrue(finding.what().contains("2.0 ms per second"), finding.what());
+        assertTrue(finding.what().contains("not contention either"), finding.what());
     }
 
     @Test
