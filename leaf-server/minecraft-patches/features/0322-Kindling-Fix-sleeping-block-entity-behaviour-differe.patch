@@ -82,7 +82,7 @@ index 5dbd3bed341e28c0f7b2087c06d9abc54bf93529..f3e2c1ab83e9605566206d6cf68b3bab
              }
              entity.fuel = event.getFuelPower();
 diff --git a/net/minecraft/world/level/block/entity/HopperBlockEntity.java b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
-index 612273553c3ec334ffbdb9ef09c52fecfc107b6b..289795b0661547448631579de68f934386a9f1cd 100644
+index 612273553c3ec334ffbdb9ef09c52fecfc107b6b..fd7bc0b51c4484c7c54ec353f902607bf12c52b8 100644
 --- a/net/minecraft/world/level/block/entity/HopperBlockEntity.java
 +++ b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
 @@ -211,7 +211,8 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
@@ -122,13 +122,36 @@ index 612273553c3ec334ffbdb9ef09c52fecfc107b6b..289795b0661547448631579de68f9343
                  if (this.tickedGameTime == Long.MAX_VALUE) {
                      this.sleepOnlyCurrentTick();
                  } else {
-@@ -937,11 +938,37 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+@@ -908,6 +909,8 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+     private net.caffeinemc.mods.lithium.common.hopper.@Nullable LithiumStackList insertStackList, extractStackList;
+     //Mod count used to avoid transfer attempts that are known to fail (no change since last attempt)
+     private long insertStackListModCount, extractStackListModCount;
++    private boolean extractFailedOnTakeableItem; // Kindling - Fix sleeping block entity behaviour differences: the last failed extraction left an item Paper's pull would cool down on
++    private boolean insertTargetFull; // Kindling - Fix sleeping block entity behaviour differences: Paper's isFullContainer for the cached destination at the last failed push
+ 
+     private net.caffeinemc.mods.lithium.common.tracking.entity.@Nullable SectionedItemEntityMovementTracker<ItemEntity> collectItemEntityTracker;
+     private boolean collectItemEntityTrackerWasEmpty;
+@@ -937,11 +940,51 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
          return io.papermc.paper.event.inventory.PrepareHopperTransferEvent.getHandlerList().getRegisteredListeners().length != 0;
      }
      // Kindling end - Keep hoppers asking while plugins hold transfers back
 +    // Kindling start - Fix sleeping block entity behaviour differences
 +    private static boolean lithiumTransferMatchesPaper(final Level level) {
 +        return net.kindlingmc.sleeping.SleepingHopperRules.lithiumTransferMatchesPaper(skipHopperEvents, level.spigotConfig.hopperAmount);
++    }
++
++    /** As Paper's push: a hopper that found items but moved none into a container that is not full waits a transfer cooldown. */
++    private static void cooldownAfterFailedPush(final Level level, final HopperBlockEntity hopper, final boolean destinationFull) {
++        if (level.paperConfig().hopper.cooldownWhenFull && !destinationFull) {
++            hopper.setCooldown(level.spigotConfig.hopperTransfer);
++        }
++    }
++
++    /** As Paper's pull: a hopper that could take an item that then did not fit waits a transfer cooldown. */
++    private static void cooldownAfterFailedPull(final Level level, final HopperBlockEntity hopper, final boolean failedOnTakeableItem) {
++        if (failedOnTakeableItem && level.paperConfig().hopper.cooldownWhenFull) {
++            applyCooldown(hopper);
++        }
 +    }
 +
 +    /**
@@ -161,7 +184,7 @@ index 612273553c3ec334ffbdb9ef09c52fecfc107b6b..289795b0661547448631579de68f9343
          if (isSleeping()) {
              return;
          }
-@@ -1237,7 +1264,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+@@ -1237,7 +1280,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
              org.bukkit.craftbukkit.block.CraftBlock.at(world, extractBlockPos),
              org.bukkit.event.inventory.HopperInventorySearchEvent.ContainerType.SOURCE
          );
@@ -170,7 +193,7 @@ index 612273553c3ec334ffbdb9ef09c52fecfc107b6b..289795b0661547448631579de68f9343
          return searched;
          // Kindling end - Keep hoppers asking while plugins hold transfers back
      }
-@@ -1330,7 +1357,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+@@ -1330,7 +1373,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
              org.bukkit.craftbukkit.block.CraftBlock.at(world, this.getBlockPos().relative(this.facing)),
              org.bukkit.event.inventory.HopperInventorySearchEvent.ContainerType.DESTINATION
          );
@@ -179,7 +202,25 @@ index 612273553c3ec334ffbdb9ef09c52fecfc107b6b..289795b0661547448631579de68f9343
          return searched;
          // Kindling end - Keep hoppers asking while plugins hold transfers back
      }
-@@ -1573,7 +1600,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+@@ -1559,21 +1602,22 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+         if (hopperBlockEntity.insertInventory == insertInventory && hopperStackList.getModCount() == hopperBlockEntity.myModCountAtLastInsert) {
+             if (hopperBlockEntity.insertStackList != null && hopperBlockEntity.insertStackList.getModCount() == hopperBlockEntity.insertStackListModCount) {
+ //                ComparatorUpdatePattern.NO_UPDATE.apply(hopperBlockEntity, hopperStackList); //commented because it's a noop, Hoppers do not send useless comparator updates
++                cooldownAfterFailedPush(world, hopperBlockEntity, hopperBlockEntity.insertTargetFull); // Kindling - Fix sleeping block entity behaviour differences: Paper's hopper.cooldown-when-full
+                 return false;
+             }
+         }
+ 
++        final boolean cachedTarget = hopperBlockEntity.insertInventory == insertInventory && hopperBlockEntity.insertStackList != null; // Kindling - Fix sleeping block entity behaviour differences: a destination a plugin redirected to has no cached stack list
+         boolean insertInventoryWasEmptyHopperNotDisabled = insertInventory instanceof HopperBlockEntity hopperInv &&
+-            !hopperInv.isOnCustomCooldown() && hopperBlockEntity.insertStackList != null &&
+-            hopperBlockEntity.insertStackList.getOccupiedSlots() == 0;
++            !hopperInv.isOnCustomCooldown() && (cachedTarget ? hopperBlockEntity.insertStackList.getOccupiedSlots() == 0 : insertInventory.isEmpty()); // Kindling - Fix sleeping block entity behaviour differences: a destination a plugin redirected to has no cached stack list
+ 
+         boolean insertInventoryHandlesModdedCooldown =
+             insertInventory.canReceiveTransferCooldown() &&
+-                hopperBlockEntity.insertStackList != null ?
++                cachedTarget ? // Kindling - Fix sleeping block entity behaviour differences: a destination a plugin redirected to has no cached stack list
                  hopperBlockEntity.insertStackList.getOccupiedSlots() == 0 :
                  insertInventory.isEmpty();
  
@@ -188,7 +229,7 @@ index 612273553c3ec334ffbdb9ef09c52fecfc107b6b..289795b0661547448631579de68f9343
          //noinspection ConstantConditions
          if (!(hopperBlockEntity.insertInventory == insertInventory && hopperBlockEntity.insertStackList.getFullSlots() == hopperBlockEntity.insertStackList.size())) {
              Direction fromDirection = hopperBlockEntity.facing.getOpposite();
-@@ -1581,24 +1608,14 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+@@ -1581,24 +1625,14 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
              for (int i = 0; i < size; ++i) {
                  ItemStack transferStack = hopperStackList.get(i);
                  if (!transferStack.isEmpty()) {
@@ -217,7 +258,35 @@ index 612273553c3ec334ffbdb9ef09c52fecfc107b6b..289795b0661547448631579de68f9343
                          }
                          if (insertInventoryHandlesModdedCooldown) {
                              insertInventory.setTransferCooldown(hopperBlockEntity.tickedGameTime);
-@@ -1646,12 +1663,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+@@ -1609,12 +1643,15 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+                 }
+             }
+         }
++        final boolean destinationFull = isFullContainer(insertInventory, hopperBlockEntity.facing.getOpposite()); // Kindling - Fix sleeping block entity behaviour differences: Paper's hopper.cooldown-when-full
+         if (insertInventory == hopperBlockEntity.insertInventory) { // Kindling - Keep hoppers asking while plugins hold transfers back: a failed push into an inventory a plugin redirected to says nothing about the cached destination
+         hopperBlockEntity.myModCountAtLastInsert = hopperStackList.getModCount();
+         if (hopperBlockEntity.insertStackList != null) {
+             hopperBlockEntity.insertStackListModCount = hopperBlockEntity.insertStackList.getModCount();
+         }
++        hopperBlockEntity.insertTargetFull = destinationFull; // Kindling - Fix sleeping block entity behaviour differences: Paper's hopper.cooldown-when-full
+         } // Kindling - Keep hoppers asking while plugins hold transfers back
++        cooldownAfterFailedPush(world, hopperBlockEntity, destinationFull); // Kindling - Fix sleeping block entity behaviour differences: Paper's hopper.cooldown-when-full
+         return false;
+     }
+ 
+@@ -1636,22 +1673,19 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+                     //noinspection CollectionAddedToSelf
+                     fromStackList.runComparatorUpdatePatternOnFailedExtract(fromStackList, from);
+                 }
++                cooldownAfterFailedPull(world, hopperBlockEntity, hopperBlockEntity.extractFailedOnTakeableItem); // Kindling - Fix sleeping block entity behaviour differences: Paper's hopper.cooldown-when-full
+                 return false;
+             }
+         }
+ 
+         int[] availableSlots = from instanceof WorldlyContainer ? ((WorldlyContainer) from).getSlotsForFace(Direction.DOWN) : null;
+         int fromSize = availableSlots != null ? availableSlots.length : from.getContainerSize();
++        boolean failedOnTakeableItem = false; // Kindling - Fix sleeping block entity behaviour differences: Paper's hopper.cooldown-when-full
+         for (int i = 0; i < fromSize; i++) {
              int fromSlot = availableSlots != null ? availableSlots[i] : i;
              ItemStack itemStack = fromStackList.get(fromSlot);
              if (!itemStack.isEmpty() && canTakeItemFromContainer(to, from, itemStack, fromSlot, Direction.DOWN)) {
@@ -231,3 +300,21 @@ index 612273553c3ec334ffbdb9ef09c52fecfc107b6b..289795b0661547448631579de68f9343
                  //calling removeStack is necessary due to its side effects (markDirty in LootableContainerBlockEntity)
                  ItemStack takenItem = from.removeItem(fromSlot, 1);
                  assert !takenItem.isEmpty();
+@@ -1670,12 +1704,17 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+                 }
+                 //calling setStack is necessary due to its side effects (markDirty in LootableContainerBlockEntity)
+                 from.setItem(fromSlot, restoredStack);
++                failedOnTakeableItem = true; // Kindling - Fix sleeping block entity behaviour differences: Paper's hopper.cooldown-when-full
+             }
+         }
+         hopperBlockEntity.myModCountAtLastExtract = hopperStackList.getModCount();
+         if (fromStackList != null) {
+             hopperBlockEntity.extractStackListModCount = fromStackList.getModCount();
+         }
++        // Kindling start - Fix sleeping block entity behaviour differences: Paper's hopper.cooldown-when-full
++        hopperBlockEntity.extractFailedOnTakeableItem = failedOnTakeableItem;
++        cooldownAfterFailedPull(world, hopperBlockEntity, failedOnTakeableItem);
++        // Kindling end - Fix sleeping block entity behaviour differences
+         return false;
+     }
+     // Leaves end - Lithium Sleeping Block Entity
