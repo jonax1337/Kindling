@@ -38,4 +38,20 @@ class ChunkWorkersTest {
             assertTrue(workers >= 1 && workers >= cores / 4, cores + " cores gave " + workers);
         }
     }
+
+    @Test
+    void papersDefaultIsPapersHalfOfHalfTheCores() {
+        for (int cores = 1; cores <= 256; cores++) {
+            assertEquals(papersFormula(cores), ChunkWorkers.paperDefaultFor(cores), cores + " cores");
+        }
+    }
+
+    /** MoonriseCommon.adjustWorkerThreads before Kindling changed the default. */
+    private static int papersFormula(final int cores) {
+        final int half = cores / 2;
+        if (half <= 4) {
+            return half <= 3 ? 1 : 2;
+        }
+        return half / 2;
+    }
 }

@@ -30,7 +30,7 @@ class FactsCollectorsTest {
     void checkingTheRealMachineNeverThrows() {
         final DoctorFacts facts = new DoctorFacts(
             MachineFactsCollector.collect(), JvmFactsCollector.collect(), new Scenario().server(), Optional.empty(), HostLoads.NONE,
-            new Scenario().workerPriority);
+            new Scenario().workerPriority, new Scenario().workerGovernor);
 
         assertTrue(Doctor.examine(facts).size() >= 5);
     }

@@ -9,5 +9,5 @@ import java.util.Optional;
  * @param live       what the host monitor measured; empty loads when it is not running
  */
 public record DoctorFacts(MachineFacts machine, JvmFacts jvm, ServerSettings server, Optional<DiskSpace> worldDisk, HostLoads live,
-                          WorkerPriorityFacts workerPriority) {
+                          WorkerPriorityFacts workerPriority, WorkerGovernorFacts workerGovernor) {
 }

@@ -42,6 +42,7 @@ final class Scenario {
     Optional<DiskSpace> worldDisk = Optional.empty();
     HostLoads live = HostLoads.NONE;
     WorkerPriorityFacts workerPriority = new WorkerPriorityFacts(false, 10, OptionalInt.empty());
+    WorkerGovernorFacts workerGovernor = new WorkerGovernorFacts(false, Optional.empty());
 
     MachineFacts machine() {
         return new MachineFacts(processors, cgroupCpuLimit, memoryBytes, glibc, mallocArenaMax, preloadedLibraries, transparentHugePages);
@@ -58,7 +59,7 @@ final class Scenario {
     }
 
     DoctorFacts facts() {
-        return new DoctorFacts(machine(), jvm(), server(), worldDisk, live, workerPriority);
+        return new DoctorFacts(machine(), jvm(), server(), worldDisk, live, workerPriority, workerGovernor);
     }
 
     static void assertSeverity(final Severity expected, final Optional<Finding> finding) {

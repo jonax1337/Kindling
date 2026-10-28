@@ -6,6 +6,7 @@ import java.util.OptionalDouble;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import net.kindlingmc.chunk.WorkerPoolGovernor;
 import net.minecraft.server.MinecraftServer;
 import org.dreeam.leaf.config.modules.opt.StartupDoctor;
 import org.slf4j.Logger;
@@ -14,7 +15,8 @@ import org.slf4j.Logger;
  * Tells whether lag comes from this server or from the machine under it. Every few seconds a daemon thread reads how
  * long the main thread and the chunk workers waited for a CPU, how much CPU time the hypervisor took (steal) and
  * whether a container limit throttled the server (Linux only; elsewhere nothing is sampled). {@code /kindling doctor}
- * reports the result over the last minute and the last 15 minutes.
+ * reports the result over the last minute and the last 15 minutes. After every sample the worker governor
+ * ({@code performance.worker-governor}) may change the chunk worker count.
  */
 public final class HostMonitor {
 
@@ -29,6 +31,7 @@ public final class HostMonitor {
     private final HostReader reader;
     private final HostHistory history = new HostHistory(SAMPLE_INTERVAL_NANOS);
     private final ScheduledExecutorService sampler = Executors.newSingleThreadScheduledExecutor(HostMonitor::daemonThread);
+    private final WorkerPoolGovernor governor = new WorkerPoolGovernor(SAMPLE_INTERVAL_SECONDS);
     /** Only touched by the sampling thread. */
     private HostCounters previousReading;
     private long previousReadingNanos;
@@ -77,6 +80,7 @@ public final class HostMonitor {
             // A diagnostic must never disturb the server.
             LOGGER.warn("Kindling host monitor stopped", e);
             this.sampler.shutdown();
+            this.governor.release();
         }
     }
 
@@ -84,8 +88,10 @@ public final class HostMonitor {
         final long nowNanos = System.nanoTime();
         final HostCounters reading = this.reader.read();
         if (this.previousReading != null) {
-            this.history.add(new HostSample(nowNanos - this.previousReadingNanos, reading.since(this.previousReading)));
+            final HostSample sample = new HostSample(nowNanos - this.previousReadingNanos, reading.since(this.previousReading));
+            this.history.add(sample);
             published = this.history.loads();
+            this.governor.onSample(HostChecks.pressureOf(sample.load()));
         }
         this.previousReading = reading;
         this.previousReadingNanos = nowNanos;

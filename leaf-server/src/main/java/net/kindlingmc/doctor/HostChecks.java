@@ -4,6 +4,7 @@ import java.util.Locale;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.function.Function;
+import net.kindlingmc.chunk.HostPressure;
 
 /** Checks of what the host monitor measured: is the lag this server's, or the machine's? */
 final class HostChecks {
@@ -19,6 +20,8 @@ final class HostChecks {
     private static final double MAIN_THREAD_WAIT_MILLIS_PER_SECOND_WARNING = 20;
     private static final double STEAL_WARNING = 0.05;
     private static final double THROTTLED_PERIODS_WARNING = 0.01;
+    /** A sample is quiet below this part of every warning threshold, so the worker governor does not swing at the threshold. */
+    private static final double QUIET_PART_OF_WARNING = 0.5;
     private static final double SMALL_SHARE_PERCENT = 10;
     private static final long SECONDS_PER_MINUTE = 60;
     private static final long LONGEST_SPAN_IN_SECONDS = 120;
@@ -38,7 +41,7 @@ final class HostChecks {
         if (share.getAsDouble() <= MAIN_THREAD_WAIT_WARNING) {
             return Optional.of(Finding.note(measured + ": CPU contention is not what slows it down", Basis.LIVE_READING));
         }
-        if (millisPerSecond < MAIN_THREAD_WAIT_MILLIS_PER_SECOND_WARNING) {
+        if (!isContention(share.getAsDouble(), millisPerSecond)) {
             return Optional.of(Finding.note(
                 measured + ": a thread with little to do waits a few microseconds each time it wakes up, as on virtual machines, so this is not contention either",
                 Basis.LIVE_READING));
@@ -92,6 +95,35 @@ final class HostChecks {
             measured + ": the server wants more CPU than its container may use, and every stop shows as lag",
             "Raise the container's CPU limit (cpu.max, --cpus) or lower the server's thread counts, and start Java with -XX:ActiveProcessorCount matching the limit",
             Basis.LIVE_READING));
+    }
+
+    /**
+     * How hard the machine pressed on the main thread during one sample, by the thresholds of the checks above: high where
+     * they warn about contention or throttling, low below half of every threshold. Steal above its threshold is never low,
+     * but never high either: more workers would not get that time, fewer would not give it back.
+     */
+    static HostPressure pressureOf(final HostLoad sample) {
+        final OptionalDouble waitShare = sample.mainThreadWaitShare();
+        final OptionalDouble throttledShare = sample.throttledShare();
+        if (waitShare.isEmpty() && throttledShare.isEmpty()) {
+            return HostPressure.UNKNOWN;
+        }
+        final double share = waitShare.orElse(0);
+        final double millisPerSecond = sample.mainThreadWaitMillisPerSecond().orElse(0);
+        final double throttled = throttledShare.orElse(0);
+        if (isContention(share, millisPerSecond) || throttled >= THROTTLED_PERIODS_WARNING) {
+            return HostPressure.HIGH;
+        }
+        final boolean quietMainThread = share <= MAIN_THREAD_WAIT_WARNING * QUIET_PART_OF_WARNING
+            || millisPerSecond < MAIN_THREAD_WAIT_MILLIS_PER_SECOND_WARNING * QUIET_PART_OF_WARNING;
+        final boolean quietHost = throttled < THROTTLED_PERIODS_WARNING * QUIET_PART_OF_WARNING
+            && sample.stealShare().orElse(0) <= STEAL_WARNING;
+        return quietMainThread && quietHost ? HostPressure.LOW : HostPressure.MODERATE;
+    }
+
+    /** Waits that are both a large share of the main thread's time and long enough not to be wake-up latency. */
+    private static boolean isContention(final double waitShare, final double waitMillisPerSecond) {
+        return waitShare > MAIN_THREAD_WAIT_WARNING && waitMillisPerSecond >= MAIN_THREAD_WAIT_MILLIS_PER_SECOND_WARNING;
     }
 
     /** The value over the last minute, once the monitor has seen enough of it to say something. */

@@ -13,6 +13,11 @@ public final class ChunkWorkers {
     }
 
     public static int defaultFor(final int cores) {
-        return Math.max(1, Math.max(Math.min(ENOUGH_FOR_FAST_PLAYERS, cores * 5 / 8), cores / 4));
+        return Math.max(Math.min(ENOUGH_FOR_FAST_PLAYERS, cores * 5 / 8), paperDefaultFor(cores));
+    }
+
+    /** Paper's own default: a quarter of the cores, at least one (its half of half, with 1 up to 7 cores and 2 for 8 and 9). */
+    public static int paperDefaultFor(final int cores) {
+        return Math.max(1, cores / 4);
     }
 }
