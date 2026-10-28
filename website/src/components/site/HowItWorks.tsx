@@ -25,7 +25,7 @@ const STEPS: Step[] = [
     mode: "directional",
     label: "Kindling",
     title: "Ahead first.",
-    body: "Directional loading weights each chunk by its angle to the flight path, and each player's generation queue stays short enough to keep re-sorting toward it. The same chunks load, in a better order: eight fliers on a four-core i7-7700 went from 38 % to under 1 % of their time in the void, at the same CPU time. Flight ticks rise from 15 to 24 ms, because the main thread now handles terrain the players actually reach.",
+    body: "Directional loading weights each chunk by its angle to the flight path, each player's generation queue stays short enough to keep re-sorting toward it, and on eight threads five chunk workers do the work where Paper starts two. Eight fliers on a four-core i7-7700 spent 86 % of their flight over the void on plain Leaf and 2 % on Kindling, with flight ticks of 28 instead of 38 ms. It costs CPU time: about half as much again, because the server now generates twice the chunks and sends them.",
   },
   {
     mode: "tiles",
@@ -57,7 +57,7 @@ function Heading({ className }: { className?: string }) {
 
 function StepExtra({ mode }: { mode: LoadingMode }) {
   if (mode === "directional")
-    return <TextLink href={links.generationLimit}>Read the measurements</TextLink>;
+    return <TextLink href={links.leafComparison}>Read the measurements</TextLink>;
   if (mode === "tiles") {
     return (
       <code className="w-fit rounded-lg border bg-muted px-4 py-2 font-mono text-[13px]">

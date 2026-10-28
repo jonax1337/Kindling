@@ -35,6 +35,11 @@ Why each Kindling change exists, and what was tried and left out.
 
 **The rule (since 2026-10-28).** A variant runs at least three times; `compare.py` prints `mean ±half range nN` (half range: half the gap between the highest and the lowest run) and the p-value of Welch's t-test against the first label. A difference counts as real only if it is marked `*`: p < 0.05 **and** the means are more than twice the larger half range apart. Before, a difference counted when it was larger than the gap between two runs; with two runs that is about p = 0.29, so a claim such as "−3 %" could not be told from noise. A table in this file marked "two runs" meets the old rule only. Tables with three or more runs name the p-value; a row without `*` is not a finding, even when it points in a direction. With many rows per comparison, one row at p < 0.05 can be chance; this file only quotes such a row next to the others it came from.
 
+**What is compared with what.**
+
+- *Against plain Leaf:* the [final round](#final-round-the-build-of-2026-10-28-against-263-11-and-plain-leaf) compares Kindling with plain Leaf at the same base commit, each with its own defaults. That is the comparison the README and the website lead with. Older tables name the Leaf commit they used.
+- *Against the same build without the change:* a section about one change compares the build with it against the build without it. That is the only way to see what each change does on its own. The baseline is named in each section, and it can be an earlier Kindling build, for example the pregenerator's first version (26.3-1), because plain Leaf has no pregenerator.
+
 **Corrections to the older tables.**
 
 - *Tick time during a flight depends on the time in the void.* A player over ungenerated terrain has nothing to load, tick or send, so less void means more chunks for the main thread and a higher flight tick time (see [the worker counts](#default-number-of-chunk-workers)). Flight tick times compare only at the same void share.
