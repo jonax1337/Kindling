@@ -64,6 +64,20 @@ final class MemoryChecks {
             fix, tiers.basis()));
     }
 
+    /** The idle memory return cannot shrink a heap whose -Xms equals -Xmx. */
+    static Optional<Finding> fixedHeap(final JvmFacts jvm, final ServerSettings server) {
+        if (!server.idleMemory() || jvm.initialHeapBytes() <= 0) {
+            return Optional.empty();
+        }
+        if (jvm.initialHeapBytes() < jvm.maxHeapBytes() * HEAP_REPORTING_TOLERANCE) {
+            return Optional.of(Finding.ok("-Xms " + ByteSize.format(jvm.initialHeapBytes()) + " is below -Xmx, so the idle memory return can give heap back"));
+        }
+        return Optional.of(Finding.info(
+            "-Xms equals -Xmx (" + ByteSize.format(jvm.maxHeapBytes()) + "), so the heap never shrinks and performance.idle-memory can only return native memory",
+            "Set a lower -Xms, for example -Xms512M with -Xmx" + (jvm.maxHeapBytes() / ByteSize.MIB) + "M, so the idle collection can give heap back",
+            Basis.GENERAL_ADVICE));
+    }
+
     static Optional<Finding> mallocArenas(final MachineFacts machine) {
         if (!machine.glibc().orElse(false) || usesAlternativeAllocator(machine)) {
             return Optional.empty();

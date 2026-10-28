@@ -26,6 +26,7 @@ public final class Doctor {
                 CpuChecks.containerLimit(machine),
                 MemoryChecks.heapHeadroom(jvm, machine),
                 MemoryChecks.heapSize(jvm, server),
+                MemoryChecks.fixedHeap(jvm, server),
                 JvmChecks.garbageCollector(jvm),
                 JvmChecks.compactObjectHeaders(jvm),
                 JvmChecks.aotCache(jvm),

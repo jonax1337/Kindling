@@ -1,14 +1,12 @@
 package net.kindlingmc.doctor;
 
 import com.sun.management.OperatingSystemMXBean;
-import java.io.IOException;
 import java.lang.management.ManagementFactory;
-import java.nio.file.DirectoryStream;
-import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.OptionalLong;
+import net.kindlingmc.os.OperatingSystem;
 
 /** Reads what the machine or container offers; everything that only Linux knows stays empty elsewhere. */
 final class MachineFactsCollector {
@@ -16,7 +14,6 @@ final class MachineFactsCollector {
     private static final Path CGROUP_CPU_MAX = Path.of("/sys/fs/cgroup/cpu.max");
     private static final Path CGROUP_MEMORY_MAX = Path.of("/sys/fs/cgroup/memory.max");
     private static final Path TRANSPARENT_HUGE_PAGES = Path.of("/sys/kernel/mm/transparent_hugepage/enabled");
-    private static final Path LIBRARY_DIRECTORY = Path.of("/lib");
 
     private MachineFactsCollector() {
     }
@@ -27,7 +24,7 @@ final class MachineFactsCollector {
             Runtime.getRuntime().availableProcessors(),
             linux ? cgroupCpuLimit() : OptionalDouble.empty(),
             memoryBytes(linux),
-            linux ? Optional.of(!usesMusl()) : Optional.empty(),
+            linux ? Optional.of(!OperatingSystem.usesMusl()) : Optional.empty(),
             mallocArenaMax(),
             Optional.ofNullable(System.getenv("LD_PRELOAD")),
             linux ? transparentHugePages() : Optional.empty());
@@ -53,13 +50,5 @@ final class MachineFactsCollector {
 
     private static Optional<String> transparentHugePages() {
         return LinuxFiles.read(TRANSPARENT_HUGE_PAGES).flatMap(LinuxFiles::parseSelectedMode);
-    }
-
-    private static boolean usesMusl() {
-        try (DirectoryStream<Path> loaders = Files.newDirectoryStream(LIBRARY_DIRECTORY, "ld-musl-*")) {
-            return loaders.iterator().hasNext();
-        } catch (final IOException e) {
-            return false;
-        }
     }
 }

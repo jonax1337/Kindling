@@ -181,6 +181,33 @@ class MemoryChecksTest {
     }
 
     @Test
+    void aFixedHeapIsAnInfoWhenTheIdleMemoryReturnIsOn() {
+        scenario.idleMemory = true;
+
+        final Finding finding = MemoryChecks.fixedHeap(scenario.jvm(), scenario.server()).orElseThrow();
+
+        assertEquals(Severity.INFO, finding.severity());
+        assertTrue(finding.fix().contains("-Xms512M"));
+    }
+
+    @Test
+    void aSmallerInitialHeapIsFineWhenTheIdleMemoryReturnIsOn() {
+        scenario.idleMemory = true;
+        scenario.initialHeapBytes = ByteSize.GIB;
+
+        assertSeverity(Severity.OK, MemoryChecks.fixedHeap(scenario.jvm(), scenario.server()));
+    }
+
+    @Test
+    void theFixedHeapCheckIsSkippedWithoutTheIdleMemoryReturnOrWithoutTheInitialSize() {
+        assertSkipped(MemoryChecks.fixedHeap(scenario.jvm(), scenario.server()));
+
+        scenario.idleMemory = true;
+        scenario.initialHeapBytes = 0;
+        assertSkipped(MemoryChecks.fixedHeap(scenario.jvm(), scenario.server()));
+    }
+
+    @Test
     void alwaysOnTransparentHugePagesAreAWarningWithMadvise() {
         scenario.transparentHugePages = Optional.of("always");
 

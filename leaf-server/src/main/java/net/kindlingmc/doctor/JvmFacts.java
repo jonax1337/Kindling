@@ -9,6 +9,7 @@ import java.util.OptionalLong;
  *
  * @param javaFeatureVersion            for example 25
  * @param maxHeapBytes                  {@code -Xmx}
+ * @param initialHeapBytes              {@code -Xms}; 0 when the JVM does not tell
  * @param garbageCollector              the active collector, when it is one of the known ones
  * @param compactObjectHeaders          the value of {@code UseCompactObjectHeaders}, when the JVM has that flag
  * @param trimNativeHeapIntervalMillis  the value of {@code TrimNativeHeapInterval} (0 is off), when the JVM has that flag
@@ -17,6 +18,7 @@ import java.util.OptionalLong;
 public record JvmFacts(
     int javaFeatureVersion,
     long maxHeapBytes,
+    long initialHeapBytes,
     Optional<GarbageCollector> garbageCollector,
     Optional<Boolean> compactObjectHeaders,
     OptionalLong trimNativeHeapIntervalMillis,

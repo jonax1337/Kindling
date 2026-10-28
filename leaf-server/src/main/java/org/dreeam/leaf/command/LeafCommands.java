@@ -26,5 +26,6 @@ public final class LeafCommands {
         COMMANDS.forEach((s, command) -> server.server.getCommandMap().register(s, "Leaf", command));
         net.kindlingmc.doctor.StartupCheck.install(server); // Kindling - /kindling doctor start-up check
         net.kindlingmc.doctor.HostMonitor.install(server); // Kindling - /kindling doctor live host diagnostics
+        net.kindlingmc.memory.IdleMemoryWatcher.install(server); // Kindling - memory return while nobody is online
     }
 }

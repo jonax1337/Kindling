@@ -1,0 +1,4 @@
+performance:
+  idle-memory:
+    enabled: true
+    after-seconds: 30

@@ -162,6 +162,19 @@ performance:
 
 Paper's chunk system sends every player its chunks at a fixed rate (`chunk-loading-basic.player-max-chunk-send-rate`) and never asks the client how fast it can take them: a slow client collects megabytes in its send buffer, with keep-alive and movement packets queued behind the chunks, and a fast client never gets more than the fixed rate. With `enabled`, the chunks a player gets in one tick go out as one vanilla chunk batch, and the number per tick follows vanilla's own rules: the client answers each batch with the rate it can take (vanilla starts at 9 chunks per tick and allows 0.01 to 64), and the server waits while ten batches are unanswered (one before the client's first answer). Paper's send rate still applies on top if it is above 0 (its default is 75 chunks per second); set it to -1 to let the client's rate decide. A client that does not answer its first batch within 3 seconds (an old, modded or fake client) gets the fixed rate until it answers. Which chunks are sent, in which order, and unloading do not change; plugins that watch packets see vanilla's batch packets around the chunks. It is off until the bench has measured it.
 
+### Idle memory
+
+```yaml
+performance:
+  idle-memory:
+    enabled: false      # true: give memory back while nobody is online
+    after-seconds: 300  # how long the server must be empty first
+```
+
+After `after-seconds` without players, once per idle period, the server runs a full garbage collection (through the JVM's diagnostic command, so it works with `-XX:+DisableExplicitGC`) with the free-heap ratios lowered to 5 and 10 percent for that one collection, then trims the native heap on glibc Linux with Java 25 (unless `-XX:TrimNativeHeapInterval` is set), and logs the heap and resident memory before and after. Nothing runs while a player is online, and the period starts over when someone joins. A heap with `-Xms` equal to `-Xmx` cannot shrink; `/kindling doctor` says so, and `-Xms512M -Xmx2G` lets the idle collection give heap back.
+
+Measured on the bench PC (WSL2, Java 25.0.5, G1, a small program that peaked at 1.7 GB resident and kept 150 MB live, `-Xmx2G`): with `-Xms2G` the resident memory stayed at 1.68 GB (the trim freed 14 to 25 MB); with `-Xms256M` a plain full collection brought it to 650 MB, and with the lowered ratios to 306 MB. This is a synthetic test, not a server run.
+
 ## Building
 
 Java 25 and Git are required (on Windows also `git config --global core.longpaths true`).

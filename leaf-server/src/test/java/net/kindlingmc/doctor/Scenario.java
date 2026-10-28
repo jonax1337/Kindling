@@ -22,6 +22,7 @@ final class Scenario {
 
     int javaFeatureVersion = 25;
     long maxHeapBytes = 4 * ByteSize.GIB;
+    long initialHeapBytes = 4 * ByteSize.GIB;
     Optional<GarbageCollector> garbageCollector = Optional.of(GarbageCollector.G1);
     Optional<Boolean> compactObjectHeaders = Optional.of(true);
     OptionalLong trimNativeHeapIntervalMillis = OptionalLong.of(60_000);
@@ -35,6 +36,7 @@ final class Scenario {
     int compressionThreshold = 256;
     ProxyLocation proxyLocation = ProxyLocation.SAME_HOST;
     List<String> recommendedOptionsOff = List.of();
+    boolean idleMemory = false;
 
     Optional<DiskSpace> worldDisk = Optional.empty();
     HostLoads live = HostLoads.NONE;
@@ -45,13 +47,13 @@ final class Scenario {
     }
 
     JvmFacts jvm() {
-        return new JvmFacts(javaFeatureVersion, maxHeapBytes, garbageCollector, compactObjectHeaders,
+        return new JvmFacts(javaFeatureVersion, maxHeapBytes, initialHeapBytes, garbageCollector, compactObjectHeaders,
             trimNativeHeapIntervalMillis, jvmArguments);
     }
 
     ServerSettings server() {
         return new ServerSettings(workerThreads, viewDistance, simulationDistance, maxPlayers, behindProxy, compressionThreshold,
-            proxyLocation, recommendedOptionsOff);
+            proxyLocation, recommendedOptionsOff, idleMemory);
     }
 
     DoctorFacts facts() {

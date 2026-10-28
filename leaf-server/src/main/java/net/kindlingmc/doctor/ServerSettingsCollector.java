@@ -18,6 +18,7 @@ import org.dreeam.leaf.config.ConfigCategory;
 import org.dreeam.leaf.config.modules.async.AsyncPathfinding;
 import org.dreeam.leaf.config.modules.async.AsyncPlayerDataSave;
 import org.dreeam.leaf.config.modules.async.MultithreadedTracker;
+import org.dreeam.leaf.config.modules.opt.IdleMemory;
 import org.dreeam.leaf.config.modules.opt.SleepingBlockEntity;
 import org.spigotmc.SpigotConfig;
 
@@ -37,7 +38,8 @@ final class ServerSettingsCollector {
             behindProxy(),
             server.getCompressionThreshold(),
             proxyLocation(server),
-            recommendedOptionsOff());
+            recommendedOptionsOff(),
+            IdleMemory.enabled);
     }
 
     private static OptionalInt explicitWorkerThreads() {

@@ -11,6 +11,7 @@ import java.util.OptionalInt;
  * @param compressionThreshold   {@code network-compression-threshold}, -1 for none
  * @param proxyLocation          where the proxy runs; meaningful when {@code behindProxy} is set
  * @param recommendedOptionsOff  the config keys of Kindling's recommended options that {@code leaf-global.yml} has switched off
+ * @param idleMemory             whether the server gives memory back while nobody is online
  */
 public record ServerSettings(
     OptionalInt workerThreads,
@@ -20,6 +21,7 @@ public record ServerSettings(
     boolean behindProxy,
     int compressionThreshold,
     ProxyLocation proxyLocation,
-    List<String> recommendedOptionsOff
+    List<String> recommendedOptionsOff,
+    boolean idleMemory
 ) {
 }
