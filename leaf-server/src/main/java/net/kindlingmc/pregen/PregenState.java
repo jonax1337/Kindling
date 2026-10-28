@@ -3,14 +3,8 @@ package net.kindlingmc.pregen;
 import java.io.IOException;
 import java.io.StringReader;
 import java.io.StringWriter;
-import java.nio.ByteBuffer;
-import java.nio.channels.FileChannel;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.AtomicMoveNotSupportedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
-import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -82,11 +76,6 @@ final class PregenState {
         return state;
     }
 
-    /** Keeps the unusable file next to the original for diagnosis. */
-    static void keepCorrupt(final Path file) throws IOException {
-        Files.copy(file, file.resolveSibling(file.getFileName() + ".corrupt"), StandardCopyOption.REPLACE_EXISTING);
-    }
-
     /** The runs as they are now, independent of later changes, so another thread can write them. */
     PregenState snapshot() {
         final PregenState copy = new PregenState();
@@ -117,33 +106,7 @@ final class PregenState {
             Files.deleteIfExists(file);
             return;
         }
-        final Path temporary = file.resolveSibling(file.getFileName() + ".tmp");
-        try {
-            writeDurably(temporary, serialize());
-            replace(temporary, file);
-        } finally {
-            Files.deleteIfExists(temporary);
-        }
-    }
-
-    /** Forces the bytes to disk, so a power loss after the move cannot leave an empty or truncated file. */
-    private static void writeDurably(final Path file, final String text) throws IOException {
-        try (FileChannel channel = FileChannel.open(file, StandardOpenOption.CREATE, StandardOpenOption.WRITE,
-            StandardOpenOption.TRUNCATE_EXISTING)) {
-            final ByteBuffer bytes = ByteBuffer.wrap(text.getBytes(StandardCharsets.UTF_8));
-            while (bytes.hasRemaining()) {
-                channel.write(bytes);
-            }
-            channel.force(true);
-        }
-    }
-
-    private static void replace(final Path temporary, final Path file) throws IOException {
-        try {
-            Files.move(temporary, file, StandardCopyOption.ATOMIC_MOVE);
-        } catch (final AtomicMoveNotSupportedException e) {
-            Files.move(temporary, file, StandardCopyOption.REPLACE_EXISTING);
-        }
+        DurableFile.replace(file, serialize());
     }
 
     private String serialize() throws IOException {

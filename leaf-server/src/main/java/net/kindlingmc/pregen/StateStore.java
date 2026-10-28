@@ -16,12 +16,12 @@ final class StateStore {
     private static final Logger LOGGER = LogUtils.getClassLogger();
 
     private final Path file;
-    private final StateWriter writer;
+    private final StateWriter<PregenState> writer;
     private @Nullable PregenState state;
 
     StateStore(final Path file) {
         this.file = file;
-        this.writer = new StateWriter(file);
+        this.writer = StateWriter.forRuns(file);
     }
 
     /** Whether the file was read; a store that never was must not be written, it would drop what the file holds. */
@@ -58,7 +58,7 @@ final class StateStore {
         LOGGER.warn("The pregeneration state {} is damaged ({}); the affected worlds start over",
             this.file, String.join("; ", loaded.problems()));
         try {
-            PregenState.keepCorrupt(this.file);
+            DurableFile.keepCorrupt(this.file);
         } catch (final IOException e) {
             LOGGER.error("Cannot keep a copy of the damaged pregeneration state {}", this.file, e);
         }

@@ -25,7 +25,7 @@ class StateWriterTest {
     @Test
     void theLastStateIsOnDiskWhenTheWriterIsClosed() {
         final Path file = this.folder.resolve("pregeneration.properties");
-        final StateWriter writer = new StateWriter(file);
+        final StateWriter<PregenState> writer = StateWriter.forRuns(file);
 
         for (long next = 1; next <= 50; next++) {
             writer.writeLater(stateAt(next));
@@ -38,7 +38,7 @@ class StateWriterTest {
     @Test
     void aStateWrittenLaterReachesTheDiskWithoutClosing() throws InterruptedException {
         final Path file = this.folder.resolve("pregeneration.properties");
-        final StateWriter writer = new StateWriter(file);
+        final StateWriter<PregenState> writer = StateWriter.forRuns(file);
 
         writer.writeLater(stateAt(7L));
         for (int waited = 0; waited < 200 && !Files.exists(file); waited++) {
@@ -52,7 +52,7 @@ class StateWriterTest {
     @Test
     void closingWithoutAnyRunLeavesNoFile() {
         final Path file = this.folder.resolve("pregeneration.properties");
-        final StateWriter writer = new StateWriter(file);
+        final StateWriter<PregenState> writer = StateWriter.forRuns(file);
         writer.writeLater(stateAt(1L));
 
         writer.writeAndClose(new PregenState());
@@ -62,7 +62,7 @@ class StateWriterTest {
 
     @Test
     void anUnwritableLocationDoesNotThrow() {
-        final StateWriter writer = new StateWriter(this.folder.resolve("missing-folder").resolve("pregeneration.properties"));
+        final StateWriter<PregenState> writer = StateWriter.forRuns(this.folder.resolve("missing-folder").resolve("pregeneration.properties"));
 
         writer.writeAndClose(stateAt(1L));
     }
@@ -75,7 +75,7 @@ class StateWriterTest {
         final CountDownLatch firstWriteStarted = new CountDownLatch(1);
         final CountDownLatch firstWriteMayEnd = new CountDownLatch(1);
         final CountDownLatch lastWritten = new CountDownLatch(1);
-        final StateWriter writer = new StateWriter(this.folder.resolve("pregeneration.properties"), (state, file) -> {
+        final StateWriter<PregenState> writer = new StateWriter<>("pregeneration state", this.folder.resolve("pregeneration.properties"), (state, file) -> {
             mostAtOnce.accumulateAndGet(writing.incrementAndGet(), Math::max);
             final long next = state.run(WORLD).orElseThrow().next();
             written.add(next);

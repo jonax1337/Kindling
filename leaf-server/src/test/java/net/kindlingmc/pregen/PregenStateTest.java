@@ -222,7 +222,7 @@ class PregenStateTest {
     void theDamagedFileIsKeptNextToTheOriginal() throws IOException {
         Files.writeString(file(), "garbage");
 
-        PregenState.keepCorrupt(file());
+        DurableFile.keepCorrupt(file());
 
         assertEquals("garbage", Files.readString(folder.resolve("pregeneration.properties.corrupt")));
         assertTrue(Files.exists(file()));

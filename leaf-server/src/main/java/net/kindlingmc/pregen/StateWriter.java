@@ -10,49 +10,60 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 
 /**
- * Writes {@link PregenState} snapshots to disk on a thread of its own, so the main thread never waits for the fsync.
+ * Writes snapshots of a state to disk on a thread of its own, so the main thread never waits for the fsync.
  * Snapshots that pile up while a write runs are replaced by the newest one. {@link #writeAndClose} writes the last state
  * for the shutdown, on the same thread after the write in progress, so two writes never touch the file at once.
+ *
+ * @param <S> the snapshot type; it must not be changed after it was handed over
  */
-final class StateWriter {
+final class StateWriter<S> {
 
     private static final Logger LOGGER = LogUtils.getClassLogger();
     private static final long CLOSE_TIMEOUT_SECONDS = 10L;
+    private static final String PREGENERATION_STATE = "pregeneration state";
 
     /** Saves a state to the file; replaced in the tests, which need a write that takes long. */
     @FunctionalInterface
-    interface Saving {
-        void save(PregenState state, Path file) throws IOException;
+    interface Saving<S> {
+        void save(S state, Path file) throws IOException;
     }
 
+    private final String what;
     private final Path file;
-    private final Saving saving;
+    private final Saving<S> saving;
     private final long closeTimeoutMillis;
-    private final ExecutorService executor = Executors.newSingleThreadExecutor(task -> {
-        final Thread thread = new Thread(task, "Kindling pregeneration state writer");
-        thread.setDaemon(true);
-        return thread;
-    });
-    private final AtomicReference<PregenState> newest = new AtomicReference<>();
+    private final ExecutorService executor;
+    private final AtomicReference<S> newest = new AtomicReference<>();
 
-    StateWriter(final Path file) {
-        this(file, PregenState::save, TimeUnit.SECONDS.toMillis(CLOSE_TIMEOUT_SECONDS));
+    static StateWriter<PregenState> forRuns(final Path file) {
+        return new StateWriter<>(PREGENERATION_STATE, file, PregenState::save);
     }
 
-    StateWriter(final Path file, final Saving saving, final long closeTimeoutMillis) {
+    StateWriter(final String what, final Path file, final Saving<S> saving) {
+        this(what, file, saving, TimeUnit.SECONDS.toMillis(CLOSE_TIMEOUT_SECONDS));
+    }
+
+    /** @param what names the state in log messages and in the name of the writer thread, e.g. {@code pregeneration state} */
+    StateWriter(final String what, final Path file, final Saving<S> saving, final long closeTimeoutMillis) {
+        this.what = what;
         this.file = file;
         this.saving = saving;
         this.closeTimeoutMillis = closeTimeoutMillis;
+        this.executor = Executors.newSingleThreadExecutor(task -> {
+            final Thread thread = new Thread(task, "Kindling " + what + " writer");
+            thread.setDaemon(true);
+            return thread;
+        });
     }
 
     /** Takes ownership of the snapshot: it must not be changed afterwards. */
-    void writeLater(final PregenState snapshot) {
+    void writeLater(final S snapshot) {
         this.newest.set(snapshot);
         this.executor.execute(this::writeNewest);
     }
 
     private void writeNewest() {
-        final PregenState snapshot = this.newest.getAndSet(null);
+        final S snapshot = this.newest.getAndSet(null);
         if (snapshot != null) {
             this.write(snapshot);
         }
@@ -62,24 +73,24 @@ final class StateWriter {
      * Queues {@code last} behind the write in progress and stops the writer thread, then waits for it. If that takes
      * longer than the timeout the last state may still be unwritten; it is never written from this thread meanwhile.
      */
-    void writeAndClose(final PregenState last) {
+    void writeAndClose(final S last) {
         this.newest.set(null);
         this.executor.execute(() -> this.write(last));
         this.executor.shutdown();
         try {
             if (!this.executor.awaitTermination(this.closeTimeoutMillis, TimeUnit.MILLISECONDS)) {
-                LOGGER.error("The pregeneration state writer did not finish in {} ms, the last state may not be written", this.closeTimeoutMillis);
+                LOGGER.error("The {} writer did not finish in {} ms, the last state may not be written", this.what, this.closeTimeoutMillis);
             }
         } catch (final InterruptedException e) {
             Thread.currentThread().interrupt();
         }
     }
 
-    private void write(final PregenState state) {
+    private void write(final S state) {
         try {
             this.saving.save(state, this.file);
         } catch (final IOException e) {
-            LOGGER.error("Cannot write the pregeneration state {}", this.file, e);
+            LOGGER.error("Cannot write the {} {}", this.what, this.file, e);
         }
     }
 }

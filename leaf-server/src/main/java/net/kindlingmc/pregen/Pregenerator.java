@@ -18,9 +18,11 @@ import net.kindlingmc.pregen.TaskSupervisor.Outcome;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.LevelResource;
 import org.dreeam.leaf.config.modules.opt.Pregeneration;
+import org.jspecify.annotations.Nullable;
 import org.slf4j.Logger;
 
 /**
@@ -35,7 +37,9 @@ public final class Pregenerator {
 
     private static final Logger LOGGER = LogUtils.getClassLogger();
     private static final String STATE_FILE = "pregeneration.properties";
+    private static final String FRONTIER_FILE = "pregeneration-frontier.properties"; // Kindling - frontier pregeneration
     private static final int SAVE_EVERY_TICKS = 600;
+    private static final int VISIT_SAMPLE_TICKS = 20; // Kindling - frontier pregeneration
     private static final int WORLD_SYNC_TICKS = 20;
     private static final long NANOS_PER_MILLI = 1_000_000L;
     private static final int TICKS_PER_SECOND = 20;
@@ -47,6 +51,8 @@ public final class Pregenerator {
     private static MinecraftServer server;
     private static StateStore store;
     private static TaskSupervisor supervisor;
+    /** Created when the frontier pregeneration is first switched on. */
+    private static @Nullable FrontierPregen frontier; // Kindling - frontier pregeneration
     private static boolean started;
     /** Read once a second: the host monitor publishes a new value every few seconds. */
     private static OptionalDouble mainThreadWait = OptionalDouble.empty();
@@ -65,19 +71,17 @@ public final class Pregenerator {
 
     /** Whether a run is working, so the server must not pause for lack of players; stopped and finished runs do not count. */
     public static boolean keepsServerAwake() {
-        if (TASKS.isEmpty()) {
-            return false;
-        }
         for (final PregenTask task : TASKS.values()) {
             if (task.active()) {
                 return true;
             }
         }
-        return false;
+        return frontier != null && frontier.keepsServerAwake(); // Kindling - frontier pregeneration
     }
 
     /** Saves the exact progress of every run and waits for the state file to be written; called while the server stops. */
     public static void shutdown() {
+        shutdownFrontier(); // Kindling - frontier pregeneration
         if (store == null || !store.isLoaded()) {
             return;
         }
@@ -103,6 +107,8 @@ public final class Pregenerator {
             if (tick % WORLD_SYNC_TICKS == 0) {
                 adoptNewWorlds();
             }
+            refreshMainThreadWait(tick); // Kindling - the frontier pregeneration reads it too
+            tickFrontier(tick); // Kindling - frontier pregeneration
             if (TASKS.isEmpty()) {
                 return;
             }
@@ -123,13 +129,16 @@ public final class Pregenerator {
      * stopped by a full disk looks at the disk again, and the server wakes up once there is room.
      */
     public static void tickWhilePaused() {
-        if (TASKS.isEmpty()) {
+        if (TASKS.isEmpty() && frontier == null) {
             return;
         }
         try {
             final long minFreeDiskBytes = Pregeneration.minFreeDiskBytes();
             for (final PregenTask task : TASKS.values()) {
                 task.recheckFullDisk(minFreeDiskBytes);
+            }
+            if (frontier != null) { // Kindling - frontier pregeneration
+                frontier.recheckFullDisk(minFreeDiskBytes);
             }
         } catch (final RuntimeException failure) {
             LOGGER.error("Pregeneration failed to check the disk while the server is paused", failure);
@@ -143,13 +152,20 @@ public final class Pregenerator {
         return working;
     }
 
-    private static void pumpTasks(final long tick) {
-        final PregenLimits limits = new PregenLimits((long) (Pregeneration.maxMspt * NANOS_PER_MILLI), Pregeneration.maxParallel,
+    private static PregenLimits currentLimits() {
+        return new PregenLimits((long) (Pregeneration.maxMspt * NANOS_PER_MILLI), Pregeneration.maxParallel,
             Pregeneration.minFreeDiskBytes(), Pregeneration.maxMainThreadWait);
-        final long average = server.getAverageTickTimeNanos();
-        if (tick % TICKS_PER_SECOND == 0) {
+    }
+
+    private static void refreshMainThreadWait(final long tick) {
+        if (tick % TICKS_PER_SECOND == 0 && (!TASKS.isEmpty() || frontier != null)) {
             mainThreadWait = HostMonitor.mainThreadWaitShare(HostWindow.LAST_MINUTE);
         }
+    }
+
+    private static void pumpTasks(final long tick) {
+        final PregenLimits limits = currentLimits();
+        final long average = server.getAverageTickTimeNanos();
         for (final Iterator<PregenTask> tasks = TASKS.values().iterator(); tasks.hasNext(); ) {
             final PregenTask task = tasks.next();
             final Outcome outcome = supervisor.pump(task, tick, average, mainThreadWait, limits);
@@ -217,6 +233,9 @@ public final class Pregenerator {
             lines.add(task.describe());
             lines.add("  " + task.describeDisk());
         }
+        if (frontier != null) { // Kindling - frontier pregeneration
+            lines.addAll(frontier.status());
+        }
         return lines;
     }
 
@@ -236,12 +255,72 @@ public final class Pregenerator {
         for (final ServerLevel level : server.getAllLevels()) {
             final String name = ServerPregenWorld.nameOf(level);
             PRESENT_WORLDS.add(name);
+            adoptFrontier(level, name); // Kindling - frontier pregeneration
             if (KNOWN_WORLDS.add(name) && !TASKS.containsKey(name)) {
                 adopt(level);
             }
         }
         KNOWN_WORLDS.retainAll(PRESENT_WORLDS);
     }
+
+    // Kindling start - frontier pregeneration
+    /** While no player is online, generates a margin around the tiles players have been in; see {@link FrontierPregen}. */
+    private static void tickFrontier(final long tick) {
+        if (!Pregeneration.frontierEnabled) {
+            shutdownFrontier();
+            return;
+        }
+        final FrontierPregen pregen = frontier();
+        pregen.saveChanges(tick);
+        if (server.getPlayerCount() == 0) {
+            pregen.pumpWhileEmpty(new TickLoad(tick, server.getAverageTickTimeNanos(), mainThreadWait), currentLimits(), TASKS.keySet());
+            return;
+        }
+        pregen.pauseForPlayers();
+        if (tick % VISIT_SAMPLE_TICKS == 0) {
+            sampleVisitors(pregen);
+        }
+    }
+
+    private static void sampleVisitors(final FrontierPregen pregen) {
+        final int marginTiles = frontierMarginTiles();
+        final List<ServerPlayer> players = server.getPlayerList().getPlayers();
+        for (int i = 0; i < players.size(); i++) {
+            final ServerPlayer player = players.get(i);
+            pregen.visit(ServerPregenWorld.nameOf(player.level()), player.getBlockX() >> 4, player.getBlockZ() >> 4, marginTiles);
+        }
+    }
+
+    private static void adoptFrontier(final ServerLevel level, final String name) {
+        if (Pregeneration.frontierEnabled && !frontier().knows(name)) {
+            frontier().adopt(new ServerPregenWorld(level), frontierMarginTiles());
+        }
+    }
+
+    private static FrontierPregen frontier() {
+        if (frontier == null) {
+            frontier = new FrontierPregen(new FrontierStore(server.getWorldPath(LevelResource.ROOT).resolve(FRONTIER_FILE)));
+        }
+        return frontier;
+    }
+
+    private static int frontierMarginTiles() {
+        return FrontierPlan.marginTiles(Pregeneration.frontierMarginChunks);
+    }
+
+    /** Saves what the frontier pregeneration learned and lets go of its chunks; it starts afresh if it is switched on again. */
+    private static void shutdownFrontier() {
+        if (frontier == null) {
+            return;
+        }
+        try {
+            frontier.shutdown();
+        } catch (final RuntimeException failure) {
+            LOGGER.error("Cannot save the frontier pregeneration state", failure);
+        }
+        frontier = null;
+    }
+    // Kindling end - frontier pregeneration
 
     private static void adopt(final ServerLevel level) {
         final ServerPregenWorld world = new ServerPregenWorld(level);

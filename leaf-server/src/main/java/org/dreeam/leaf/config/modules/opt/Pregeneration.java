@@ -20,6 +20,9 @@ public class Pregeneration extends ConfigModule {
     public static int overworldRadius = 5000;
     public static int netherRadius = 1000;
     public static int endRadius = 3000;
+    private static final int MAX_FRONTIER_MARGIN_CHUNKS = 512; // Kindling - frontier pregeneration
+    public static boolean frontierEnabled = false; // Kindling - frontier pregeneration
+    public static int frontierMarginChunks = 32; // Kindling - frontier pregeneration
 
     @Override
     public void onLoaded() {
@@ -34,7 +37,12 @@ public class Pregeneration extends ConfigModule {
             A run stops by itself, and says so in `/pregen status`, when finishing it would leave less than `min-free-disk-gb`
             free on the world's disk (judged by the space each chunk took so far); it continues once there is room again.
             While a run is working the server does not pause for lack of players (`pause-when-empty-seconds`).
-            `automatic` starts the given radii (in blocks, around the spawn, 0 for none) on every world by itself.""",
+            `automatic` starts the given radii (in blocks, around the spawn, 0 for none) on every world by itself.
+            `frontier` (off by default) watches which 16x16-chunk tiles players have been in and, while no player is online,
+            generates the tiles within `margin-chunks` of them that are not generated yet, nearest first, so later flights arrive
+            over generated terrain. It pauses the moment a player joins, leaves a world to a `/pregen` run of the same world,
+            stops at the disk guard like a run and never goes beyond the world border. It does not change the world, only when
+            the terrain is generated, but the world folder grows: every visited tile adds its margin of region files.""",
             """
             以最低优先级预生成区块; 使用 /pregen 管理.""");
         maxMspt = Math.max(1.0, globalConfig.getDouble(basePath() + ".max-mspt", maxMspt));
@@ -45,6 +53,8 @@ public class Pregeneration extends ConfigModule {
         overworldRadius = Math.max(0, globalConfig.getInt(basePath() + ".automatic.overworld-radius", overworldRadius));
         netherRadius = Math.max(0, globalConfig.getInt(basePath() + ".automatic.nether-radius", netherRadius));
         endRadius = Math.max(0, globalConfig.getInt(basePath() + ".automatic.end-radius", endRadius));
+        frontierEnabled = globalConfig.getBoolean(basePath() + ".frontier.enabled", frontierEnabled); // Kindling - frontier pregeneration
+        frontierMarginChunks = Math.clamp(globalConfig.getInt(basePath() + ".frontier.margin-chunks", frontierMarginChunks), 0, MAX_FRONTIER_MARGIN_CHUNKS); // Kindling - frontier pregeneration
     }
 
     /** The space a run leaves free on the disk of its world. */

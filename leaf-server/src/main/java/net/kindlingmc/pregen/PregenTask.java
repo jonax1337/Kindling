@@ -1,6 +1,5 @@
 package net.kindlingmc.pregen;
 
-import com.mojang.logging.LogUtils;
 import it.unimi.dsi.fastutil.longs.LongRBTreeSet;
 import it.unimi.dsi.fastutil.longs.LongSortedSet;
 import java.util.Locale;
@@ -8,8 +7,6 @@ import java.util.OptionalDouble;
 import java.util.OptionalLong;
 import java.util.concurrent.atomic.AtomicLong;
 import net.kindlingmc.pregen.PregenState.Phase;
-import org.jspecify.annotations.Nullable;
-import org.slf4j.Logger;
 
 /**
  * Generates every chunk of a square around a centre, tile by tile from the centre outwards ({@link TileSpiral}), at the
@@ -24,12 +21,8 @@ final class PregenTask {
     /** The most indices one tick walks, so a vast area outside the border cannot stall the tick. */
     static final int MAX_STEPS_PER_PUMP = 4096;
 
-    private static final Logger LOGGER = LogUtils.getClassLogger();
     private static final int TICKS_PER_SECOND = 20;
-    private static final int DISK_CHECK_TICKS = 30 * TICKS_PER_SECOND;
     private static final int RATE_WINDOW_SECONDS = 60;
-    private static final double NANOS_PER_MILLI = 1e6;
-    private static final double PERCENT = 100;
 
     private final PregenWorld world;
     final int centerX;
@@ -37,7 +30,8 @@ final class PregenTask {
     final int radius;
     private final long total;
     private final KeptTiles kept;
-    private final DiskGuard diskGuard;
+    private final DiskWatch disk;
+    private final Pacing pacing = new Pacing();
     private final LongSortedSet inFlight = new LongRBTreeSet();
     private final AtomicLong completed = new AtomicLong();
     // chunks the chunk system generated or read from disk; the ones outside the area are only counted as completed
@@ -46,16 +40,8 @@ final class PregenTask {
     private final long startIndex;
     private long next;
     private long inspectedTile = -1;
-    private int parallel = 1;
     private boolean paused;
     private boolean closed;
-    private boolean diskFull;
-    private int ticksSinceDiskCheck = DISK_CHECK_TICKS;
-    private @Nullable DiskForecast forecast;
-    private Throttle throttle = Throttle.NONE;
-    /** What the throttle measured and the limit it went over, in the unit of its message. */
-    private double throttleMeasured;
-    private double throttleLimit;
 
     /** @param next the {@link TileSpiral} index to continue from, 0 for a new run */
     PregenTask(final PregenWorld world, final int centerX, final int centerZ, final int radius, final long next) {
@@ -65,7 +51,7 @@ final class PregenTask {
         this.radius = radius;
         this.total = TileSpiral.size(radius);
         this.kept = new KeptTiles(world.tickets());
-        this.diskGuard = new DiskGuard(world.freeDiskBytes(), 0L);
+        this.disk = new DiskWatch(world, "Pregeneration");
         this.next = Math.min(next, this.total);
         this.startIndex = this.next;
     }
@@ -80,34 +66,18 @@ final class PregenTask {
             this.deliveryRate.sample(System.nanoTime(), this.delivered.get());
         }
         this.checkDiskWhenDue(limits.minFreeDiskBytes());
-        if (this.paused || this.diskFull || this.next >= this.total) {
+        if (this.paused || this.disk.isFull() || this.next >= this.total) {
             return;
         }
         this.kept.releaseBefore(TileSpiral.tileOf(this.resumeIndex()));
-        if (limits.tickTooSlow(averageTickNanos)) {
-            this.throttle(Throttle.TICK_TIME, averageTickNanos / NANOS_PER_MILLI, limits.budgetNanos() / NANOS_PER_MILLI);
-            return;
+        final int allowedInFlight = this.pacing.allowedInFlight(tick, averageTickNanos, mainThreadWait, limits);
+        if (allowedInFlight > 0) {
+            this.scheduleUpTo(allowedInFlight, this.world.border());
         }
-        if (limits.mainThreadWaitsTooLong(mainThreadWait)) {
-            this.throttle(Throttle.MAIN_THREAD_WAIT, mainThreadWait.getAsDouble() * PERCENT, limits.maxMainThreadWait() * PERCENT);
-            return;
-        }
-        this.throttle = Throttle.NONE;
-        if (tick % TICKS_PER_SECOND == 0 && limits.relaxed(averageTickNanos, mainThreadWait)) {
-            this.parallel = Math.min(limits.maxParallel(), this.parallel + 1);
-        }
-        this.scheduleUpTo(this.world.border());
     }
 
-    private void throttle(final Throttle cause, final double measured, final double limit) {
-        this.parallel = Math.max(1, this.parallel / 2);
-        this.throttle = cause;
-        this.throttleMeasured = measured;
-        this.throttleLimit = limit;
-    }
-
-    private void scheduleUpTo(final ChunkBorder border) {
-        for (int steps = 0; steps < MAX_STEPS_PER_PUMP && this.next < this.total && this.inFlight.size() < this.parallel; steps++) {
+    private void scheduleUpTo(final int allowedInFlight, final ChunkBorder border) {
+        for (int steps = 0; steps < MAX_STEPS_PER_PUMP && this.next < this.total && this.inFlight.size() < allowedInFlight; steps++) {
             this.scheduleNext(border);
         }
     }
@@ -167,7 +137,7 @@ final class PregenTask {
     }
 
     private boolean stopped() {
-        return this.closed || this.paused || this.diskFull;
+        return this.closed || this.paused || this.disk.isFull();
     }
 
     /**
@@ -175,32 +145,21 @@ final class PregenTask {
      * run, so the run (and with it the server) wakes up once there is room. Costs nothing for any other task.
      */
     void recheckFullDisk(final long minFreeBytes) {
-        if (this.diskFull) {
+        if (this.disk.isFull()) {
             this.checkDiskWhenDue(minFreeBytes);
         }
     }
 
     private void checkDiskWhenDue(final long minFreeBytes) {
-        if (++this.ticksSinceDiskCheck >= DISK_CHECK_TICKS) {
+        if (this.disk.due()) {
             this.checkDisk(minFreeBytes);
         }
     }
 
     /** Compares the free space with what the rest of the run needs and stops or continues the run accordingly. */
     void checkDisk(final long minFreeBytes) {
-        this.ticksSinceDiskCheck = 0;
-        final DiskForecast current = this.diskGuard.forecast(
-            this.world.freeDiskBytes(), this.delivered.get(), this.total - this.done(), minFreeBytes);
-        this.forecast = current;
-        if (current.runsOut() == this.diskFull) {
-            return;
-        }
-        this.diskFull = current.runsOut();
-        if (this.diskFull) {
+        if (this.disk.check(this.delivered.get(), this.total - this.done(), minFreeBytes)) {
             this.kept.releaseAll();
-            LOGGER.warn("Pregeneration of {} stops, the disk would run out: {}", this.world.name(), current.describe());
-        } else {
-            LOGGER.info("Pregeneration of {} continues, the disk has space again: {}", this.world.name(), current.describe());
         }
     }
 
@@ -216,7 +175,7 @@ final class PregenTask {
 
     /** Whether the task is working or waiting for the server to be fast enough, and not stopped by anyone or by the disk. */
     boolean active() {
-        return !this.paused && !this.diskFull && !this.finished();
+        return !this.paused && !this.disk.isFull() && !this.finished();
     }
 
     /** Where a restart picks up: the oldest chunk still in flight, so none is skipped (later ones load from disk). */
@@ -248,7 +207,7 @@ final class PregenTask {
 
     void resume() {
         this.paused = false;
-        this.diskGuard.rebase(this.world.freeDiskBytes(), this.delivered.get());
+        this.disk.rebase(this.delivered.get());
     }
 
     boolean paused() {
@@ -273,37 +232,20 @@ final class PregenTask {
         return String.format(Locale.ROOT,
             "%s: %,d / %,d chunks (%.1f %%), %.0f chunks/s over the last minute, %d in flight (up to %d), ETA %s%s",
             this.world.name(), done, this.total, 100.0 * done / this.total, perSecond,
-            this.inFlight.size(), this.parallel, eta, this.waitingReason());
+            this.inFlight.size(), this.pacing.parallel(), eta, this.waitingReason());
     }
 
     private String waitingReason() {
         if (this.paused) {
             return ", paused";
         }
-        if (this.diskFull) {
+        if (this.disk.isFull()) {
             return ", paused: the disk would run out";
         }
-        return this.throttle.describe(this.throttleMeasured, this.throttleLimit);
+        return this.pacing.describeThrottle();
     }
 
     String describeDisk() {
-        return this.forecast == null ? "disk: not checked yet" : "disk: " + this.forecast.describe();
-    }
-
-    /** Why a task schedules nothing for now, as the status line says it. */
-    private enum Throttle {
-        NONE(""),
-        TICK_TIME(", throttled: %.0f ms average > %.0f ms"),
-        MAIN_THREAD_WAIT(", throttled: the main thread waited for a CPU %.0f %% of the last minute > %.0f %%");
-
-        private final String format;
-
-        Throttle(final String format) {
-            this.format = format;
-        }
-
-        String describe(final double measured, final double limit) {
-            return this == NONE ? "" : String.format(Locale.ROOT, this.format, measured, limit);
-        }
+        return this.disk.describe();
     }
 }
