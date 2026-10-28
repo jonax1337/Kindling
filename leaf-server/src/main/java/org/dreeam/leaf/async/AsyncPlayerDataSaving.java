@@ -17,7 +17,7 @@ public class AsyncPlayerDataSaving {
     // Kindling start - safe async saving
     private static final Duration STALL_WARNING_INTERVAL = Duration.ofSeconds(10);
     private static final Duration SHUTDOWN_TIMEOUT = Duration.ofSeconds(60);
-    private static SerialWrites<UUID> writes = null;
+    private static volatile SerialWrites<UUID> writes = null;
     // Kindling end - safe async saving
 
     private AsyncPlayerDataSaving() {
