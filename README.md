@@ -103,7 +103,7 @@ performance:
     max-mspt: 40.0        # while the average tick takes longer: halves its chunks in flight, starts none
     max-parallel: 32      # upper bound for chunks in flight
     min-free-disk-gb: 2   # stops by itself when finishing would leave less free on the world's disk
-    max-main-thread-wait: 0.10  # Linux: throttles the same way while the main thread waited for a CPU longer than this share of the last minute; 0 turns it off
+    max-main-thread-wait: 0     # Linux: also throttles while the main thread waited for a CPU longer than this share of the last minute (e.g. 0.20); 0 turns it off
     automatic:
       enabled: false      # true: start the radii below on every startup until done
       overworld-radius: 5000   # blocks around the world spawn, 0 for none
