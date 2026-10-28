@@ -1,6 +1,10 @@
-# Kindling roadmap
+# 🧭 Kindling roadmap
 
-What Kindling works on next. Kindling has one maintainer, so an item stays on this list only if its value clearly outweighs the upkeep it adds on every Leaf merge and Minecraft update (scored 1–10 in an independent review on 2026-10-27; 7.5 or more stays). [MEASUREMENTS.md](MEASUREMENTS.md) records what was measured; each finished item moves there.
+What is still open and what was dropped. Kindling has one maintainer, so an item stays on this list only if its value clearly outweighs the upkeep it adds on every Leaf merge and Minecraft update (scored 1–10 in an independent review on 2026-10-27; 7.5 or more stays).
+
+What is done, release by release: [CHANGELOG.md](../CHANGELOG.md). Why each change exists and what it measured: [MEASUREMENTS.md](MEASUREMENTS.md).
+
+**Contents:** [Rules](#rules-for-every-item) · [Open](#-open) · [Dropped](#-dropped)
 
 ## Rules for every item
 
@@ -9,49 +13,49 @@ What Kindling works on next. Kindling has one maintainer, so an item stays on th
 3. **No new patch where a setting, a plugin or upstream does the job.** Every Kindling patch is rebased on every Leaf merge.
 4. **Bugs go upstream, features stay.** A fix for something that is broken in plain Leaf too is a candidate for a Leaf pull request (like Leaf#970); the owner decided on 2026-10-28 to send none for now, so the fixes are listed in [UPSTREAM.md](UPSTREAM.md#fixes-leaf-could-take). Kindling's own features stay in Kindling.
 
-## Next
+## 🔜 Open
 
-New items need the 7.5 bar of the review. What the work of 2026-10-28 left open:
+New items need the 7.5 bar of the review.
+
+**Defaults to decide**
 
 | Open item | Why it is open |
 | --- | --- |
-| `worker-priority` as a default | The bench host halves the main thread's wait in four scenarios and does not hurt pregeneration speed or lead, but the mixed load showed a (non-significant) rise in void time, and the VPS check never ran short of CPUs and saw no effect. A run under real load on the VPS decides ([MEASUREMENTS](MEASUREMENTS.md#worker-priority-and-the-main-threads-wait-for-a-cpu)) |
+| `worker-priority` as a default | The bench host halves the main thread's wait in four scenarios and does not hurt pregeneration speed or lead, but the mixed load showed a (non-significant) rise in void time, and the VPS check never ran short of CPUs and saw no effect. A run under real load on the VPS decides ([host measurements](measurements/host.md)) |
 | A usable criterion for the pregenerator's wait throttle | A share of the last minute fires at baseline on the VPS (a nearly idle thread waits 10 to 14 %) and at 0.10 stops pregeneration during a flight. Candidates: the absolute wait per tick, a higher limit such as 0.20 (untested), or throttling only while the machine is busy. The doctor's contention warning already uses the absolute wait (at least 20 ms per second) |
-| Memory return and a rejoin | The tick spike when players come back after the heap shrank was not measured; the bench needs a rejoin mode |
-| A server test of the async player data saving | The write ordering, the flush barrier and the shutdown drain have unit tests only. `save-all flush` followed by a look at the file times, and a stop on a slow disk, need a real server |
-| Player#saveData and Server#savePlayers | They return before the asynchronous write lands (Leaf's behaviour); server-side reads wait for it, outside readers of the file may see stale data until the next flush. Waiting would need a Paper-server change |
-| Scenarios for four late fixes | The removed nitwit shortcut, the happy ghast's adult sensor, the idle-memory pause during a pregeneration and the async writer's publication rest on unit tests and review; the final round's scenarios exercise none of them |
-| What offsets the Lithium gain in the bases | The Lithium ports alone measured −7 %, yet the final build runs the bases at release 26.3-11's 11.7 ms. The hopper cooldown after a failed transfer is the only later change to what the bases tick; an A/B of it alone would settle it ([MEASUREMENTS](MEASUREMENTS.md#lithium-ports)) |
+
+**Measurements still missing**
+
+| Open item | Why it is open |
+| --- | --- |
 | Comparisons with plain Leaf that are missing | The pregenerator was only measured against its own first version; Chunky on Leaf `66f99f8e` would be the fair baseline. The elytra test at 1.7 blocks/tick last ran against Leaf `4c3d5689` on the Windows machine with two runs |
 | Standing against plain Leaf on a pregenerated world | In the final round plain Leaf was still generating while the players stood, so its −20 % standing figure is not the async defaults' gain |
-| Kindling's CPU time | +26 % against plain Leaf in the bases without a tick time gain. Five chunk workers instead of two on a 4-core, 8-thread host and the async threads were not separated ([MEASUREMENTS](MEASUREMENTS.md#final-round-the-build-of-2026-10-28-against-263-11-and-plain-leaf)) |
-| The shutdown stack trace | "Accessing poi chunk off-main" during `stop` while a pregeneration ran: once in 8 stops (new build 1 of 4, release 0 of 4), and the stack holds only vanilla, Paper and Moonrise code. Whether the skipped POI update is repaired on the next load is not checked; a candidate for an upstream report ([MEASUREMENTS](MEASUREMENTS.md#the-doctors-live-readings)) |
-| Parity in CI | `parity.yml` runs the bases check only; the sleeping and villager pairs run by hand (`parity/run.sh <jar> all`) |
-| A scenario that shows the furnace fix and shared job sites | Both bugs did not reproduce on the release, so their fixes have no counter |
+| Kindling's CPU time | +26 % against plain Leaf in the bases without a tick time gain. Five chunk workers instead of two on a 4-core, 8-thread host and the async threads were not separated ([Kindling against plain Leaf](measurements/vs-leaf.md)) |
+| What offsets the Lithium gain in the bases | The Lithium ports alone measured −7 %, yet the final build runs the bases at release 26.3-11's 11.7 ms. The hopper cooldown after a failed transfer is the only later change to what the bases tick; an A/B of it alone would settle it ([world ticking](measurements/ticking.md)) |
+| Memory return and a rejoin | The tick spike when players come back after the heap shrank was not measured; the bench needs a rejoin mode |
 | Repeat the "0 % void" test with five lines | The figures of 2026-10-26 followed one line straight ahead, and the bench host spent about half of an elytra flight in the void |
 
-## Done (2026-10-28)
+**Tests and parity**
 
-From the deep analysis of 2026-10-27. Numbers and method: [MEASUREMENTS.md](MEASUREMENTS.md).
-
-| Item | Result |
+| Open item | Why it is open |
 | --- | --- |
-| Stricter measurement | Three runs, Welch's test marked `*` by `compare.py`, a warm-up that waits for generation to calm down, five lines for the chunk lead and the player's own chunk, GC pauses instead of the sum of all collector beans, the main thread's run-queue wait, survival fake players, emulated client answers, and the same JVM flags in the elytra script |
-| Parity scenarios | `type=sleeping` and `type=villagers` with an on/off pair check. They reproduced four of the five documented bugs on release 26.3-11: duplicated items (652), tuned hopper rates ignored (906 instead of 2 751), blocks placed without physics not noticed and a held-back brewing stand never served, and shared villager beds (5 and 3). The held-back furnace and shared job sites did not reproduce |
-| Sleeping block entities act as on Paper (`0322`) | Parity pairs identical in all counters with default and tuned rates, also on the final build. On the final build the option saves 8 % of the bases' average tick time (12.3 → 11.3 ms, 5 runs each, p = 0.001), less than the two-run −12 to −15 % on older builds. Since the cooldown fix, a hopper whose transfers keep failing waits out Paper's cooldown awake instead of sleeping, as on Paper |
-| Async pathfinding and tracker act as vanilla (`0324`, Paper `0071`) | Shared beds 5 and 3 on the release, 0 after; claims 48 and 48 in both modes; mixed-load tick times unchanged. The correctness part of Leaf pull request #943 |
-| Async player data saving is safe (`0323`) | A pending save is never discarded, writes stay in order on one thread, `save-all flush` and the stop wait for them, an encode error writes nothing. Unit tests only |
-| Async mob spawning stall (`0321`) | A failed count no longer stops spawning until restart; mirrors Leaf pull request #937 |
-| Skipped spawn cost lookups (`0325`) | Vanilla-identical; no measurable tick time change, spawn counts per kind equal |
-| Lithium ports (`0326`) | Bases: average tick 12.0 → 11.2 ms, p95 17.0 → 15.3 ms, p99 24.4 → 19.8 ms (3 runs each, all 15 counters identical). Not visible against release 26.3-11 in the final round (see Next) |
-| Pregenerator hardening and disk guard (`0327`, Paper `0072`) | Bounded tick work, border-aware radius, failures contained, worlds that unload and return, background state file, exact index at shutdown, pause when the disk would run out, validated `/pregen start`; functional checks passed |
-| Doctor corrected, live host diagnostics | The numbers behind each piece of advice cite their source; the `LIVE` section agrees with `/proc` on the bench host within about half a percentage point. On the VPS only an idle test server was compared, over different windows |
-| Final round against 26.3-11 and plain Leaf | Parity passed. The final build measured the same as 26.3-11 in the bases and the mixed load. Against plain Leaf `66f99f8e`, eight fliers spent 2.0 % instead of 85.8 % of the flight over the void, at 27.8 instead of 37.7 ms per tick. The bases were a draw, at 26 % more CPU time ([MEASUREMENTS](MEASUREMENTS.md#final-round-the-build-of-2026-10-28-against-263-11-and-plain-leaf)) |
-| Worker priority (`performance.worker-priority`, Paper `0073`) and the pregenerator's wait throttle | Opt-in, off by default; main-thread wait halves on the bench host; the throttle is off by default because it stops pregeneration during a flight |
-| Idle memory return | Opt-in, off by default; about 1.45 GiB less resident memory with nobody online at `-Xms512M -Xmx2G` |
-| Copies of unreadable chunks (`0328`) | Verified with damaged region files |
+| A server test of the async player data saving | The write ordering, the flush barrier and the shutdown drain have unit tests only. `save-all flush` followed by a look at the file times, and a stop on a slow disk, need a real server |
+| Scenarios for four late fixes | The removed nitwit shortcut, the happy ghast's adult sensor, the idle-memory pause during a pregeneration and the async writer's publication rest on unit tests and review; the final round's scenarios exercise none of them |
+| A scenario that shows the furnace fix and shared job sites | Both bugs did not reproduce on the release, so their fixes have no counter |
+| Parity in CI | `parity.yml` runs the bases check only; the sleeping and villager pairs run by hand (`parity/run.sh <jar> all`) |
+| The shutdown stack trace | "Accessing poi chunk off-main" during `stop` while a pregeneration ran: once in 8 stops (new build 1 of 4, release 0 of 4), and the stack holds only vanilla, Paper and Moonrise code. Whether the skipped POI update is repaired on the next load is not checked; a candidate for an upstream report ([pregeneration measurements](measurements/pregeneration.md)) |
 
-## Not done, on purpose
+**Known limits**
+
+| Open item | Why it is open |
+| --- | --- |
+| Player#saveData and Server#savePlayers | They return before the asynchronous write lands (Leaf's behaviour); server-side reads wait for it, outside readers of the file may see stale data until the next flush. Waiting would need a Paper-server change |
+
+## ❌ Dropped
+
+Recorded so they are not proposed again without new facts.
+
+### Decided against while building
 
 | Item | Reason |
 | --- | --- |
@@ -62,7 +66,6 @@ From the deep analysis of 2026-10-27. Numbers and method: [MEASUREMENTS.md](MEAS
 | Leaf pull request #943 beyond the correctness part | Not ported: the MC-157589 behaviour change, a radix sort, the pathfinding pool size and its keepalive default |
 | Leaf pull request #952 (hopper rates) | Not ported; the tuned rates are honoured by taking Paper's transfer code when `hopper-amount` is not 1, with the cooldowns derived from `ticks-per.hopper-transfer` |
 | Making hoppers sleep with `ticks-per.hopper-check` above 1 | A woken sleeper cannot keep Paper's check interval, so these hoppers stay awake |
-| Lithium's framed map change, inactive navigations | See the table below |
 | Lithium's nitwit job-search shortcut | Taken out again: it skipped calls to the level's random, so it was not vanilla-identical |
 | Quarantine for entities and POI data, and for chunks the region file reports as missing | Only chunk data that throws is copied. A truncated header or an invalid compression id can be recovered by the region file itself, and its raw bytes are not reliably at hand |
 | A quarantine copy of a chunk saved by a newer Minecraft version | Paper stops the server first (verified), so nothing is lost |
@@ -70,21 +73,11 @@ From the deep analysis of 2026-10-27. Numbers and method: [MEASUREMENTS.md](MEAS
 | Direction smoothing in directional loading | Not added: samples from the first ticks and jumps are ignored instead, which keeps the order logic small |
 | `gettid` through `syscall` | `worker-priority` uses the C library's `gettid` (glibc 2.30, musl 1.2.2); an older library logs it once and the workers keep their priority |
 | Showing the furnace and job-site bugs in a scenario | Neither reproduced on the release, so no counter proves their fixes |
+| Client-paced chunk sending (built as `0328`, taken out again) | Measured on the bench host: fast clients got their full view no sooner, slow clients took twice as long to join, clients that never answer 4.9 s longer, and no tick time gain ([chunk measurements](measurements/chunks.md)) |
 
-## Done (2026-10-27)
+### Reviewed and not taken
 
-| Item | Score | Result |
-| --- | --- | --- |
-| Pregenerator resume fix | 9.5 | State written atomically and durably; a damaged file is kept as `.corrupt` and only the affected worlds start over |
-| Leaf's synchronous options one by one | 8.5 | Measured; none is both faster and the same behaviour, so no new default ([MEASUREMENTS](MEASUREMENTS.md#leafs-options-one-by-one)) |
-| `/kindling doctor` and start-up check | 8.0 | Command plus start-up warnings, setting `performance.doctor.startup-check` |
-| Fast fliers on modest hardware | — | Paper's automatic limit of concurrent generations per player capped at 32: time in the void on the 8-thread bench host 38.5 % → 0.9 % ([MEASUREMENTS](MEASUREMENTS.md#concurrent-generations-per-player)) |
-| Parity CI | 7.8 | `parity.yml` and the weekly Leaf merge run the bases scenario and compare 15 counters with `kindling-bench/parity/bases-ci.json`; identical on Windows and Linux |
-| Lithium ports (redstone wire power, useless sensors, rain and ice checks, lazy map cursor names) | — | Same results as vanilla (a differential test checks the wire power against vanilla's algorithm in 4000 random surroundings). Bases scenario, 3 runs each: average tick 12.0 → 11.2 ms, p95 17.0 → 15.3 ms, p99 24.4 → 19.8 ms, all 15 counters identical. Measured with Lithium's nitwit job-search shortcut, which was taken out afterwards because it changes the level's random numbers |
-
-## Reviewed and dropped
-
-Recorded so they are not proposed again without new facts. Scores from the 2026-10-27 review; DivineMC checked at `219de55` (`ver/26.3`).
+Scores from the 2026-10-27 review; DivineMC checked at `219de55` (`ver/26.3`).
 
 **Already in Leaf:** Lithium equipment tracking (Leaf 0229), sheep (0054), in-wall/suffocation checks (0018), BFS slope search for fluids (0181), parallel world ticking, the multithreaded tracker, Secure Seed, DAB, Anti-Xray, `B_LINEAR` region files.
 
@@ -111,6 +104,5 @@ Recorded so they are not proposed again without new facts. Scores from the 2026-
 | Lag spike recorder, `/kindling hotspots`, metrics endpoint | 6.5 / 6.0 / 5.0 | spark and exporter plugins already cover them; hotspots needs hooks in hot, heavily patched tick loops |
 | AOT from the jar, profiles, join prefetch | 6.0 / 5.0 / 4.0 | a documented start command covers AOT; profiles write keys across six config systems; join prefetch is unmeasured and collides with Leaf |
 | Lithium framed maps, inactive navigations | — | Framed maps: Lithium's mixin no longer prunes removed players and no longer removes the cursors of players with a map invisibility item when a framed map ticks, and 26.3 already skips the inventory scan it targets, so only the player name is built lazily. Inactive navigations: needs hooks wherever a mob's navigation or vehicle changes, next to Kindling's async path code, in the hot `ServerLevel.sendBlockUpdated`; identical behaviour cannot be shown |
-| Client-paced chunk sending (built as `0328`, taken out again) | — | measured on the bench host: fast clients got their full view no sooner, slow clients took twice as long to join, clients that never answer 4.9 s longer, and no tick time gain ([MEASUREMENTS](MEASUREMENTS.md#client-paced-chunk-sending)) |
 | Sakura explosions | 2.0 | no TNT-heavy server to measure or justify it |
 | Slime world format | — | very large port, own world format; networks that need it use AdvancedSlimePaper |

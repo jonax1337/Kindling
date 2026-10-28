@@ -29,6 +29,25 @@ Rules for coding agents working on Kindling. What Kindling is and does: [README.
 4. **Small patches.** Logic lives in `net.kindlingmc`; a patch only hooks it into a Minecraft or Paper class. Mark every changed upstream line with `// Kindling - <reason>` or a `// Kindling start - …` / `// Kindling end - …` pair.
 5. **Never write world data differently from vanilla.** Code that reads saved data must fall back to the vanilla path for anything unusual; code that writes it is out of scope unless the owner asks.
 
+## Documentation
+
+Each file has one job. Put a fact in the one file it belongs to and link to it from the others.
+
+| File | Job | Shape |
+| --- | --- | --- |
+| `README.md` | The front door: what Kindling is, the result against plain Leaf, the features, getting started, configuration | Short. One line per feature; long explanations in `<details>` or in the measurement files |
+| `CHANGELOG.md` | What changed in each release | Newest first, one entry per release, one line per change, the emoji legend at the top |
+| `docs/MEASUREMENTS.md` | The measurement overview: how to read the numbers, the bench host, the scoreboard | One scoreboard row per change, linking to its topic file |
+| `docs/measurements/*.md` | Why each change exists and what it measured, one file per topic | Per change: a result line first (verdict, key number, baseline, runs, date), then what it does, then Method, All numbers and Caveats folded in `<details>` |
+| `docs/ROADMAP.md` | What is open and what was dropped | Done items move to the changelog |
+| `docs/UPSTREAM.md` | How Kindling follows Leaf and which fixes Leaf could take | |
+| `kindling-bench/README.md` | How to run and read the bench | |
+
+- **Result first.** Lead with the result and what it was compared with; method and raw numbers come after, folded.
+- **Name the baseline** of every number (plain Leaf at a commit, the same build without the change, or an earlier build) and the number of runs. Use the verdicts defined in `docs/MEASUREMENTS.md`: 🏆 🤝 🔻 🛡️ 🧪 ⏸️ ❌.
+- **Living docs describe the current state.** History goes into `CHANGELOG.md`, not into dated paragraphs elsewhere.
+- **Charts come from data.** `docs/media/kindling-vs-leaf-*.svg` is drawn by `kindling-bench/chart.py` from the final round's runs; when that comparison is measured again, draw the chart again instead of editing the SVG.
+
 ## Changing a patch
 
 1. Edit the applied source and commit there (in `leaf-server/src/minecraft/java` or `paper-server`), as `git commit --fixup` onto the matching `Kindling:` commit or as a new commit for a new patch.
