@@ -4,8 +4,34 @@ Date: Wed, 28 Oct 2026 01:14:53 +0100
 Subject: [PATCH] Kindling: Keep a copy of unreadable chunks
 
 
+diff --git a/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/task/ChunkLoadTask.java b/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/task/ChunkLoadTask.java
+index 7463cf5bf871033a0e5f6d54dd0d427c474d7cd4..2676970fd7f639a183e0080d851fc213cd519967 100644
+--- a/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/task/ChunkLoadTask.java
++++ b/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/task/ChunkLoadTask.java
+@@ -360,10 +360,21 @@ public final class ChunkLoadTask extends ChunkProgressionTask {
+                 return new TaskResult<>(new ReadChunk(chunk, chunkData), null);
+             } catch (final Throwable thr2) {
+                 LOGGER.error("Failed to parse chunk data for task: " + this.toString() + ", chunk data will be lost", thr2);
++                this.keepUnparsableChunk(thr2); // Kindling - keep a copy of unreadable chunks
+                 return new TaskResult<>(null, null);
+             }
+         }
+ 
++        // Kindling start - keep a copy of unreadable chunks
++        // the NBT was valid but the chunk could not be upgraded or parsed, for example when a newer Minecraft version saved it
++        private void keepUnparsableChunk(final Throwable cause) {
++            if (cause instanceof Exception) {
++                MoonriseRegionFileIO.getControllerFor(this.world, MoonriseRegionFileIO.RegionFileType.CHUNK_DATA).getCache()
++                    .keepUnreadableChunk(this.chunkX, this.chunkZ, cause);
++            }
++        }
++        // Kindling end - keep a copy of unreadable chunks
++
+         @Override
+         protected TaskResult<ChunkAccess, Throwable> runOnMain(final ReadChunk data, final Throwable throwable) {
+             PlatformHooks.get().mainChunkLoad(data.protoChunk(), data.chunkData());
 diff --git a/net/minecraft/world/level/chunk/storage/RegionFile.java b/net/minecraft/world/level/chunk/storage/RegionFile.java
-index be2cc2d741afed63e7aef7286012640c53fff344..f8b9d1fc4226f48b16f3d18c7767b1c7e1bfbfce 100644
+index be2cc2d741afed63e7aef7286012640c53fff344..0ca236c8854d35a8a1ae20261887c0c5384fbecf 100644
 --- a/net/minecraft/world/level/chunk/storage/RegionFile.java
 +++ b/net/minecraft/world/level/chunk/storage/RegionFile.java
 @@ -636,6 +636,50 @@ public class RegionFile implements AutoCloseable, ca.spottedleaf.moonrise.patche
@@ -23,7 +49,7 @@ index be2cc2d741afed63e7aef7286012640c53fff344..f8b9d1fc4226f48b16f3d18c7767b1c7
 +        final Path externalFile = this.getExternalChunkPath(pos);
 +        final long externalSize = Files.size(externalFile);
 +        if (record.length + externalSize > maxBytes) {
-+            throw new IOException("External chunk file " + externalFile + " is larger than the " + maxBytes + " bytes allowed");
++            throw new net.kindlingmc.chunk.ChunkQuarantine.OverCapException("External chunk file " + externalFile + " is larger than the " + maxBytes + " bytes allowed");
 +        }
 +        final byte[] external = Files.readAllBytes(externalFile);
 +        final byte[] both = new byte[record.length + external.length];
@@ -45,7 +71,7 @@ index be2cc2d741afed63e7aef7286012640c53fff344..f8b9d1fc4226f48b16f3d18c7767b1c7
 +            throw new IOException("Chunk " + pos + " in " + this.path.toAbsolutePath() + " is truncated");
 +        }
 +        if (recordSize > maxBytes) {
-+            throw new IOException("Chunk " + pos + " in " + this.path.toAbsolutePath() + " is larger than the " + maxBytes + " bytes allowed");
++            throw new net.kindlingmc.chunk.ChunkQuarantine.OverCapException("Chunk " + pos + " in " + this.path.toAbsolutePath() + " is larger than the " + maxBytes + " bytes allowed");
 +        }
 +
 +        final ByteBuffer record = ByteBuffer.allocate((int) recordSize);
@@ -60,7 +86,7 @@ index be2cc2d741afed63e7aef7286012640c53fff344..f8b9d1fc4226f48b16f3d18c7767b1c7
          return (int)(Util.getEpochMillis() / 1000L);
      }
 diff --git a/net/minecraft/world/level/chunk/storage/RegionFileStorage.java b/net/minecraft/world/level/chunk/storage/RegionFileStorage.java
-index 663242e01950c314af4891a4a8ecd412fe63cb88..d91cb35702dcd6dd10a26f4df4b9efe40e5f456b 100644
+index 663242e01950c314af4891a4a8ecd412fe63cb88..c6ca37980ea4bb41a3f28b89939a80e25a6cc589 100644
 --- a/net/minecraft/world/level/chunk/storage/RegionFileStorage.java
 +++ b/net/minecraft/world/level/chunk/storage/RegionFileStorage.java
 @@ -206,6 +206,10 @@ public class RegionFileStorage implements AutoCloseable, ca.spottedleaf.moonrise
@@ -79,7 +105,7 @@ index 663242e01950c314af4891a4a8ecd412fe63cb88..d91cb35702dcd6dd10a26f4df4b9efe4
      // Paper end - rewrite chunk system
  
 +    // Kindling start - keep a copy of unreadable chunks
-+    private void keepUnreadableChunk(final int chunkX, final int chunkZ, final Exception cause) {
++    public void keepUnreadableChunk(final int chunkX, final int chunkZ, final Throwable cause) {
 +        if (!ca.spottedleaf.moonrise.patches.chunk_system.storage.RegionFileRecovery.isChunkStorage(this.info)) {
 +            return;
 +        }

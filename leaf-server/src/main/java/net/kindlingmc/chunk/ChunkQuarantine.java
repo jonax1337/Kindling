@@ -5,6 +5,7 @@ import it.unimi.dsi.fastutil.longs.LongOpenHashSet;
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.nio.channels.ClosedChannelException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileAlreadyExistsException;
 import java.nio.file.Files;
@@ -42,6 +43,14 @@ public final class ChunkQuarantine {
         byte[] read(long maxBytes) throws IOException;
     }
 
+    /** The stored bytes do not fit into what is left of the folder's cap. */
+    public static final class OverCapException extends IOException {
+
+        public OverCapException(final String message) {
+            super(message);
+        }
+    }
+
     private final Path root;
     private final String owner;
     private final long capBytes;
@@ -73,19 +82,32 @@ public final class ChunkQuarantine {
     }
 
     /** Copies the chunk unless it was copied before or the folder is full; returns the path of the copy. */
-    public synchronized Optional<Path> keep(final int chunkX, final int chunkZ, final StoredChunk stored, final Exception cause) {
-        if (this.full || !this.seen.add(packed(chunkX, chunkZ))) {
+    public synchronized Optional<Path> keep(final int chunkX, final int chunkZ, final StoredChunk stored, final Throwable cause) {
+        if (this.full || isClosedStorage(cause) || !this.seen.add(packed(chunkX, chunkZ))) {
             return Optional.empty();
         }
         try {
             return this.copy(chunkX, chunkZ, stored, cause);
+        } catch (final OverCapException ex) {
+            this.stopCopying();
+            return Optional.empty();
         } catch (final IOException | RuntimeException ex) { // whatever goes wrong here must never replace the read error
             LOGGER.warn("Chunk [{}, {}] in {} could not be read ({}) and no copy could be kept: {}", chunkX, chunkZ, this.owner, cause, ex.toString());
             return Optional.empty();
         }
     }
 
-    private Optional<Path> copy(final int chunkX, final int chunkZ, final StoredChunk stored, final Exception cause) throws IOException {
+    // a read that fails because the region file is being closed says nothing about the chunk, so it must not use up its one copy
+    private static boolean isClosedStorage(final Throwable cause) {
+        for (Throwable link = cause; link != null; link = link.getCause()) {
+            if (link instanceof ClosedChannelException) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private Optional<Path> copy(final int chunkX, final int chunkZ, final StoredChunk stored, final Throwable cause) throws IOException {
         final long remaining = this.capBytes - this.usedBytes();
         if (remaining <= 0) {
             this.stopCopying();
@@ -103,7 +125,7 @@ public final class ChunkQuarantine {
 
     private void stopCopying() {
         this.full = true;
-        LOGGER.warn("The chunk quarantine of {} holds {} bytes and is full; unreadable chunks are no longer copied", this.owner, this.capBytes);
+        LOGGER.warn("The chunk quarantine of {} has no room left within its {} bytes; unreadable chunks are no longer copied", this.owner, this.capBytes);
     }
 
     private long usedBytes() throws IOException {
@@ -126,7 +148,7 @@ public final class ChunkQuarantine {
         }
     }
 
-    private void writeReport(final Path copy, final int chunkX, final int chunkZ, final Exception cause) {
+    private void writeReport(final Path copy, final int chunkX, final int chunkZ, final Throwable cause) {
         final String fileName = copy.getFileName().toString();
         final Path report = copy.resolveSibling(fileName.substring(0, fileName.length() - ".bin".length()) + ".txt");
         final StringWriter text = new StringWriter();

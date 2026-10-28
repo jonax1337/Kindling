@@ -1,6 +1,7 @@
 package net.kindlingmc.chunk;
 
 import java.io.IOException;
+import java.nio.channels.ClosedChannelException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Optional;
@@ -115,6 +116,30 @@ class ChunkQuarantineTest {
 
         assertTrue(copy.isEmpty());
         assertFalse(Files.exists(this.root.resolve("r.0.0")));
+    }
+
+    @Test
+    void aChunkLargerThanWhatIsLeftFillsTheFolderAndTheNextOnesAreNotRead() {
+        final ChunkQuarantine quarantine = quarantine(ROOMY);
+        final AtomicInteger reads = new AtomicInteger();
+
+        assertTrue(quarantine.keep(0, 0, maxBytes -> {
+            throw new ChunkQuarantine.OverCapException("larger than " + maxBytes);
+        }, CAUSE).isEmpty());
+        assertTrue(quarantine.keep(1, 0, maxBytes -> read(reads), CAUSE).isEmpty());
+
+        assertEquals(0, reads.get());
+    }
+
+    @Test
+    void aReadThatFailsBecauseTheStorageIsClosedLeavesTheChunkItsCopy() {
+        final ChunkQuarantine quarantine = quarantine(ROOMY);
+        final Exception closing = new IOException("read failed", new ClosedChannelException());
+        final AtomicInteger reads = new AtomicInteger();
+
+        assertTrue(quarantine.keep(3, 3, maxBytes -> read(reads), closing).isEmpty());
+        assertEquals(0, reads.get());
+        assertTrue(quarantine.keep(3, 3, maxBytes -> BYTES, CAUSE).isPresent());
     }
 
     @Test
