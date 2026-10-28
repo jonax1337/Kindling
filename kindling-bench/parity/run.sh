@@ -3,7 +3,8 @@
 #
 #   bases      (default) the bases scenario in its CI size against the counters in bases-ci.json; --update rewrites it
 #   sleeping   hoppers, brewing stands and furnaces with plugin stand-ins, run with Leaf's sleeping-block-entity on and
-#              off, once with default hopper rates and once with non-default spigot.yml rates; each pair must agree
+#              off, once with default hopper rates, once with non-default spigot.yml rates and once as the bases
+#              contraptions with a plugin listening to InventoryMoveItemEvent; each pair must agree
 #   villagers  halls of villagers claiming beds and job sites, run with async pathfinding on and off; the pair must agree
 #              and no bed or job site may be claimed twice
 #   all        the three in turn
@@ -66,6 +67,9 @@ check_sleeping() {
     local status=0
     check_pair parity-sleeping "$scenario" parity-sleeping-on parity-sleeping-off || status=1
     check_pair parity-sleeping-rates "$scenario" parity-sleeping-on parity-sleeping-off parity-hopper-rates || status=1
+    # The bases contraptions with a plugin listening to InventoryMoveItemEvent, so the hoppers take Paper's event path.
+    check_pair parity-bases-listener "type=bases,players=1,plots-per-player=2,warmup-seconds=20,steady-seconds=90" \
+        parity-sleeping-listener-on parity-sleeping-listener-off || status=1
     return $status
 }
 
