@@ -19,7 +19,8 @@ public class StartupDoctor extends ConfigModule {
             With `startup-check` the server logs the warnings of that report once it has started.
             With `host-monitor` (Linux only) a background thread samples every 5 seconds how long the main thread waits for a CPU,
             how much CPU time the host takes (steal) and whether a container limit throttles the server, so the report can tell
-            whether lag comes from this server or from the machine under it.""",
+            whether lag comes from this server or from the machine under it. `host-monitor` is read at start-up: a change takes
+            effect after a restart.""",
             """
             /kindling doctor 列出本机上影响性能或内存的设置.
             host-monitor (仅 Linux) 每 5 秒采样主线程等待 CPU 的时间, 宿主机偷取的 CPU 时间和容器 CPU 限制.""");

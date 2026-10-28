@@ -5,7 +5,7 @@ Subject: [PATCH] Kindling: Keep a copy of unreadable chunks
 
 
 diff --git a/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/task/ChunkLoadTask.java b/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/task/ChunkLoadTask.java
-index 7463cf5bf871033a0e5f6d54dd0d427c474d7cd4..2676970fd7f639a183e0080d851fc213cd519967 100644
+index 7463cf5bf871033a0e5f6d54dd0d427c474d7cd4..1e929a8efee7302853e961d733051c2713ea8421 100644
 --- a/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/task/ChunkLoadTask.java
 +++ b/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/task/ChunkLoadTask.java
 @@ -360,10 +360,21 @@ public final class ChunkLoadTask extends ChunkProgressionTask {
@@ -18,7 +18,7 @@ index 7463cf5bf871033a0e5f6d54dd0d427c474d7cd4..2676970fd7f639a183e0080d851fc213
          }
  
 +        // Kindling start - keep a copy of unreadable chunks
-+        // the NBT was valid but the chunk could not be upgraded or parsed, for example when a newer Minecraft version saved it
++        // the NBT was valid but the chunk could not be upgraded or parsed, for example block states without a palette
 +        private void keepUnparsableChunk(final Throwable cause) {
 +            if (cause instanceof Exception) {
 +                MoonriseRegionFileIO.getControllerFor(this.world, MoonriseRegionFileIO.RegionFileType.CHUNK_DATA).getCache()
