@@ -7,7 +7,7 @@ Thanks for helping. Kindling is small on purpose: it is Leaf plus a few changes 
 | Rule | Meaning |
 | --- | --- |
 | 🎮 **No gameplay changes by default** | Mob spawning, AI, redstone, world generation and everything else a player can notice behave as in vanilla (and Leaf). An optimisation that changes behaviour can only be an opt-in setting with an honest description. |
-| 📏 **Measured, not guessed** | A performance change comes with `kindling-bench` numbers before and after (two runs each, see [kindling-bench/README.md](kindling-bench/README.md)). Only differences larger than the gap between the two runs count. |
+| 📏 **Measured, not guessed** | A performance change comes with `kindling-bench` numbers before and after (three runs each, see [kindling-bench/README.md](kindling-bench/README.md)). A difference counts only if `compare.py` marks it `*` (p < 0.05 and a gap of more than twice the larger half range). |
 | 🍃 **Leaf stays the base** | Fixes for problems plain Leaf has too belong in [Leaf](https://github.com/Winds-Studio/Leaf); Kindling picks them up with the next merge. |
 | ✂️ **Small patches** | Code that does not need to live inside a Minecraft class goes into `leaf-server/src/main/java/net/kindlingmc/`; the patch only hooks it in. This keeps merging Leaf updates cheap. |
 

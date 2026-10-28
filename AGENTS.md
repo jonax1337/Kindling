@@ -24,7 +24,7 @@ Rules for coding agents working on Kindling. What Kindling is and does: [README.
 ## Ground rules
 
 1. **No gameplay changes by default.** Vanilla (and Leaf) behaviour stays: mobs, spawning, AI, redstone, world generation, the full world size, no world border. A behaviour-changing optimisation can only be an opt-in setting with an honest description.
-2. **Measured, not guessed.** A performance change needs `kindling-bench` numbers before and after, two runs each. Only differences larger than the gap between two runs of the same build count. Say which numbers are measured and which are expectations.
+2. **Measured, not guessed.** A performance change needs `kindling-bench` numbers before and after, three runs each. A difference counts only if `compare.py` marks it `*` (p < 0.05 and a gap of more than twice the larger half range). Say which numbers are measured and which are expectations.
 3. **Leaf stays the base.** Fixes for problems plain Leaf has too belong upstream in Leaf. Keep Leaf's config keys, brand id `winds-studio:leaf` and plugin compatibility.
 4. **Small patches.** Logic lives in `net.kindlingmc`; a patch only hooks it into a Minecraft or Paper class. Mark every changed upstream line with `// Kindling - <reason>` or a `// Kindling start - …` / `// Kindling end - …` pair.
 5. **Never write world data differently from vanilla.** Code that reads saved data must fall back to the vanilla path for anything unusual; code that writes it is out of scope unless the owner asks.
