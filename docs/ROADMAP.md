@@ -22,7 +22,7 @@ Nothing open; new items need the 7.5 bar of the review.
 | `/kindling doctor` and start-up check | 8.0 | Command plus start-up warnings, setting `performance.doctor.startup-check` |
 | Fast fliers on modest hardware | — | Paper's automatic limit of concurrent generations per player capped at 32: time in the void on the 8-thread bench host 38.5 % → 0.9 % ([MEASUREMENTS](MEASUREMENTS.md#concurrent-generations-per-player)) |
 | Parity CI | 7.8 | `parity.yml` and the weekly Leaf merge run the bases scenario and compare 15 counters with `kindling-bench/parity/bases-ci.json`; identical on Windows and Linux |
-| Lithium ports (redstone wire power, useless sensors, nitwit job search, rain and ice checks, lazy map cursor names) | — | Same results as vanilla (a differential test checks the wire power against vanilla's algorithm in 4000 random surroundings); not yet measured on the bench |
+| Lithium ports (redstone wire power, useless sensors, rain and ice checks, lazy map cursor names) | — | Same results as vanilla (a differential test checks the wire power against vanilla's algorithm in 4000 random surroundings). Bases scenario, 3 runs each: average tick 12.0 → 11.2 ms, p95 17.0 → 15.3 ms, p99 24.4 → 19.8 ms, all 15 counters identical. Measured with Lithium's nitwit job-search shortcut, which was taken out afterwards because it changes the level's random numbers |
 
 ## Reviewed and dropped
 

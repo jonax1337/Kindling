@@ -53,22 +53,6 @@ index f576a0a1956e426f7601dc73bd3c13fe3e9e992d..6057e59e9361724d4b959fd4dfa06130
      private void forgetOutdatedMemories() {
          // Leaf start - Lithium - Reduce Brain memories lookup
          this.memories.values().forEach(slot -> {
-diff --git a/net/minecraft/world/entity/ai/behavior/AcquirePoi.java b/net/minecraft/world/entity/ai/behavior/AcquirePoi.java
-index 2e3a7e4e4d1b3b182b2a4db33dbf4821ccd5348c..3d7e2683262059539d5c44027118c3d13fb97141 100644
---- a/net/minecraft/world/entity/ai/behavior/AcquirePoi.java
-+++ b/net/minecraft/world/entity/ai/behavior/AcquirePoi.java
-@@ -54,6 +54,11 @@ public class AcquirePoi {
-         final Optional<Byte> onPoiAcquisitionEvent,
-         final BiPredicate<ServerLevel, BlockPos> validPoi
-     ) {
-+        // Kindling start - Lithium - a search for a POI of no type, as nitwits have for a job site, never finds anything
-+        if (poiType == PoiType.NONE) {
-+            return net.kindlingmc.ai.InertBehavior.instance();
-+        }
-+        // Kindling end - Lithium - a search for a POI of no type, as nitwits have for a job site, never finds anything
-         return new AcquirePoiBehavior(poiType, memoryToValidate, memoryToAcquire, onPoiAcquisitionEvent, validPoi, onlyIfAdult);
-     }
- 
 diff --git a/net/minecraft/world/entity/ai/sensing/Sensor.java b/net/minecraft/world/entity/ai/sensing/Sensor.java
 index c321c01148b0c92d8c2c17bb8c8b460586653107..45f0868646a4a76d69ad2dbfbf3b6bb4b82516c6 100644
 --- a/net/minecraft/world/entity/ai/sensing/Sensor.java

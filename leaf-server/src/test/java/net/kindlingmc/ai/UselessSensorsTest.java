@@ -76,6 +76,7 @@ class UselessSensorsTest {
         UselessSensors.onBabyFlagChanged(ageableMob(brain, true, false));
 
         verify(brain).tickSensorOnNextCall(SensorType.NEAREST_ADULT);
+        verify(brain).tickSensorOnNextCall(SensorType.NEAREST_ADULT_ANY_TYPE);
         verify(brain).tickSensorOnNextCall(SensorType.VILLAGER_BABIES);
         verify(brain, never()).eraseMemory(MemoryModuleType.NEAREST_VISIBLE_ADULT);
     }

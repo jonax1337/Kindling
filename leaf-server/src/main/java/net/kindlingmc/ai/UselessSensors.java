@@ -45,6 +45,7 @@ public final class UselessSensors {
         final Brain<?> brain = mob.getBrain();
         if (mob.isBaby()) {
             brain.tickSensorOnNextCall(SensorType.NEAREST_ADULT);
+            brain.tickSensorOnNextCall(SensorType.NEAREST_ADULT_ANY_TYPE);
             brain.tickSensorOnNextCall(SensorType.VILLAGER_BABIES);
         } else {
             brain.eraseMemory(MemoryModuleType.NEAREST_VISIBLE_ADULT);
