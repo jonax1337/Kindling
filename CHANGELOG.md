@@ -6,7 +6,7 @@ Legend: ✨ new · 🏆 faster (measured) · 🛡️ fixed · 🔧 changed · �
 
 Numbers come from [docs/MEASUREMENTS.md](docs/MEASUREMENTS.md) and carry their baseline. Results from two runs are marked as such and are not claimed as speed-ups.
 
-## Unreleased
+## 26.3-15 · 2026-10-29
 Faster world generation with the same blocks, and heap advice that counts the freezes. Measured on the bench host, 3 runs each, 2026-10-29; see [MEASUREMENTS](docs/MEASUREMENTS.md).
 
 - 🏆 Material rules (surface, ore vein and underground blocks) are evaluated through a class written once per rule tree, `performance.compiled-material-rules.enabled` (on by default; new patch `0341`); vanilla's own conditions decide every block: a pregeneration made 8.4 % more chunks in the same time (63 376 → 68 693 in 240 s) at the same CPU time, and 1.3 billion blocks evaluated both ways gave 0 differences ([details](docs/measurements/chunks.md#compiled-material-rules))
