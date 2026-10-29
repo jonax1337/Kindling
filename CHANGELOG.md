@@ -6,6 +6,13 @@ Legend: ✨ new · 🏆 faster (measured) · 🛡️ fixed · 🔧 changed · �
 
 Numbers come from [docs/MEASUREMENTS.md](docs/MEASUREMENTS.md) and carry their baseline. Results from two runs are marked as such and are not claimed as speed-ups.
 
+## Unreleased
+Two exact savings from the profiles of 2026-10-29, measured against release 26.3-15 on the bench host, 3 interleaved runs each, mixed load, 2 GB heap ([table](docs/measurements/memory-jvm.md#the-ring-of-partly-generated-chunks)).
+
+- 🏆 Moonrise's per-section list of randomly ticking blocks allocates its index map on the first add instead of in the constructor (new Paper patch `0075`): live heap after collection 1 198 → 1 141 MB (−57 MB, p < 0.001); tick times, full collections (8 per run with 2 GB) and CPU time unchanged ([details](docs/measurements/memory-jvm.md#the-ring-of-partly-generated-chunks))
+- 🤝 Natural spawn tries allocate no bound method references, `Vec3` or `ChunkPos` per chunk and category, look the nearby players up once per chunk and keep the spawn sampler (new patch `0343`); the flight ticks the same (37.4 → 37.1 ms, p = 0.47); the main thread waited 16 % less for a CPU and sent 2 % more chunk packets, both marked but small ([details](docs/measurements/ticking.md#cheaper-natural-spawn-tries))
+- 📊 Profiles of the main thread, the chunk workers and the heap under load are in [MEASUREMENTS](docs/MEASUREMENTS.md): natural spawning is a third of the main thread while players explore, the density compiler spends 7 to 10 % of the workers' CPU on branches it throws away, and 82 % of the chunk sections in memory hold only air
+
 ## 26.3-15 · 2026-10-29
 Faster world generation with the same blocks, and heap advice that counts the freezes. Measured on the bench host, 3 runs each, 2026-10-29; see [MEASUREMENTS](docs/MEASUREMENTS.md).
 

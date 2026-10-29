@@ -64,7 +64,19 @@ Every `ChunkAccess` allocates all 24 sections in its constructor, and each secti
 | of which the 885 000 Starlight nibble arrays | 28 MB | 29 MB |
 | Block storage `long[]` / light `byte[]` / palettes `Object[]` | 176 / 101 / 140 MB | 223 / 123 / 170 MB |
 
-With 82 % of the sections holding only air, about 190 to 205 MB of the live heap is the fixed overhead of empty sections, most of it in the 9 204 ring chunks without any block data. Two exact ways to take it back, neither built: a shared empty section state for chunks below `BIOMES`, materialised on the first write (the lion's share), and a `ShortList` that allocates its map on the first add instead of in the constructor (the 82 MB row; the list is empty in every air-only section and in most others; Moonrise code, a Paper patch). The histogram also counts 419 000 live `AABB` (23 MB) and 707 000 `BlockPos`; those are the young generation's survivors of the allocation rate measured in [the main-thread profile](ticking.md#where-the-time-goes-main-thread-profile).
+With 82 % of the sections holding only air, about 190 to 205 MB of the live heap is the fixed overhead of empty sections, most of it in the 9 204 ring chunks without any block data. Two exact ways to take it back: a shared empty section state for chunks below `BIOMES`, materialised on the first write (the lion's share, not built), and a `ShortList` that allocates its map on the first add instead of in the constructor (the 82 MB row; the list is empty in every air-only section and in most others; Moonrise code, built as Paper patch `0075` and measured below).
+
+**The lazy ticking-list map, measured.** 🏆 Against the 26.3-15 release jar, mixed load, 2 GB heap, 3 interleaved runs each (labels `cand-a` and `cand-b`, method in [the spawn-try section](ticking.md#cheaper-natural-spawn-tries)):
+
+| Figure | 26.3-15 | + lazy map | p |
+| --- | ---: | ---: | ---: |
+| Heap after collection (end of the run) | 1 198 ±1 MB | 1 141 ±1 MB | < 0.001 \* |
+| Full collections per run (`gc.log`) | 8, 8, 8 | 9, 7, 9 | |
+| GC pauses | 8.3 ±0.3 s | 8.3 ±0.7 s | 0.98 |
+| Travel tick time avg | 37.4 ±0.0 | 37.3 ±0.5 | 0.81 |
+| CPU time | 1 246 ±8 s | 1 245 ±7 s | 0.93 |
+
+The live heap shrinks by 57 MB (4.8 %), less than the 82 MB of the histogram because the end-of-run heap holds fewer chunks than the flight did. It does not change the number of full collections at 2 GB: those come from the allocation rate and the young generation, not from 57 MB of old objects. The patch stays as a memory saving; the 3 GB advice and the 2 GB G1 flags stay as they are. The histogram also counts 419 000 live `AABB` (23 MB) and 707 000 `BlockPos`; those are the young generation's survivors of the allocation rate measured in [the main-thread profile](ticking.md#where-the-time-goes-main-thread-profile).
 
 <details>
 <summary><b>Method</b></summary>

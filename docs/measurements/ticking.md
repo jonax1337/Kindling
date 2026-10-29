@@ -265,6 +265,32 @@ The average tick time of an idle server is too noisy at this level (2.6 / 2.0 ms
 
 </details>
 
+## Cheaper natural spawn tries
+
+> [!NOTE]
+> 🤝 **The flight ticks the same (37.4 → 37.1 ms, p = 0.47); the main thread waits 16 % less for a CPU and sends 2 % more chunk packets, both marked but small** · against release 26.3-15, mixed load, 2 GB heap, 3 interleaved runs · 2026-10-29
+
+Patch `0343` removes what the allocation profile below showed per chunk and category: the two bound method references and the consumer passed into `spawnCategoryForChunk` live in the spawn state and the chunk map now, the nearby players are looked up once per chunk instead of once per category (and again after a category that ran plugin code: a spawn, or `PreCreatureSpawnEvent` with listeners), the spawn-point distance is checked without a `Vec3` and the chunk without a `ChunkPos` when the position lies in the chunk itself, and the `NATURAL_MOB_SPAWNS` sampler is kept instead of hashed for on every lookup. Every check keeps its result.
+
+| Figure | 26.3-15 | + lazy ticking-list map | + this patch | p (against 26.3-15) |
+| --- | ---: | ---: | ---: | ---: |
+| Travel tick time avg | 37.4 ±0.0 | 37.3 ±0.5 | 37.1 ±0.5 | 0.47 |
+| Travel p95 | 62.6 ±1.3 | 64.4 ±0.6 | 61.3 ±1.9 | 0.42 |
+| Travel main-thread wait | 4 434 ±269 ms | 3 991 ±292 ms | 3 741 ±165 ms | 0.027 \* |
+| Chunk packets in the flight | 9 987 ±59 | 9 979 ±106 | 10 178 ±61 | 0.022 \* |
+| New chunks per second | 144.5 ±1.2 | 144.7 ±1.9 | 147.0 ±0.8 | 0.069 |
+| Standing tick time avg | 35.7 ±0.3 | 36.0 ±0.6 | 35.1 ±2.4 | 0.72 |
+| CPU time | 1 246 ±8 s | 1 245 ±7 s | 1 240 ±20 s | 0.68 |
+
+No tick-time row moves. The marked rows (less main-thread wait, more packets, a 0.1-chunk longer lead) point the same way and are small; with 37 rows compared, they are quoted next to the rows that did not move and not claimed as a speed-up. The patch stays because it is exact and costs nothing.
+
+<details>
+<summary><b>Method</b></summary>
+
+Labels `cand-a` (the 26.3-15 release jar, whose code equals the base commit), `cand-b` (plus Paper patch `0075`, the lazy ticking-list map) and `cand-c` (plus patch `0343`), `players=8,mobs-per-player=150,travel-seconds=90,steady-seconds=90,gamemode=survival`, `-XX:ActiveProcessorCount=8 -XX:+UseCompactObjectHeaders -Xms2G -Xmx2G -Xlog:gc:file=gc.log`, three rounds a, b, c, a, b, c, a, b, c on the bench host; `compare.py cand-a cand-b cand-c`, whose p-values compare each label with the first.
+
+</details>
+
 ## Where the time goes: main thread (profile)
 
 > [!NOTE]
