@@ -267,17 +267,47 @@ The average tick time of an idle server is too noisy at this level (2.6 / 2.0 ms
 
 ## Where the time goes: main thread (profile)
 
-**Main thread during the flight** (JFR, plain Leaf):
+> [!NOTE]
+> 🧪 **Natural spawning is a third of the main thread while players explore and 6 % while they stand; the standing phase is entity ticks (75 %) with no single hotspot above 3.1 %** · JFR `profile` settings, the mixed load (`players=8,mobs-per-player=150,travel-seconds=90,steady-seconds=90,gamemode=survival`, 3 GB heap), a build of 26.3-15 with measurement counters, 2 runs · bench host · 2026-10-29
 
-| Share | Where |
+Inclusive shares of the main thread's samples. The travel window is the 90 s flight, the standing window the 90 s among the mobs afterwards; the two runs agree within a point and the first is shown.
+
+| Where | Travel | Standing |
+| --- | ---: | ---: |
+| `ServerChunkCache.tickChunks` (spawning, random and scheduled ticks) | 49.9 % | 17.6 % |
+| of which natural spawning (`NaturalSpawner.spawnForChunk`) | 33.3 % | 6.1 % |
+| of which the biome lookup of a spawn try (`EnvironmentAttributeSystem.getValue` → `BiomeManager.getBiome`) | 10.1 % → 9.0 % | 1.7 % |
+| of which picking the mob (`getRandomSpawnMobAtWithChunk`) / the placement checks (`isValidSpawnPostitionForTypeWithChunk`) | 8.7 % / 6.0 % | 1.3 % / 0.2 % |
+| of which the per-tick mob count (`createState`) | 1.6 % | 3.4 % |
+| scheduled block ticks (`LevelTicks.tick`) | 10.6 % | 3.0 % |
+| random ticks (`iterateTickingChunksFaster`) | 9.6 % | 5.0 % |
+| entity ticks (`EntityTickList`) | 23.8 % | 74.7 % |
+| of which goals / brains / pathfinding / pushing | 4.2 / 1.5 / 1.4 / 0.8 % | 13.9 / 9.0 / 5.3 / 5.2 % |
+| of which the neighbour loop of the path evaluator (`checkNeighbourBlocks`) | 0.4 % | 1.1 % |
+| Leaf's `ChunkCache.get` (chunk lookups from everywhere) | 8.4 % | 5.0 % |
+| chunk tickets and the player loader (`processTicketUpdates`, `RegionizedPlayerChunkLoader`) | 5.1 % + 3.0 % | 0.8 % + 0.1 % |
+
+The 1.1 points between the attribute lookup and the biome lookup are what the 26.3 `EnvironmentAttributeSystem` adds on top of the biome zoom (three map lookups where 1.21 needed one). The spawner's share while exploring is the measured basis for the candidates in [the roadmap](../ROADMAP.md#-open) (pre-computing the read-only checks off the main thread, and the small exact costs); while players stand it is not worth a patch. The pathfinding neighbour loop at 1.1 % caps what a per-section danger counter could give.
+
+**What the main thread allocates** (JFR allocation samples, whole run, 36 GB sampled weight in about 5.5 minutes):
+
+| Share | Site or class |
 | ---: | --- |
-| 40 % | natural spawning (`NaturalSpawner.spawnForChunk`), of which about 11 % each go to biome lookups with Voronoi zoom (`BiomeManager.getBiome`, called through the new `EnvironmentAttributeSystem` for `NATURAL_MOB_SPAWNS`) and 10 % to random numbers |
-| 21 % | entity ticks |
-| 8 % | scheduled block ticks (water and lava in new chunks) |
-| 8 % | random ticks |
-| 9 % | Leaf's `ChunkCache.get` (memory access for the spawner's random chunk lookups) |
+| 20 % / 15 % / 10 % | `AABB` / `Vec3` / `BlockPos` objects |
+| 6.8 % + 4.3 % + 2.1 % | `BlockGetter.forEachBlockIntersectedBetween`, `Entity.checkInsideBlocks`, `BlockPos.betweenCornersInDirection` (the 26.x inside-block check, every moving entity every tick) |
+| 6.8 % + 5.7 % + 3.4 % | `AABB.inflate`, `Vec3.add`, `EntityDimensions.makeBoundingBox` (entity movement) |
+| 2.4 % + 1.1 % + 1.1 % + 3.1 % | `spawnForChunk` (the two bound method references per category and chunk), `getRandomPosWithin`, `BlockPos.containing` in the distance check, four `NaturalSpawner` lambdas |
+| 1.6 % + 1.4 % + 1.1 % | pathfinding nodes (`findAcceptedNode`, `getNode`, `getPathType`) |
+| 1.4 % | `PlayerChunkSender.sendChunk` |
 
-These are the candidates for further patches. A vanilla-identical shortcut for the biome lookup during spawning would be the biggest lever, but it has to reproduce the value computation of `EnvironmentAttributeSystem` exactly. Every such patch has to beat `kindling-bench`.
+The spawner is about 7 % of the main thread's allocation; the inside-block check and entity movement are about 30 %. Both are vanilla code.
+
+<details>
+<summary><b>Method</b></summary>
+
+`run_bench.py` with `-XX:StartFlightRecording=settings=profile,dumponexit=true` on the measurement build (the 26.3-15 sources plus counters that are off without `-Dkindling.measure=true`; not a patch), `-XX:ActiveProcessorCount=8 -XX:+UseCompactObjectHeaders -Xms3G -Xmx3G`, two interleaved runs (`measure-flight-a`, `-b`). The recordings were read with a small `jdk.jfr.consumer` program that groups `jdk.ExecutionSample` by thread, counts a marker method once per sample when it appears anywhere in the stack (inclusive), and sums `jdk.ObjectAllocationSample` weights by the first non-JDK frame. The travel window is seconds 62 to 150 of the recording, the standing window 162 to 250 (the server is up after 18 s, the warm-up took 35 s, the flight 91 s). Tick times of these runs are not comparable with the bench rounds: the profiler and the counters cost, and a diagnostic full collection was requested twice per run.
+
+</details>
 
 ## Looked at and left alone
 

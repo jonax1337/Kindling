@@ -154,14 +154,54 @@ While at least one player is online, every 20 ticks the 16x16-chunk tile each pl
 
 ## Where the time goes: chunk workers (profile)
 
-**Chunk workers while the pregenerator runs alone** (JFR, Kindling 26.3-1):
+> [!NOTE]
+> 🧪 **Two thirds of the workers build terrain; the density compiler evaluates both branches of every range choice and throws away 7 to 10 % of all worker CPU that way** · JFR `profile` settings plus timers at every `RangeChoiceFunction` sampler, the pregenerator alone (`pregen-w5`, 240 s), a build of 26.3-15 with measurement counters, 2 runs · bench host · 2026-10-29
+
+**Chunk workers while the pregenerator runs alone** (inclusive shares of the five workers' samples, 1 409 worker-seconds in run `a`; run `b` within a point):
 
 | Share | Where |
 | ---: | --- |
-| 58 % | building terrain: 28 % surface rules (`MaterialSystem.buildSurface`: rule evaluation for every solid block of a column, 10 % of it in biome lookups with Voronoi zoom), 25 % noise fill (density functions, 7 % aquifers) |
-| 14 % | parsing chunks loaded back from disk (fixed by [the tile order](#pregeneration) and [the palette decoder](chunks.md#loading-chunks-from-disk)) |
-| 10 % | features |
-| 4 / 3 / 2 / 3 % | carvers / biomes / light / saving |
+| 66.8 % | building terrain (`ChunkStatusTasks.buildTerrain`): 36.9 % noise fill (`NoiseBasedChunkGenerator.doFill`; 16.1 % interpolation, 10.8 % aquifers, 10.3 % Perlin noise), 23.3 % surface and ore rules (`MaterialSystem.buildSurface`, compiled; 3.3 % of it in biome lookups) |
+| 19.5 % | inside range choices of the density functions (`RangeChoiceFunction$Sampler.sampleVolume`, counted once per sample; part of the two rows above) |
+| 17.3 % | features |
+| 4.9 % | biomes (`Climate` lookups 4.4 %) |
+| 3.7 % | light |
+| 1.5 % + 1.2 % | saving (`SerializableChunkData.write`) and parsing loaded chunks (`parse`): the 14 % of the first version is gone since [the tile order](#pregeneration) and [the palette decoder](chunks.md#loading-chunks-from-disk) |
+| 0.8 % | structure starts |
+
+Of the 2 025 CPU seconds of the run the workers used 1 409 and the main thread 40; the rest is garbage collection, I/O and start-up. Flying players give the same worker picture (`buildTerrain` 69 %, range choices 21 %).
+
+### Discarded density branches
+
+`RangeChoiceFunction.Sampler.sampleVolume` evaluates the in-range branch, then the input, then the out-of-range branch for the whole volume and picks per point. The timers below sit around those three calls; the overworld's router has 15 such samplers. Times are summed over all workers; a nested range choice is counted in its parent too, so the rows do not add up.
+
+| Range choice (overworld router) | Calls | Points | In range | In branch | Out branch | Input |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| `caves`: `slopedCheese` in −10⁶..1.5625 → surface, else the underground subtree (cell corners) | 75 292 | 86.8 M | 71.1 % | 110.3 s | 46.5 s | 0.1 s |
+| noodle caves: toggle < 0 → 64, else thickness + ridges (block resolution) | 75 292 | 6 915 M | 49.5 % | 2.4 s | 61.5 s | 15.5 s |
+| ore veins, copper: y in 0..50 → the vein chain, else −1 (block resolution) | 279 294 | 2 506 M | 35.9 % | 40.2 s | 0.4 s | 3.9 s |
+| ore veins, iron: y in −60..−8 | 279 294 | 2 506 M | 37.4 % | 10.4 s | 0.4 s | 3.9 s |
+| ore vein mask: toggle in −0.4..0.4 → −1, else 0.08 − max(vein A, vein B) | 279 294 | 2 506 M | 80.7 % | 0.9 s | 17.2 s | 1.3 s |
+| the inner vein gates (two) | 279 294 | 2 506 M | 0.8 % | 14.0 s + 7.0 s | 0.4 s | 23.3 s + 0.7 s |
+| pillars, the y limits of noodle and vein noises (seven more) | | | 84 to 98 % | | | below 0.3 s wasted each |
+
+What is certainly wasted, counting only a branch's own time at the points that chose the other branch:
+
+| | Wasted | How |
+| --- | ---: | --- |
+| `caves` | 33 s | the underground subtree (about a dozen noises) for the 71 % of cell corners above the terrain |
+| noodle caves | 30 s | thickness and ridge interpolation per block for the half of the blocks whose toggle is negative |
+| ore veins | about 40 s | the vein chain outside the y range of each type (64 %), the vein noises where the toggle is in the dead band (81 %), the inner gates for the 99 % of blocks with no vein |
+| together | 103 s | 7.3 % of the workers' CPU, 5.1 % of the process |
+
+The `caves` row's in-branch time is misleading on its own: `surfaceWithEntrances` is cheap, but the shared `entrances` cache is filled during its evaluation and reused by the underground branch, so the 110 s belong to both branches. Counting the in-branch time at out-of-range points as wasted too gives 135 s, 9.6 % of the workers. The second run gives the same shares (71.1 % and 49.7 %; 326 s inside range choices). This is the measured basis for the compiler candidate in [the roadmap](../ROADMAP.md#-open): evaluating a branch only where it is chosen is exact for the cave subtree (no interpolation inside it), but the compiler's caches are keyed by the exact volume, so a sub-volume would miss them unless the cache serves sub-volumes.
+
+<details>
+<summary><b>Method</b></summary>
+
+`run_bench.py --overlay overlays/pregen-w5` with the pregenerator's "alone" scenario (`players=1,blocks-per-tick=0,warmup-seconds=20,travel-seconds=240,mobs-per-player=0`), `-XX:StartFlightRecording=settings=profile,dumponexit=true -Dkindling.measure=true`, `-XX:ActiveProcessorCount=8 -XX:+UseCompactObjectHeaders -Xms3G -Xmx3G`, two runs interleaved with the flight runs (`measure-pregen-a`, `-b`, 68 096 and 67 072 chunks in 240 s). The measurement build turns `RangeChoiceFunction.Sampler` into a class with `LongAdder` counters around its three `sampleVolume` calls and the per-point choice; it reports every 60 s and at shutdown. The JFR recording was read with the same `jdk.jfr.consumer` program as the main-thread profile. The branch timers include the timers of nested range choices, the JFR share counts a sample once however deep the nesting.
+
+</details>
 
 ---
 

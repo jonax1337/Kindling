@@ -34,7 +34,44 @@ A server jar cannot bring its own JVM flags. Measured and recommended:
   - G1 with a small `-Xms`: G1 returns practically nothing while the server ticks, because `G1PeriodicGCInterval` only acts after GC-free pauses.
   - `-XX:G1HeapRegionSize=4M` with 2 GB: more full collections (8 to 9 per run), not fewer; large arrays are not what fills the heap.
 
-**What the heap holds under load.** Class histograms after a full collection (one run, 3 GB heap, the same load) show mostly chunk data: about 210 MB of `long[]` (block storage), 160 MB of `Object[]` (palettes), 117 MB of `byte[]` (light) and 580 000 chunk sections. While the players stood among the mobs, 6 491 chunks were full and 11 181 were generated only part of the way (`ProtoChunk`): 63 % of the chunk objects are the ring of partly generated neighbours that a full chunk needs around each player, about 9 chunks beyond the full area. That is vanilla's chunk level design. How much of the heap they hold was not measured: chunks at the early stages carry little block data (over a million block and biome containers held a single value); it has not been reduced.
+**What the heap holds under load.** Class histograms after a full collection (one run, 3 GB heap, the same load) show mostly chunk data: about 210 MB of `long[]` (block storage), 160 MB of `Object[]` (palettes), 117 MB of `byte[]` (light) and 580 000 chunk sections. While the players stood among the mobs, 6 491 chunks were full and 11 181 were generated only part of the way (`ProtoChunk`): 63 % of the chunk objects are the ring of partly generated neighbours that a full chunk needs around each player, about 9 chunks beyond the full area. That is vanilla's chunk level design. What they hold is measured below.
+
+### The ring of partly generated chunks
+
+> [!NOTE]
+> 🧪 **A fifth of the live heap under load is the fixed overhead of chunk sections, and 82 % of the sections hold only air; 8 % of the live heap is one eagerly allocated hash map per section** · live class histograms (`jcmd GC.class_histogram`) and a chunk census every 400 ticks in the mixed load, 3 GB heap, a build of 26.3-15 with measurement counters · one run with histograms, three with the census · bench host · 2026-10-29
+
+The 26.3 generation pyramid asks for `STRUCTURE_STARTS` at radius 8 around every later step and only radius 1 for the rest, so most of the ring never gets block data. The census of the overworld while the players stood (tick 4 000; the same picture from tick 2 800 on, and in all three runs):
+
+| Chunks | Status | Sections | of which air only |
+| ---: | --- | ---: | ---: |
+| 8 234 | `structure_starts`, `ProtoChunk` | 197 616 | 197 616 (100 %) |
+| 970 | `biomes`, `ProtoChunk` | 23 280 | 23 280 (100 %) |
+| 958 + 944 | `terrain`, `initialize_light`, `ProtoChunk` | 45 648 | 28 781 (63 %) |
+| 6 566 | `full`, `LevelChunk` (2 312 entity ticking, 576 block ticking, 2 112 full, 1 566 inaccessible) | 157 584 | 97 933 (62 %) |
+| 17 672 | all | 424 128 | 347 610 (82 %) |
+
+Every `ChunkAccess` allocates all 24 sections in its constructor, and each section carries two `PalettedContainer`s (with `Data`, a `FastHashMapPalette` and a `ZeroBitStorage` each), a Moonrise `ShortList` for its ticking blocks with a `Short2ShortOpenHashMap` and two `short[]`, and 52 Starlight nibble arrays per chunk. The live histogram of the flight run (`measure-flight-c`, taken from outside with `jcmd`, so after a full collection):
+
+| | Flight, +120 s | Standing, +230 s |
+| --- | ---: | ---: |
+| Live heap | 1 057 MB | 1 234 MB |
+| Chunk sections (all dimensions) | 535 425 | 579 816 |
+| Fixed overhead of the sections (section, two containers with data, palette and bit storage, the short list with its map and arrays, nibble arrays) | 229 MB (22 %) | 251 MB (20 %) |
+| per section | 427 B | 433 B |
+| of which the `ShortList` with its `Short2ShortOpenHashMap` and `short[]` | 82 MB (7.8 %) | 94 MB (7.6 %) |
+| of which the two `PalettedContainer`s with `Data`, `FastHashMapPalette` and `ZeroBitStorage` | 101 MB | 109 MB |
+| of which the 885 000 Starlight nibble arrays | 28 MB | 29 MB |
+| Block storage `long[]` / light `byte[]` / palettes `Object[]` | 176 / 101 / 140 MB | 223 / 123 / 170 MB |
+
+With 82 % of the sections holding only air, about 190 to 205 MB of the live heap is the fixed overhead of empty sections, most of it in the 9 204 ring chunks without any block data. Two exact ways to take it back, neither built: a shared empty section state for chunks below `BIOMES`, materialised on the first write (the lion's share), and a `ShortList` that allocates its map on the first add instead of in the constructor (the 82 MB row; the list is empty in every air-only section and in most others; Moonrise code, a Paper patch). The histogram also counts 419 000 live `AABB` (23 MB) and 707 000 `BlockPos`; those are the young generation's survivors of the allocation rate measured in [the main-thread profile](ticking.md#where-the-time-goes-main-thread-profile).
+
+<details>
+<summary><b>Method</b></summary>
+
+The measurement build logs a census of every level's chunk holders (`ChunkHolderManager.getChunkHolders`, generation status, full status, class, sections and `hasOnlyAir`) every 400 ticks when started with `-Dkindling.measure=true`; it is not a patch. The histograms come from `jcmd <pid> GC.class_histogram` run from a watcher next to `run_bench.py` 120 s and 230 s after the JVM started (the flight runs from about +60 s to +150 s, the standing phase from +160 s), so each histogram forced one full collection into the run; the tick times of that run are not comparable with the bench rounds. The first two flight runs attached the watcher to the Python process by mistake and have no histogram; their census agrees with the third run. The per-section overhead sums the instances of the classes named in the table; the `Object[]` palette arrays are not attributed, so the fixed overhead is a lower bound.
+
+</details>
 
 <details>
 <summary><b>Method</b></summary>
