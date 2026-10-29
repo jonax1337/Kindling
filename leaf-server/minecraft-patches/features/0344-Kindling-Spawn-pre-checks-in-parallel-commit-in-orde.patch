@@ -1,0 +1,170 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Thu, 29 Oct 2026 22:51:53 +0100
+Subject: [PATCH] Kindling: Spawn pre-checks in parallel, commit in order
+
+
+diff --git a/net/minecraft/server/level/ServerChunkCache.java b/net/minecraft/server/level/ServerChunkCache.java
+index 22e65e4a6e8e4e8e16c1177117708a1b737595e8..3aa0689b77b432fb775d3fd562533f1beef5a6e1 100644
+--- a/net/minecraft/server/level/ServerChunkCache.java
++++ b/net/minecraft/server/level/ServerChunkCache.java
+@@ -74,6 +74,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+     private final Set<ChunkHolder> chunkHoldersToBroadcast = new ReferenceOpenHashSet<>();
+     @VisibleForDebug
+     private NaturalSpawner.@Nullable SpawnState lastSpawnState;
++    public final net.kindlingmc.spawn.SpawnPrecheckRound spawnPrecheckRound = new net.kindlingmc.spawn.SpawnPrecheckRound(); // Kindling - spawn pre-checks in parallel
+     private volatile NaturalSpawner.@Nullable SpawnState asyncSpawnState; // Leaf - Pufferfish - async mob spawning
+     private volatile boolean spawnCountPending; // Leaf - Pufferfish - async mob spawning // Kindling - Leaf PR #937: the worker resets it when counting fails
+     private NaturalSpawner.@Nullable AsyncSpawnCostSampler asyncSpawnCostSampler; // Leaf - Pufferfish - async mob spawning
+@@ -169,6 +170,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+             }
+         }
+ 
++        if (load) net.kindlingmc.spawn.ChunkLoadGuard.refuseLoadWhileRecording(); // Kindling - spawn pre-checks in parallel: a load would wait for the waiting main thread
+         return load ? this.syncLoad(chunkX, chunkZ, toStatus) : null;
+     }
+     // Paper end - rewrite chunk system
+@@ -657,6 +659,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+                 }
+                 List<MobCategory> spawningCategories = doMobSpawning && (this.spawnEnemies || this.spawnFriendlies)
+                     ? NaturalSpawner.getFilteredSpawningCategories(spawnCookie, this.spawnFriendlies, this.spawnEnemies, spawnPersistent, this.level) : List.of();
++                this.spawnPrecheckRound.prepare(this.level, spawningChunks, spawningCategories); // Kindling - spawn pre-checks in parallel
+                 // Leaf start - optimize mob spawning
+                 Object[] raw = spawningChunks.elements();
+                 for (int i = 0, size = spawningChunks.size(); i < size; i++) {
+@@ -670,6 +673,7 @@ public class ServerChunkCache extends ChunkSource implements ca.spottedleaf.moon
+             }
+             // Leaf end - Pufferfish - async mob spawning
+         } finally {
++            this.spawnPrecheckRound.finish(); // Kindling - spawn pre-checks in parallel
+             spawningChunks.clear();
+             this.level.natureSpawnChunkMap.clear(); // Leaf - optimize mob spawning
+         }
+diff --git a/net/minecraft/world/level/Level.java b/net/minecraft/world/level/Level.java
+index eeb084aa75dc8e4ae117589958ae64480f8cef76..8d5defafcf11db1cfc520b2b0faa21d794dafbcd 100644
+--- a/net/minecraft/world/level/Level.java
++++ b/net/minecraft/world/level/Level.java
+@@ -130,6 +130,7 @@ public abstract class Level implements LevelAccessor, AutoCloseable, ca.spottedl
+     public float rainLevel;
+     protected float oThunderLevel;
+     public float thunderLevel;
++    public int kindling$blockAndBiomeWrites; // Kindling - spawn pre-checks in parallel: counts the block and biome changes of loaded chunks
+     protected final RandomSource random = org.dreeam.leaf.config.modules.opt.FastRNG.enabled ? new org.dreeam.leaf.util.math.random.FasterRandomSource(net.minecraft.world.level.levelgen.RandomSupport.generateUniqueSeed()) : new ca.spottedleaf.moonrise.common.util.ThreadUnsafeRandom(net.minecraft.world.level.levelgen.RandomSupport.generateUniqueSeed()); // Paper - replace random // Leaf - Faster random generator
+     @Deprecated
+     private final RandomSource soundSeedGenerator = RandomSource.createThreadSafe();
+diff --git a/net/minecraft/world/level/NaturalSpawner.java b/net/minecraft/world/level/NaturalSpawner.java
+index f15d827412c4c84e8cfb4923f8930ad229b82c81..9713d486d412ebbad4f92b34dad792b70d7ce6fd 100644
+--- a/net/minecraft/world/level/NaturalSpawner.java
++++ b/net/minecraft/world/level/NaturalSpawner.java
+@@ -291,8 +291,14 @@ public final class NaturalSpawner {
+             if (canSpawn) {
+                 // Paper PR start - throttle failed spawn attempts
+                 // Kindling start - one predicate, callback and consumer per state instead of three bound method references per chunk and category
+-                int spawnCount = spawnCategoryForChunk(mobCategory, level, chunk, state.canSpawnPredicate, state.afterSpawnCallback,
+-                    maxSpawns, perPlayerMobSpawns ? level.getChunkSource().chunkMap.updatePlayerMobTypeMapConsumer : null, generator); // Leaf - optimize mob spawning
++                // Kindling start - spawn pre-checks in parallel: a try the round recorded is replayed from its record
++                final Consumer<Entity> trackEntity = perPlayerMobSpawns ? level.getChunkSource().chunkMap.updatePlayerMobTypeMapConsumer : null;
++                final net.kindlingmc.spawn.SpawnPrecheckRound prechecks = level.getChunkSource().spawnPrecheckRound;
++                int spawnCount = prechecks.covers(chunk, mobCategory)
++                    ? prechecks.replay(chunk, mobCategory, state.canSpawnPredicate, state.afterSpawnCallback, maxSpawns, trackEntity)
++                    : spawnCategoryForChunk(mobCategory, level, chunk, state.canSpawnPredicate, state.afterSpawnCallback,
++                    maxSpawns, trackEntity, generator); // Leaf - optimize mob spawning
++                // Kindling end - spawn pre-checks in parallel
+                 // Kindling end - one predicate, callback and consumer per state
+                 // Kindling start - count failed attempts only while a spawn throttle reads them
+                 if (spawnCount != 0) {
+@@ -537,7 +543,7 @@ public final class NaturalSpawner {
+         return clusterSize; // Paper PR - throttle failed spawn attempts
+     }
+ 
+-    private static boolean isRightDistanceToPlayerAndSpawnPoint(
++    public static boolean isRightDistanceToPlayerAndSpawnPoint( // Kindling - visible to the spawn pre-checks
+         final ServerLevel level, final ChunkAccess chunk, final BlockPos.MutableBlockPos pos, final double nearestPlayerDistanceSqr
+     ) {
+         if (nearestPlayerDistanceSqr <= 576.0) {
+@@ -556,7 +562,7 @@ public final class NaturalSpawner {
+     }
+ 
+     // Paper start - PreCreatureSpawnEvent
+-    private enum PreSpawnStatus {
++    public enum PreSpawnStatus { // Kindling - visible to the spawn pre-checks
+         FAIL,
+         SUCCESS,
+         CANCELLED,
+@@ -599,7 +605,7 @@ public final class NaturalSpawner {
+         return success ? PreSpawnStatus.SUCCESS : PreSpawnStatus.FAIL; // Paper - PreCreatureSpawnEvent
+     }
+ 
+-    private static @Nullable Mob getMobForSpawn(final ServerLevel level, final EntityType<?> type) {
++    public static @Nullable Mob getMobForSpawn(final ServerLevel level, final EntityType<?> type) { // Kindling - visible to the spawn pre-checks
+         try {
+             if (type.create(level, EntitySpawnReason.NATURAL) instanceof Mob mob) {
+                 return mob;
+@@ -614,7 +620,7 @@ public final class NaturalSpawner {
+         return null;
+     }
+ 
+-    private static boolean isValidPositionForMob(final ServerLevel level, final Mob mob, final double nearestPlayerDistanceSqr) {
++    public static boolean isValidPositionForMob(final ServerLevel level, final Mob mob, final double nearestPlayerDistanceSqr) { // Kindling - visible to the spawn pre-checks
+         return (
+                 !(nearestPlayerDistanceSqr > mob.getType().getCategory().getDespawnDistance() * mob.getType().getCategory().getDespawnDistance())
+                     || !mob.removeWhenFarAway(nearestPlayerDistanceSqr)
+@@ -806,7 +812,7 @@ public final class NaturalSpawner {
+ 
+     // Leaf start - optimize mob spawning
+     // Copied and modified from `isValidSpawnPostitionForType`
+-    private static PreSpawnStatus isValidSpawnPostitionForTypeWithChunk(
++    public static PreSpawnStatus isValidSpawnPostitionForTypeWithChunk( // Kindling - visible to the spawn pre-checks
+         // Paper end - PreCreatureSpawnEvent
+         final ServerLevel level,
+         final MobCategory mobCategory,
+@@ -850,7 +856,7 @@ public final class NaturalSpawner {
+     }
+ 
+     // Copied and modified from `getRandomSpawnMobAt`
+-    private static Optional<MobSpawnSettings.SpawnerData> getRandomSpawnMobAtWithChunk(
++    public static Optional<MobSpawnSettings.SpawnerData> getRandomSpawnMobAtWithChunk( // Kindling - visible to the spawn pre-checks
+         final ServerLevel level,
+         final StructureManager structureManager,
+         final ChunkGenerator generator,
+@@ -870,7 +876,7 @@ public final class NaturalSpawner {
+     }
+ 
+     // Copied and modified from `mobsAt`
+-    private static WeightedList<MobSpawnSettings.SpawnerData> mobsAtWithChunk(
++    public static WeightedList<MobSpawnSettings.SpawnerData> mobsAtWithChunk( // Kindling - visible to the spawn pre-checks
+         final ServerLevel level,
+         final StructureManager structureManager,
+         final ChunkGenerator generator,
+diff --git a/net/minecraft/world/level/chunk/ChunkAccess.java b/net/minecraft/world/level/chunk/ChunkAccess.java
+index 593375984dda99ebefe831847d98f76030819043..e4d8c96d65ea599e404b61d77d3818c0dffc8a9c 100644
+--- a/net/minecraft/world/level/chunk/ChunkAccess.java
++++ b/net/minecraft/world/level/chunk/ChunkAccess.java
+@@ -601,6 +601,7 @@ public abstract class ChunkAccess implements LightChunk, StructureAccess, BiomeR
+             int clampedQuartY = Mth.clamp(quartY, quartMinY, quartMaxY);
+             int sectionIndex = this.getSectionIndex(QuartPos.toBlock(clampedQuartY));
+             this.sections[sectionIndex].setNoiseBiome(quartX & 3, clampedQuartY & 3, quartZ & 3, biome);
++            if (this instanceof LevelChunk levelChunk) levelChunk.getLevel().kindling$blockAndBiomeWrites++; // Kindling - spawn pre-checks in parallel
+         } catch (Throwable throwable) {
+             CrashReport report = CrashReport.forThrowable(throwable, "Setting biome");
+             CrashReportCategory category = report.addCategory("Biome being set");
+@@ -611,6 +612,7 @@ public abstract class ChunkAccess implements LightChunk, StructureAccess, BiomeR
+     // CraftBukkit end
+ 
+     public void fillBiomesFromNoise(final BiomeResolver biomeResolver) {
++        if (this instanceof LevelChunk levelChunk) levelChunk.getLevel().kindling$blockAndBiomeWrites++; // Kindling - spawn pre-checks in parallel
+         ChunkPos pos = this.getPos();
+         int quartMinX = QuartPos.fromBlock(pos.getMinBlockX());
+         int quartMinZ = QuartPos.fromBlock(pos.getMinBlockZ());
+diff --git a/net/minecraft/world/level/chunk/LevelChunk.java b/net/minecraft/world/level/chunk/LevelChunk.java
+index 76df4d7c4d4056e12996bdb771645f16e9d608e8..0b53243a7bd370ec242e5584a88265df007a7481 100644
+--- a/net/minecraft/world/level/chunk/LevelChunk.java
++++ b/net/minecraft/world/level/chunk/LevelChunk.java
+@@ -440,6 +440,7 @@ public class LevelChunk extends ChunkAccess implements DebugValueSource, ca.spot
+         if (oldState == state) {
+             return null;
+         }
++        this.level.kindling$blockAndBiomeWrites++; // Kindling - spawn pre-checks in parallel
+         // Leaf start - optimize random tick
+         if (oldState.isRandomlyTicking() != state.isRandomlyTicking()) {
+             leaf$tickingBlocksDirty = true;

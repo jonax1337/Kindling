@@ -1,0 +1,5 @@
+# Bench A/B: spawn pre-checks in parallel, commit in order (roadmap item 2), two helper threads.
+performance:
+  parallel-spawn-prechecks:
+    enabled: true
+    helper-threads: 2
