@@ -77,6 +77,7 @@ Leaf `66f99f8e` against Kindling's build of 2026-10-29 (the coming 26.3-13), eac
 | 🎚️ | **Worker governor** | Opt-in (Linux): lowers the chunk worker count while the host crowds the main thread, raises it again when it is quiet | ⏸️ not measured · [more](docs/measurements/host.md#worker-governor) |
 | 🔬 | **Biome zoom shortcut** | Opt-in: skips the zoom's distance math where all eight candidate biome cells hold one biome; the zoom itself now picks exactly vanilla's cell | 🤝 no tick time difference on or off (flight 27.2 → 27.7 ms, p = 0.49), no memory gain claimed · ⏸️ stays off · 🛡️ the cell choice is checked against vanilla's algorithm · [more](docs/measurements/vanilla-parity.md#biome-zoom) |
 | 🩺 | **`/kindling doctor`** | Checks the machine and the settings and names the fix, including a "vanilla parity" finding for settings that differ from vanilla; on Linux also live CPU wait, steal and throttling | 🛡️ live readings agree with `/proc` within half a point · [more](docs/measurements/host.md#the-doctors-live-readings) |
+| 🔥 | **`/kindling stress`** | Puts your own server under load you can watch in game: fake players (standing or flying), mobs and hopper, furnace and redstone bases in a throwaway world, with live MSPT and TPS on a boss bar; the world is deleted afterwards · [more](#stress-test) | — |
 | 🧠 | **Measured JVM advice** | G1 with `-XX:+UseCompactObjectHeaders` and a 2 GB heap | 🧪 −29 % resident memory at the same tick time · [more](docs/measurements/memory-jvm.md#jvm-and-heap) |
 | 💾 | **Idle memory return** | Opt-in: gives memory back while nobody is online | ⏸️ about 1.45 GiB less resident memory with nobody online · [more](docs/measurements/memory-jvm.md#idle-memory) |
 | 🪫 | **Worker priority** | Opt-in: chunk and I/O workers run at a lower OS priority on Linux | ⏸️ halves the main thread's wait for a CPU on the bench host · [more](docs/measurements/host.md#worker-priority-and-the-main-threads-wait-for-a-cpu) |
@@ -197,6 +198,30 @@ In plain sentences over the last minute (with the last 15 minutes in brackets):
 - the nice value of a chunk worker thread, and whether `worker-priority` (below) is on and took effect.
 
 A background thread samples these every 5 seconds from `/proc` and the cgroup files; it needs a minute to say something about the last minute. On a virtual machine a nearly idle main thread already shows 10 to 14 % wait (wake-up latency) but only about 3 ms per second, so the doctor names that as wake-up latency instead of warning about contention. How well the readings agree with `/proc`: [host measurements](docs/measurements/host.md).
+
+</details>
+
+### Stress test
+
+```
+/kindling stress players <0-100> [stand|fly]   fake players, spread out; fly: back and forth over 1 024 blocks, generating and loading chunks
+/kindling stress mobs <0-5000>                 farm animals, villagers, spiders and skeletons around the centre
+/kindling stress bases <0-16>                  plots of hopper rings, idle hoppers, furnace rows and repeater lines with pistons, observers and lamps
+/kindling stress status | stop
+```
+
+Permission `kindling.command.stress` (operators by default). The first load order creates a fresh world `kindling_stress` and takes you to its centre; every order sets a number, so `mobs 0` removes the mobs and `players 20 fly` makes all 20 fly. The loads ramp up over a few seconds while their chunks load in the background, and a boss bar shows the tick time and TPS to every player in the world. `stop` (or 15 minutes, or 20 seconds above 250 ms per tick, both in real time) ends the test: the fake players leave, the mobs go, everyone goes back to where they were, and the world is unloaded and deleted.
+
+<details>
+<summary>What it is and what it is not</summary>
+
+- **The test world is thrown away.** Its chunks, mobs and bases are deleted with it; a world left over by a stop of the server is deleted before the next test starts. You keep your inventory if you die in it (`keep_inventory`). It stays night without weather, unless Paper's `time.affects-all-worlds` is on: then the test leaves the shared time alone and monsters burn by day.
+- **The fake players are not saved**: no player data, stats or advancements, except advancements a `/minecraft:reload` during a test writes for every online player. Vanilla notes their names (`kindling_0`, …) in `usercache.json`; the names are reused from test to test. While they are online the player limit is raised by their number, so real players still get in; it goes back when they leave.
+- **Plugins see the fake players.** They join and leave with chat messages, show in the tab list and fire join and quit events, so plugins that store data per player store some for them. A fake player that a plugin moves out of the test world leaves.
+- **The way back.** Where you were before the test is kept in your player data (`kindling:stress_origin`) until you are back, so if you log out during a test, or the server stops, you are sent back there when you join again. A player the test cannot send back (dead, riding, held by a plugin) keeps the world loaded; the next test unloads it once it is empty.
+- **The load is real.** Fake players join through the same path as clients and send movement like clients; the server loads, generates, ticks and sends chunks for them. Only encoding and compressing their packets is skipped, so network threads are spared. Creating the world takes the main thread a few seconds.
+- **It is not a benchmark.** For numbers to compare builds, use [`kindling-bench`](kindling-bench/README.md), which runs the same load every time on a fresh server.
+- It does not run with Leaf's parallel world ticking.
 
 </details>
 

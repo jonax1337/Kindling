@@ -6,7 +6,12 @@ Legend: ✨ new · 🏆 faster (measured) · 🛡️ fixed · 🔧 changed · �
 
 Numbers come from [docs/MEASUREMENTS.md](docs/MEASUREMENTS.md) and carry their baseline. Results from two runs are marked as such and are not claimed as speed-ups.
 
-## 26.3-13 · unreleased
+## 26.3-14 · 2026-10-29
+An in-game stress test, to watch your own server under load.
+
+- ✨ `/kindling stress players <n> [stand|fly] | mobs <n> | bases <n> | stop` puts the server under load in a throwaway world with live MSPT and TPS on a boss bar; the world is deleted afterwards, the fake players are not saved, players who were taken into the test world are sent back even after a logout or a restart, and the test stops itself after 15 minutes or 20 seconds above 250 mspt
+
+## 26.3-13 · 2026-10-29
 The vanilla release: where Leaf or Gale changed vanilla behaviour without a switch, Kindling restores it, and Leaf's async pathfinding and mob spawning are opt-in again. Measured against release 26.3-12 (3 runs each, 2026-10-29): the bases and the flight tick the same, standing among 1 200 mobs is 8 % slower, most likely because async pathfinding and mob spawning are off now. See [the parity list](docs/measurements/vanilla-parity.md) and [the measurements](docs/measurements/vs-leaf.md#final-round-the-vanilla-build-of-2026-10-29-against-263-12-and-plain-leaf).
 
 - 🔧 Fresh configurations write vanilla values: `async.async-pathfinding.enabled` and `async.async-mob-spawning.enabled` are `false`, `performance.optimize-player-movement` and `performance.skip-map-item-data-updates-if-map-does-not-have-craftmaprenderer` are `false`, and Gale's projectile chunk-load limits (`-1`), in-wall check interval (`1`), line-of-sight interval (`1`), villager item re-pickup (`-1`) and entity wake-up deviation (`0`) are vanilla; existing files keep their values
