@@ -1,0 +1,136 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Thu, 29 Oct 2026 20:29:26 +0100
+Subject: [PATCH] Kindling: Cheaper natural spawn tries
+
+
+diff --git a/net/minecraft/server/level/ChunkMap.java b/net/minecraft/server/level/ChunkMap.java
+index 0a0dad530483297ef6313cad73b41e317aff5b3d..85dce5525c9e2e76e8be0e1a960c1547d475625a 100644
+--- a/net/minecraft/server/level/ChunkMap.java
++++ b/net/minecraft/server/level/ChunkMap.java
+@@ -238,6 +238,7 @@ public class ChunkMap extends SimpleRegionStorage implements ChunkHolder.PlayerP
+     }
+ 
+     // Paper start - Optional per player mob spawns
++    public final java.util.function.Consumer<Entity> updatePlayerMobTypeMapConsumer = this::updatePlayerMobTypeMap; // Kindling - one consumer instead of a bound method reference per chunk and category
+     public void updatePlayerMobTypeMap(final Entity entity) {
+         if (!this.level.paperConfig().entities.spawning.perPlayerMobSpawns) {
+             return;
+diff --git a/net/minecraft/world/attribute/EnvironmentAttributeSystem.java b/net/minecraft/world/attribute/EnvironmentAttributeSystem.java
+index db9a75057cc3b3b385faaebb412ee031e37af50d..727df08a4f3ee5ab14896b2631bec2c3bf2bb7ea 100644
+--- a/net/minecraft/world/attribute/EnvironmentAttributeSystem.java
++++ b/net/minecraft/world/attribute/EnvironmentAttributeSystem.java
+@@ -131,6 +131,9 @@ public class EnvironmentAttributeSystem implements EnvironmentAttributeReader {
+ 
+     // Kindling start - one natural spawn try resolves the same position up to three times
+     private final net.kindlingmc.spawn.BlockPositionMemo<net.minecraft.world.level.biome.MobSpawnSettings> naturalMobSpawnsMemo = new net.kindlingmc.spawn.BlockPositionMemo<>();
++    // the sampler map is final after construction, so the spawner's lookup can keep its sampler instead of hashing for it
++    private @Nullable ValueSampler<net.minecraft.world.level.biome.MobSpawnSettings> naturalMobSpawnsSampler;
++    private boolean naturalMobSpawnsSamplerResolved;
+ 
+     public net.minecraft.world.level.biome.MobSpawnSettings getNaturalMobSpawnsMemoized(final net.minecraft.core.BlockPos pos) {
+         final int x = pos.getX();
+@@ -138,7 +141,15 @@ public class EnvironmentAttributeSystem implements EnvironmentAttributeReader {
+         final int z = pos.getZ();
+         net.minecraft.world.level.biome.MobSpawnSettings settings = this.naturalMobSpawnsMemo.get(x, y, z);
+         if (settings == null) {
+-            settings = this.getValue(EnvironmentAttributes.NATURAL_MOB_SPAWNS, pos);
++            // the same steps as getValue(attribute, BlockPos): the block's centre, no biome interpolator
++            if (!this.naturalMobSpawnsSamplerResolved) {
++                this.naturalMobSpawnsSampler = this.getValueSampler(EnvironmentAttributes.NATURAL_MOB_SPAWNS);
++                this.naturalMobSpawnsSamplerResolved = true;
++            }
++            final ValueSampler<net.minecraft.world.level.biome.MobSpawnSettings> sampler = this.naturalMobSpawnsSampler;
++            settings = sampler == null
++                ? EnvironmentAttributes.NATURAL_MOB_SPAWNS.defaultValue()
++                : sampler.getValue(Vec3.atCenterOf(pos), null);
+             this.naturalMobSpawnsMemo.put(x, y, z, settings);
+         }
+         return settings;
+diff --git a/net/minecraft/world/level/NaturalSpawner.java b/net/minecraft/world/level/NaturalSpawner.java
+index 9accd4dc6e0fc8b5190a8e4558cd4d09b0041b2e..f15d827412c4c84e8cfb4923f8930ad229b82c81 100644
+--- a/net/minecraft/world/level/NaturalSpawner.java
++++ b/net/minecraft/world/level/NaturalSpawner.java
+@@ -221,6 +221,16 @@ public final class NaturalSpawner {
+         profiler.push("spawner");
+ 
+         ChunkGenerator generator = level.getChunkSource().getGenerator(); // Leaf - optimize mob spawning
++        // Kindling start - look the nearby players up once per chunk, not once per category
++        // The set can only change while plugin code runs, that is after a spawn (its events) or inside
++        // PreCreatureSpawnEvent, so it is looked up again after a category that ran either.
++        final boolean perPlayerMobSpawns = level.paperConfig().entities.spawning.perPlayerMobSpawns;
++        final boolean preSpawnListeners = com.destroystokyo.paper.event.entity.PreCreatureSpawnEvent.getHandlerList().getRegisteredListeners().length != 0;
++        ca.spottedleaf.moonrise.common.list.ReferenceList<net.minecraft.server.level.ServerPlayer> playersInRange = perPlayerMobSpawns
++            ? level.moonrise$getNearbyPlayers().getPlayers(chunk.getPos(), ca.spottedleaf.moonrise.common.misc.NearbyPlayers.NearbyMapType.TICK_VIEW_DISTANCE)
++            : null;
++        boolean playersInRangeStale = false;
++        // Kindling end - look the nearby players up once per chunk, not once per category
+         for (MobCategory mobCategory : spawningCategories) {
+             // Paper start - Optional per player mob spawns
+             final boolean canSpawn;
+@@ -258,8 +268,13 @@ public final class NaturalSpawner {
+                 if (!spawningThrottle.failedAttemptsThreshold.enabled() || spawnThisTick) { // Paper PR - throttle failed spawn attempts
+                 // Apply per-player limit
+                 int minDiff = Integer.MAX_VALUE;
+-                final ca.spottedleaf.moonrise.common.list.ReferenceList<net.minecraft.server.level.ServerPlayer> inRange =
+-                    level.moonrise$getNearbyPlayers().getPlayers(chunk.getPos(), ca.spottedleaf.moonrise.common.misc.NearbyPlayers.NearbyMapType.TICK_VIEW_DISTANCE);
++                // Kindling start - look the nearby players up once per chunk, not once per category
++                if (playersInRangeStale) {
++                    playersInRange = level.moonrise$getNearbyPlayers().getPlayers(chunk.getPos(), ca.spottedleaf.moonrise.common.misc.NearbyPlayers.NearbyMapType.TICK_VIEW_DISTANCE);
++                    playersInRangeStale = false;
++                }
++                final ca.spottedleaf.moonrise.common.list.ReferenceList<net.minecraft.server.level.ServerPlayer> inRange = playersInRange;
++                // Kindling end - look the nearby players up once per chunk, not once per category
+                 if (inRange != null) {
+                     final net.minecraft.server.level.ServerPlayer[] backingSet = inRange.getRawDataUnchecked();
+                     for (int k = 0, len = inRange.size(); k < len; k++) {
+@@ -275,8 +290,10 @@ public final class NaturalSpawner {
+             }
+             if (canSpawn) {
+                 // Paper PR start - throttle failed spawn attempts
+-                int spawnCount = spawnCategoryForChunk(mobCategory, level, chunk, state::canSpawn, state::afterSpawn,
+-                    maxSpawns, level.paperConfig().entities.spawning.perPlayerMobSpawns ? level.getChunkSource().chunkMap::updatePlayerMobTypeMap : null, generator); // Leaf - optimize mob spawning
++                // Kindling start - one predicate, callback and consumer per state instead of three bound method references per chunk and category
++                int spawnCount = spawnCategoryForChunk(mobCategory, level, chunk, state.canSpawnPredicate, state.afterSpawnCallback,
++                    maxSpawns, perPlayerMobSpawns ? level.getChunkSource().chunkMap.updatePlayerMobTypeMapConsumer : null, generator); // Leaf - optimize mob spawning
++                // Kindling end - one predicate, callback and consumer per state
+                 // Kindling start - count failed attempts only while a spawn throttle reads them
+                 if (spawnCount != 0) {
+                     chunk.failedSpawnAttempts[mobCategory.ordinal()] = 0;
+@@ -284,6 +301,7 @@ public final class NaturalSpawner {
+                     chunk.failedSpawnAttempts[mobCategory.ordinal()]++;
+                 }
+                 // Kindling end - count failed attempts only while a spawn throttle reads them
++                playersInRangeStale |= spawnCount != 0 || preSpawnListeners; // Kindling - plugin code ran: look the nearby players up again
+                 // Paper end PR - throttle failed spawn attempts
+                 // Paper end - Optional per player mob spawns
+             }
+@@ -527,13 +545,14 @@ public final class NaturalSpawner {
+         }
+ 
+         LevelData.RespawnData respawnData = level.getRespawnData();
++        // Kindling start - the same two checks without a Vec3 and, inside the chunk itself, without a ChunkPos
+         if (respawnData.dimension() == level.dimension()
+-            && respawnData.pos().closerToCenterThan(new Vec3(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5), 24.0)) {
++            && respawnData.pos().distToCenterSqr(pos.getX() + 0.5, pos.getY(), pos.getZ() + 0.5) < Mth.square(24.0)) {
+             return false;
+         }
+ 
+-        ChunkPos chunkPos = ChunkPos.containing(pos);
+-        return Objects.equals(chunkPos, chunk.getPos()) || level.canSpawnEntitiesInChunk(chunkPos);
++        return ChunkPos.pack(pos) == chunk.coordinateKey || level.canSpawnEntitiesInChunk(ChunkPos.containing(pos));
++        // Kindling end - the same two checks without a Vec3 and, inside the chunk itself, without a ChunkPos
+     }
+ 
+     // Paper start - PreCreatureSpawnEvent
+@@ -885,6 +904,10 @@ public final class NaturalSpawner {
+         private final PotentialCalculator spawnPotential;
+         private final Object2IntMap<MobCategory> unmodifiableMobCategoryCounts;
+         private final LocalMobCapCalculator localMobCapCalculator;
++        // Kindling start - one predicate and callback per state instead of two bound method references per chunk and category
++        final NaturalSpawner.SpawnPredicate canSpawnPredicate = this::canSpawn;
++        final NaturalSpawner.AfterSpawnCallback afterSpawnCallback = this::afterSpawn;
++        // Kindling end - one predicate and callback per state
+         private @Nullable BlockPos lastCheckedPos;
+         private @Nullable EntityType<?> lastCheckedType;
+         private double lastCharge;

@@ -1,0 +1,89 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Thu, 29 Oct 2026 20:21:39 +0100
+Subject: [PATCH] Kindling: Allocate the ticking list's index map on the first
+ add
+
+
+diff --git a/src/main/java/ca/spottedleaf/moonrise/common/list/ShortList.java b/src/main/java/ca/spottedleaf/moonrise/common/list/ShortList.java
+index d35c99fb2f1cf9983c263bfd41f6e3e65d549cd3..e138bcabbcc99a26c754606baf7360454993e367 100644
+--- a/src/main/java/ca/spottedleaf/moonrise/common/list/ShortList.java
++++ b/src/main/java/ca/spottedleaf/moonrise/common/list/ShortList.java
+@@ -5,10 +5,22 @@ import java.util.Arrays;
+ 
+ public final class ShortList {
+ 
+-    private final Short2ShortOpenHashMap map = new Short2ShortOpenHashMap(0);
+-    {
+-        this.map.defaultReturnValue(Short.MIN_VALUE);
++    // Kindling start - allocate the index map on the first add
++    // Every chunk section owns one of these lists for its randomly ticking blocks, and most sections never hold one:
++    // in the mixed bench load 82 % of the sections contained only air, and the eagerly created map with its two
++    // arrays was 8 % of the live heap (measured 2026-10-29, docs/measurements/memory-jvm.md).
++    private @org.jspecify.annotations.Nullable Short2ShortOpenHashMap map;
++
++    private Short2ShortOpenHashMap map() {
++        Short2ShortOpenHashMap map = this.map;
++        if (map == null) {
++            map = new Short2ShortOpenHashMap(0);
++            map.defaultReturnValue(Short.MIN_VALUE);
++            this.map = map;
++        }
++        return map;
+     }
++    // Kindling end - allocate the index map on the first add
+ 
+     private short[] byIndex = me.titaniumtown.ArrayConstants.emptyShortArray; // Gale - JettPack - reduce array allocations
+     private short count;
+@@ -29,12 +41,12 @@ public final class ShortList {
+         if (byIndex.length < len) {
+             this.byIndex = Arrays.copyOf(byIndex, len);
+         }
+-        this.map.ensureCapacity(len);
++        this.map().ensureCapacity(len); // Kindling - allocate the index map on the first add
+     }
+ 
+     public boolean add(final short value) {
+         final int count = (int)this.count;
+-        final short currIndex = this.map.putIfAbsent(value, (short)count);
++        final short currIndex = this.map().putIfAbsent(value, (short)count); // Kindling - allocate the index map on the first add
+ 
+         if (currIndex != Short.MIN_VALUE) {
+             return false; // already in this list
+@@ -54,7 +66,13 @@ public final class ShortList {
+     }
+ 
+     public boolean remove(final short value) {
+-        final short index = this.map.remove(value);
++        // Kindling start - allocate the index map on the first add
++        final Short2ShortOpenHashMap map = this.map;
++        if (map == null) {
++            return false; // nothing was ever added
++        }
++        final short index = map.remove(value);
++        // Kindling end - allocate the index map on the first add
+         if (index == Short.MIN_VALUE) {
+             return false;
+         }
+@@ -64,7 +82,7 @@ public final class ShortList {
+         final short end = this.byIndex[endIndex];
+         if (index != endIndex) {
+             // not empty after this call
+-            this.map.put(end, index);
++            map.put(end, index); // Kindling - allocate the index map on the first add
+         }
+         this.byIndex[(int)index] = end;
+         this.byIndex[(int)endIndex] = (short)0;
+@@ -74,6 +92,11 @@ public final class ShortList {
+ 
+     public void clear() {
+         this.count = (short)0;
+-        this.map.clear();
++        // Kindling start - allocate the index map on the first add
++        final Short2ShortOpenHashMap map = this.map;
++        if (map != null) {
++            map.clear();
++        }
++        // Kindling end - allocate the index map on the first add
+     }
+ }
