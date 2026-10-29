@@ -94,7 +94,7 @@ def main() -> int:
     if args.update:
         return update_golden(args.golden, runs)
     golden = json.loads(args.golden.read_text(encoding="utf-8"))
-    problems = [f"run {run.get('attempt')}: {problem}" for run in runs for problem in problems_of(run, golden)]
+    problems = [f"run {run.get('attempt')}: {problem}" for run in runs for problem in problems_of(run, golden, args.ignore)]
     if problems:
         print(f"PARITY FAILED against {args.golden.name}:")
         print("\n".join(f"  {problem}" for problem in problems))
@@ -108,6 +108,8 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("result", type=Path, nargs="?", help="the runs/<label>.json that run_bench.py wrote")
     parser.add_argument("--golden", type=Path, default=GOLDEN)
     parser.add_argument("--update", action="store_true", help="write the golden file from these runs")
+    parser.add_argument("--ignore", action="append", default=[], metavar="KEY",
+                        help="a scenario key the run sets differently from the golden file on purpose (repeatable)")
     parser.add_argument("--pair", type=Path, nargs=2, metavar=("ON", "OFF"),
                         help="compare a sleeping or villagers run with its option on to one with it off")
     args = parser.parse_args()
@@ -118,14 +120,20 @@ def parse_arguments() -> argparse.Namespace:
     return args
 
 
-def problems_of(run: dict, golden: dict) -> list[str]:
+def problems_of(run: dict, golden: dict, ignored_keys: list[str]) -> list[str]:
     """Everything that makes this run not comparable with the golden file, or different from it."""
     if run.get("settled") is not True:
         return ["built its bases before world generation settled, so its counters mean nothing"]
-    if run.get("scenario") != golden["scenario"]:
-        differences = counter_differences(golden["scenario"], run.get("scenario", {}))
+    run_scenario = without_keys(run.get("scenario", {}), ignored_keys)
+    golden_scenario = without_keys(golden["scenario"], ignored_keys)
+    if run_scenario != golden_scenario:
+        differences = counter_differences(golden_scenario, run_scenario)
         return ["ran another scenario than the golden file"] + [f"  scenario {line}" for line in differences]
     return counter_differences(golden["counters"], run.get("counters", {}))
+
+
+def without_keys(scenario: dict, keys: list[str]) -> dict:
+    return {key: value for key, value in scenario.items() if key not in keys}
 
 
 def counter_differences(expected: dict[str, int], actual: dict[str, int]) -> list[str]:

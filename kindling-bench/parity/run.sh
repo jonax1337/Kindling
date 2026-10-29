@@ -79,7 +79,7 @@ check_bases_listener() {
     local mode
     for mode in on off; do
         run_bench "parity-bases-listener-$mode" "$scenario" "parity-sleeping-listener-$mode"
-        python -I "$here/check.py" "$bench/runs/parity-bases-listener-$mode.json" || status=1
+        python -I "$here/check.py" "$bench/runs/parity-bases-listener-$mode.json" --ignore moveEventListener || status=1
     done
     return $status
 }
