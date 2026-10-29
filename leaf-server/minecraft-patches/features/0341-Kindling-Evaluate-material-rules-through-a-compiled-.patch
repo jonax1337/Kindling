@@ -1,0 +1,19 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Thu, 29 Oct 2026 16:21:04 +0100
+Subject: [PATCH] Kindling: Evaluate material rules through a compiled class
+
+
+diff --git a/net/minecraft/world/level/levelgen/material/MaterialSystem.java b/net/minecraft/world/level/levelgen/material/MaterialSystem.java
+index b339467cb268a023dd160d011bcc9ee94875fe01..611f4c31273b20e77eedd959fa7c7c906bdfdaff 100644
+--- a/net/minecraft/world/level/levelgen/material/MaterialSystem.java
++++ b/net/minecraft/world/level/levelgen/material/MaterialSystem.java
+@@ -144,7 +144,7 @@ public class MaterialSystem {
+             this, randomState, narrowedVolume, noiseChunk.cachingSamplers(), biomeManager::getBiome, generationContext, possibleBiomes
+         );
+         context.moonrise$setDensityBufferAllocator(BUFFERS_FOR_BUILD_SURFACE.get().acquire()); // Paper - optimise chunk generation - provide a buffer allocator to significantly reduce memory allocations
+-        RuleEvaluator rule = ruleSource.compile(context);
++        RuleEvaluator rule = net.kindlingmc.worldgen.MaterialRuleCompiler.compile(ruleSource, context); // Kindling - evaluate material rules through a compiled class
+         BlockPos.MutableBlockPos blockPos = new BlockPos.MutableBlockPos();
+ 
+         for (int x = 0; x < 16; x++) {
