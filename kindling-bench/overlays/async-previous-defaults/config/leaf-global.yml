@@ -1,0 +1,6 @@
+# Bench A/B: the async defaults Kindling had up to 26.3-12 (pathfinding and mob spawning on worker threads).
+async:
+  async-pathfinding:
+    enabled: true
+  async-mob-spawning:
+    enabled: true
