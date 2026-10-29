@@ -15,19 +15,42 @@ Which JVM flags Kindling recommends, how much faster a start gets with the AOT c
 ## JVM and heap
 
 > [!NOTE]
-> 🧪 **Peak RSS 3 590 → 2 549 MB (−29 %) at the same tick time with a 2 GB heap and compact object headers** · against Leaf with a 3 GB heap (mixed load table) · 2 runs each · 2026-10-26
+> 🏆 **A 3 GB heap instead of 2 GB: full collections during play 5–6 → 2 per run, GC pauses 8.1 → 5.0 s (p = 0.007), CPU time −3.8 % (p = 0.013), flight tick time 32.4 → 30.5 ms (p = 0.034); 1 GB more resident memory** · 8 players exploring new terrain, then 1 200 mobs · 3 runs each · 2026-10-29
+>
+> 🧪 Older: peak RSS 3 590 → 2 549 MB (−29 %) with a 2 GB heap at the same tick time · against Leaf with a 3 GB heap · 2 runs each · 2026-10-26
 
-Kindling recommends G1 with `-XX:+UseCompactObjectHeaders` and a right-sized heap; `/kindling doctor` checks for them.
+Kindling recommends G1 with `-XX:+UseCompactObjectHeaders` and a 3 GB heap where the memory is there; `/kindling doctor` checks for them.
 
 A server jar cannot bring its own JVM flags. Measured and recommended:
 
 - ✅ `-XX:+UseCompactObjectHeaders` (Java 25): live heap −5 %, GC time −17 %, no tick time cost.
-- ✅ Heap 2 GB instead of 3 GB with G1: under full load (8 players, 2 900 entities) the server holds about 1.2 GB of live data; with 2 GB the process uses 1 GB less memory (−29 %) at the same tick time.
+- ✅ Heap 3 GB with G1 where the memory is there. Under full load (8 players, 2 900 entities) the server holds about 1.0 to 1.2 GB of live data, and generating new terrain allocates fast. With 2 GB, G1 ran out of room to copy into and fell back to full collections: 5 to 6 per run while the players explored, each stopping the server for 0.7 to 0.8 s (the longest pause per run 689 to 838 ms). With 3 GB that dropped to 2 per run, the GC pauses fell from 8.1 to 5.0 s and the CPU time by 3.8 %, at 1 GB more resident memory (2.8 → 3.8 GB). The two full collections that remain still pause 640 to 744 ms.
+- 2 GB still works on a machine with less memory; expect sub-second freezes while players explore new terrain, and pregenerate the area players use. The earlier advice of 2 GB (−29 % memory at the same tick time) came from two runs whose figures did not include the longest pause or the number of full collections.
 - The process needs about 500 MB beyond the heap at `-Xmx2G` (metaspace, thread stacks, code cache, direct buffers; `kindling-bench`). `/kindling doctor` therefore wants `-Xmx` plus 600 MB to fit into the memory the server can use (container limit included), and counts every other server on the machine on top.
 - ❌ Not recommended:
   - ZGC: −22 % peak memory and returns memory to the OS, but +11 % CPU and worse tick spikes.
   - Generational Shenandoah: slower, barely less memory.
   - G1 with a small `-Xms`: G1 returns practically nothing while the server ticks, because `G1PeriodicGCInterval` only acts after GC-free pauses.
+  - `-XX:G1HeapRegionSize=4M` with 2 GB: more full collections (8 to 9 per run), not fewer; large arrays are not what fills the heap.
+
+**What the heap holds under load.** Class histograms after a full collection (one run, 3 GB heap, the same load) show mostly chunk data: about 210 MB of `long[]` (block storage), 160 MB of `Object[]` (palettes), 117 MB of `byte[]` (light) and 580 000 chunk sections. While the players stood among the mobs, 6 491 chunks were full and 11 181 were generated only part of the way (`ProtoChunk`): 63 % of the chunk objects are the ring of partly generated neighbours that a full chunk needs around each player, about 9 chunks beyond the full area. That is vanilla's chunk level design, and the largest single share of the heap that is not gameplay; it has not been reduced.
+
+<details>
+<summary><b>Method</b></summary>
+
+Mixed scenario of `kindling-bench` (8 creative players flying 90 s outward at 1 block per tick, then 150 mobs each, 90 s standing), build `f78a401b`, `-XX:+UseCompactObjectHeaders` and `-Xlog:gc,gc+humongous=debug`, variants `-Xmx2G`, `-Xmx2G -XX:G1HeapRegionSize=4M` and `-Xmx3G` (each with the same `-Xms`), 3 runs each, bench host. Full collections and the longest pause come from the GC log (pauses of `System.gc()`, which the bench calls itself, left out); the other rows from `compare.py` (labels `bt-2g`, `bt-2g-r4m`, `bt-3g`). Every full collection followed an evacuation failure (`Evacuation Failure: Allocation`, a few `Pinned`). The heap contents come from `jdk.ObjectCountAfterGC` in a JFR recording of a 2 GB run and from `jcmd GC.class_histogram` at 100, 140 and 230 s of a 3 GB run.
+
+| | 2 GB | 2 GB, 4 MB regions | 3 GB |
+| --- | --- | --- | --- |
+| Full collections during play per run | 6, 5, 6 | 9, 8, 9 | 2, 2, 2 |
+| Longest pause per run | 838, 689, 757 ms | 696, 647, 720 ms | 640, 660, 744 ms |
+| GC pause time | 8 137 ±454 ms | 9 263 ±557 ms | 5 035 ±79 ms (p = 0.007) |
+| Flight tick time avg | 32.4 ±0.2 ms | 32.7 ±1.3 ms | 30.5 ±0.7 ms (p = 0.034) |
+| Standing tick time avg | 35.6 ±0.4 ms | 35.1 ±0.9 ms | 35.8 ±0.1 ms (p = 0.41) |
+| CPU time | 1 252.6 ±10.9 s | 1 246.4 ±4.8 s | 1 205.5 ±4.5 s (p = 0.013) |
+| Peak RSS | 2 799 MB | 2 802 MB | 3 841 MB |
+
+</details>
 
 ## Start time and native memory (Cubyx VPS)
 

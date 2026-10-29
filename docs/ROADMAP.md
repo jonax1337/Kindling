@@ -60,6 +60,7 @@ New items need the 7.5 bar of the review.
 
 | Open item | Why it is open |
 | --- | --- |
+| Partly generated chunks in memory | Under load 63 % of the chunk objects (11 181 of 17 672) are neighbours generated only part of the way, the ring vanilla's chunk levels keep around each player; they are the largest share of the heap that is not gameplay. Unloading them early would change the chunk lifecycle that plugins and the chunk system rely on; not attempted ([memory measurements](measurements/memory-jvm.md#jvm-and-heap)) |
 | Player#saveData and Server#savePlayers | They return before the asynchronous write lands (Leaf's behaviour); server-side reads wait for it, outside readers of the file may see stale data until the next flush. Waiting would need a Paper-server change |
 
 ## ❌ Dropped

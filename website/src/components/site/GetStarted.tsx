@@ -39,8 +39,8 @@ const COMMANDS = [
     id: "start",
     label: "Start",
     prompt: "$",
-    code: "java -Xms2G -Xmx2G -XX:+UseCompactObjectHeaders -jar kindling.jar --nogui",
-    hint: "From Leaf, your configuration carries over unchanged; from Paper, Leaf's own files are written fresh. Size -Xmx to your server: the benchmark's 8 players and 2 900 entities ran in 2 GB.",
+    code: "java -Xms3G -Xmx3G -XX:+UseCompactObjectHeaders -jar kindling.jar --nogui",
+    hint: "From Leaf, your configuration carries over unchanged; from Paper, Leaf's own files are written fresh. Size -Xmx to your server: with the benchmark's 8 players exploring new terrain, 2 GB froze for 0.7 s every 15 to 20 seconds and 3 GB far less often.",
   },
   {
     id: "pregen",

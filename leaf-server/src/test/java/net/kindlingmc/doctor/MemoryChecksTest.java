@@ -66,19 +66,22 @@ class MemoryChecksTest {
         assertEquals(Severity.WARN, finding.severity());
         assertEquals(Basis.KINDLING_MEASUREMENT, finding.basis());
         assertTrue(finding.what().contains("1.2 GB of live data"), finding.what());
-        assertTrue(finding.fix().contains("-Xmx2048M"), finding.fix());
+        assertTrue(finding.fix().contains("-Xmx3072M"), finding.fix());
     }
 
     @Test
-    void aHeapBetweenOneAndAHalfAndTwoGibIsAHint() {
-        scenario.maxHeapBytes = 1792 * ByteSize.MIB;
-
-        assertSeverity(Severity.INFO, MemoryChecks.heapSize(scenario.jvm(), scenario.server()));
-    }
-
-    @Test
-    void twoGibAreEnoughForTheDefaultDistances() {
+    void aHeapBetweenOneAndAHalfAndThreeGibIsAHintThatCitesTheFullCollections() {
         scenario.maxHeapBytes = 2 * ByteSize.GIB;
+
+        final Finding finding = MemoryChecks.heapSize(scenario.jvm(), scenario.server()).orElseThrow();
+
+        assertEquals(Severity.INFO, finding.severity());
+        assertTrue(finding.what().contains("full collections"), finding.what());
+    }
+
+    @Test
+    void threeGibAreEnoughForTheDefaultDistances() {
+        scenario.maxHeapBytes = 3 * ByteSize.GIB;
 
         assertSeverity(Severity.OK, MemoryChecks.heapSize(scenario.jvm(), scenario.server()));
     }
@@ -145,7 +148,7 @@ class MemoryChecksTest {
 
     @Test
     void aHeapReportedSlightlyBelowTheWantedSizeIsStillEnough() {
-        scenario.maxHeapBytes = 2 * ByteSize.GIB - 100 * ByteSize.MIB;
+        scenario.maxHeapBytes = 3 * ByteSize.GIB - 100 * ByteSize.MIB;
 
         assertSeverity(Severity.OK, MemoryChecks.heapSize(scenario.jvm(), scenario.server()));
     }

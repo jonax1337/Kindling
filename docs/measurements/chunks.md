@@ -11,6 +11,7 @@ How fast players are kept over generated land and how saved chunks are read: dir
 - [Concurrent generations per player](#concurrent-generations-per-player)
 - [Loading chunks from disk](#loading-chunks-from-disk)
 - [Copies of unreadable chunks](#copies-of-unreadable-chunks)
+- [Compiled material rules](#compiled-material-rules)
 - [Client-paced chunk sending](#client-paced-chunk-sending)
 
 ---
@@ -188,6 +189,39 @@ The final regression of that build passed: the bases check (15 counters), the sl
 - Each chunk is copied once per run, and nothing is copied once the folder holds 256 MB.
 - Only chunk data (not entities or POI) in the Anvil format is copied, and only when the read or parse throws an exception; chunks the region file reports as missing, for example with a truncated header, are not copied.
 - A chunk saved by a newer Minecraft version stops the server before this runs (Paper's own guard), and a block that does not exist loads as the default block without an error, so neither is copied.
+
+</details>
+
+## Compiled material rules
+
+> [!NOTE]
+> 🏆 **Pregeneration +8.4 % chunks in the same time (63 376 → 68 693 in 240 s), new chunks per second 175.2 → 192.0 (p < 0.001), same CPU time** · against the same build with `performance.compiled-material-rules.enabled: false` · 3 runs each · 2026-10-29
+>
+> 🛡️ **Same blocks:** 1.3 billion blocks evaluated both ways in a pregenerated overworld, 0 differences
+
+World generation decides the surface, ore vein and underground block of every solid block through the material rules, a data-driven tree of sequences, conditions and leaves. Vanilla compiles the tree into one lambda per node for every chunk; all sequences share one call site, all conditions another, so the JIT can only dispatch through them, never inline. Kindling writes one class per rule tree (once per world) whose bytecode does the sequences, conditions, negations and blocks itself and calls every other node through a call site of its own. The leaves are still vanilla's own evaluators, compiled for each chunk in vanilla's order and asked in vanilla's order, so the blocks are the same.
+
+- **Throughput:** the built-in pregenerator alone (8 CPUs, 5 workers, 2 GB heap) generated 63 520, 63 456 and 63 152 chunks in 240 s with the setting off and 69 120, 68 096 and 68 864 with it on. The process used the same CPU time (2 065.6 against 2 067.4 s): the workers were busy either way and got more done.
+- **Where it went:** in one JFR profile each, the surface step fell from 0.727 to 0.480 samples per generated chunk (−34 %), from 30.8 % to 22.7 % of the chunk workers' time. The dispatch frames of the rule lambdas (`SequenceRule` and `ConditionRule`, together about a quarter of the surface step) are gone.
+- **Cost on the main thread:** its tick during the pregeneration rose from 5.5 to 5.8 ms (p = 0.033), as it takes in more finished chunks per second.
+
+<details>
+<summary><b>Method</b></summary>
+
+`net.kindlingmc.worldgen.MaterialRuleCompiler` splits a rule tree into its structure (sequences, conditions, negations, blocks, with holders unwrapped) and its leaves, and writes a hidden class with the ClassFile API: one method per sequence, the blocks as class-data constants, one final field per leaf. Per chunk it compiles every leaf with vanilla's `compile(context)` in the order vanilla's `compile` visits them (depth first, a condition before the rule it guards) and passes them to the class. A method above HotSpot's 8 000-byte limit for JIT compilation, or any failure while writing or defining the class, makes the tree fall back to vanilla's evaluation with a warning. `-Dkindling.verifyMaterialRules=true` evaluates every block both ways, logs differences and keeps vanilla's result.
+
+- Unit tests: every material rule of the game compiles, and 2 000 random trees of probe leaves give the same block, ask their leaves in the same order and compile them in the same order as vanilla.
+- Parity: a pregeneration with the check on (150 s, radius 187 chunks, about 43 800 chunk positions) logged 1.3 billion evaluated blocks and 0 differences.
+- Throughput: `pregen-w5` overlay plus the setting, scenario `players=1,blocks-per-tick=0,travel-seconds=240`, `--cpus 8`, `-Xms2G -Xmx2G -XX:+UseCompactObjectHeaders`; progress from `pregeneration.properties`. Labels `mr-off`, `mr-on`, `mr-verify`, `mr-jfr-off`, `mr-jfr-on` (not checked in).
+
+</details>
+
+<details>
+<summary><b>Caveats and open points</b></summary>
+
+- Only the overworld was checked block by block; the nether and end trees are covered by the unit tests only.
+- Biome conditions return one of three evaluator classes depending on the chunk's possible biomes, so their call sites still see several classes; specialising them is not done.
+- The largest remaining part of the surface step is looking up the ore vein densities (`DensityVolume.indexOfBlock`, about 3 % of the workers' time).
 
 </details>
 

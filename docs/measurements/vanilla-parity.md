@@ -2,7 +2,7 @@
 
 [← Overview](../MEASUREMENTS.md)
 
-Where Leaf or Gale changed vanilla behaviour without a switch, Kindling restores it. The fixes are checked against the vanilla code, by unit tests (`KindlingTestSuite`: 526 tests, 0 failures), by the parity scenarios and, for contraptions, by a [differential run against Mojang's jar](#vanilla-diff-against-mojangs-jar).
+Where Leaf or Gale changed vanilla behaviour without a switch, Kindling restores it. The fixes are checked against the vanilla code, by unit tests (`KindlingTestSuite`: 554 tests, 0 failures), by the parity scenarios and, for contraptions, by a [differential run against Mojang's jar](#vanilla-diff-against-mojangs-jar).
 
 **Speed, measured as a whole** (the build with all restorations against 26.3-12, 3 runs each, 2026-10-29; [details](vs-leaf.md#final-round-the-vanilla-build-of-2026-10-29-against-263-12-and-plain-leaf)): the bases (11.5 against 11.5 ms) and the flight (27.2 against 28.1 ms) show no cost. Standing among 1 200 mobs the build is 8 % slower (36.6 → 39.7 ms), most likely because async pathfinding and async mob spawning are off now. The restored code itself costs at most about 1 ms there, which the bench cannot separate from noise. No restoration was measured on its own. Which Leaf patch each fix undoes: [UPSTREAM.md](../UPSTREAM.md#deviations-from-vanilla-that-kindling-restores).
 
@@ -17,6 +17,7 @@ Where Leaf or Gale changed vanilla behaviour without a switch, Kindling restores
 - [Sleeping hoppers with a move event listener](#sleeping-hoppers-with-a-move-event-listener)
 - [Parity scenarios](#parity-scenarios)
 - [Vanilla diff against Mojang's jar](#vanilla-diff-against-mojangs-jar)
+- [Entity UUIDs from world generation](#entity-uuids-from-world-generation)
 - [What still differs from vanilla](#what-still-differs-from-vanilla)
 
 ---
@@ -149,6 +150,28 @@ With a plugin listening to `InventoryMoveItemEvent`, Paper's hopper sets a stack
 **The worldgen mode is not conclusive.** Vanilla against vanilla already differs in 410 of 624 chunks: feature placement across chunk borders depends on how the worker threads are scheduled. The new build against vanilla differs by 164 000 to 183 000 entries in 508 to 513 chunks; the terrain is equal, the features differ, which is the same scheduling effect. Six biome cells differ and are not explained. A comparison with one worker thread on both sides is open ([roadmap](../ROADMAP.md)).
 
 The comparer needed two fixes before the runs were meaningful: Minecraft 26 block palette entries (a different format) and wrapper compounds in mixed NBT lists. Both are committed with a unit test. Contraptions without a difference show that the new build acts as vanilla in these 72 cells, not in all cases.
+
+## Entity UUIDs from world generation
+
+> [!NOTE]
+> 🛡️ **No more mobs refused for a duplicate UUID: 4 warnings in 2 of 4 pregeneration runs before, 0 in 4 runs after (about 278 000 chunks)** · against the build before the fix, both with compiled material rules · 2026-10-29
+
+Purpur's `settings.entity.shared-random` (on by default, in plain Leaf too) gives every entity one shared random, a `ThreadUnsafeRandom`, and every entity draws its UUID from it. World generation spawns mobs on several chunk workers at once, so two workers can read the same state and give two mobs the same UUID. When the chunks load, the chunk system refuses the second mob (`Entity uuid already exists ... can't add`), so it is missing from the world. In vanilla every entity has a random of its own and this cannot happen. Kindling gives an entity that is created off the tick threads a random of its own (`net.kindlingmc.entity.EntityRandoms`, patch `0342`); on the tick threads Purpur's shared random stays as it was.
+
+<details>
+<summary><b>Method</b></summary>
+
+The warning showed up during the A/B of [compiled material rules](chunks.md#compiled-material-rules), which generates about 9 % more chunks per second: the runs with the compiler on logged 0, 3, 0 and 1 duplicates, the runs with it off 0, 0, 0 and 0 (each a 240 s pregeneration of about 63 000 to 69 000 chunks). Each pair was two different mob types next to each other with the same UUID and a tick count of 0, freshly generated. The fixed build (label `uuid-fix`, compiled material rules on by default) logged 0 in each of 4 runs of the same scenario (70 145, 69 529, 69 376 and 69 376 chunks). Unit tests: an entity created on a `TickThread` gets the shared random, one created elsewhere gets a new one.
+
+</details>
+
+<details>
+<summary><b>Caveats and open points</b></summary>
+
+- Four runs per side are few for a rare race; the cause follows from the code (an unsynchronised shared random read by several chunk workers), the runs only show that the symptom is gone.
+- Mobs generated before the fix that were refused are not restored.
+
+</details>
 
 ## What still differs from vanilla
 

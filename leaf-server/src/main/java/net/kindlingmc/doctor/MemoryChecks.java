@@ -8,7 +8,7 @@ final class MemoryChecks {
 
     /** What the process needs outside the heap: Kindling measured about 500 MB at -Xmx2G; the rest is margin. */
     private static final long NATIVE_OVERHEAD_BYTES = 600 * ByteSize.MIB;
-    private static final HeapTiers SURVIVAL_HEAP = new HeapTiers(1536 * ByteSize.MIB, 2 * ByteSize.GIB, Basis.KINDLING_MEASUREMENT);
+    private static final HeapTiers SURVIVAL_HEAP = new HeapTiers(1536 * ByteSize.MIB, 3 * ByteSize.GIB, Basis.KINDLING_MEASUREMENT);
     private static final HeapTiers DEMANDING_HEAP = new HeapTiers(2 * ByteSize.GIB, 3 * ByteSize.GIB, Basis.GENERAL_ADVICE);
     private static final int DEMANDING_VIEW_DISTANCE = 12;
     private static final int DEMANDING_PLAYER_SLOTS = 50;
@@ -54,7 +54,8 @@ final class MemoryChecks {
         if (heap >= tiers.adviseBelowBytes() * HEAP_REPORTING_TOLERANCE) {
             return Optional.of(Finding.ok("-Xmx " + ByteSize.format(heap) + " is enough for " + load));
         }
-        final String measurement = "Kindling measured about 1.2 GB of live data at view distance 10 with 8 players";
+        final String measurement = "Kindling measured about 1.2 GB of live data at view distance 10 with 8 players, and with a 2 GB heap "
+            + "5 to 6 full collections of 0.7 to 0.8 s in 6 minutes while they explored new terrain (2 with 3 GB)";
         final String fix = "Set at least " + ByteSize.asXmx(tiers.adviseBelowBytes()) + " (and the same value for -Xms)";
         if (heap >= tiers.warnBelowBytes() * HEAP_REPORTING_TOLERANCE) {
             return Optional.of(Finding.info("-Xmx is " + ByteSize.format(heap) + " for " + load + ": little room above the live data; " + measurement,

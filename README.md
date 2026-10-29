@@ -65,20 +65,21 @@ Leaf `66f99f8e` against Kindling's build of 2026-10-29 (the coming 26.3-13), eac
 | ⚙️ | **Chunk workers sized for fast players** | Five eighths of the cores, at most five, never fewer than Paper (2 → 5 on 8 cores) | 🧪 0 % instead of 24 % void with eight fliers on 12 cores, against Paper's count · [more](docs/measurements/chunks.md#default-number-of-chunk-workers) |
 | 🚦 | **Shorter generation queues** | Paper's automatic number of concurrent generations per player is capped at 32, so the order keeps up | 🧪 0.9 % instead of 38.5 % void on the 8-thread bench host, same CPU time · [more](docs/measurements/chunks.md#concurrent-generations-per-player) |
 | 📦 | **Chunk loading without DataFixerUpper** | Saved block and biome palettes are read straight from NBT | 🛡️ same result, checked block by block; less chunk-worker time · [more](docs/measurements/chunks.md#loading-chunks-from-disk) |
+| ⚡ | **Compiled material rules** | World generation picks surface, ore vein and underground blocks through a class written once per rule tree instead of a tree of lambdas; every condition is still vanilla's own | 🏆 +8.4 % chunks in a pregeneration at the same CPU time · 🛡️ 0 differences in 1.3 billion blocks · [more](docs/measurements/chunks.md#compiled-material-rules) |
 | 🛟 | **Copies of unreadable chunks** | A stored chunk that cannot be read, including one the region file gives up on (truncated header or stream, bad length or compression), is copied to `<world>/kindling-quarantine/` before it is generated anew | 🛡️ checked with damaged region files; the region-file cases by unit tests · [more](docs/measurements/chunks.md#copies-of-unreadable-chunks) |
 | 💤 | **Sleeping block entities, plugin-safe** | Idle hoppers, furnaces, brewing stands, crafters and chests stop ticking; Kindling makes Leaf's port act as Paper. Paper's temporary stack count during `InventoryMoveItemEvent` no longer wakes sleeping hoppers, and furnaces and brewing stands wake on in-place stack changes | 🏆 −8 % tick time in survival bases with identical items (on against off) · 🛡️ no duplicated items · [more](docs/measurements/ticking.md#sleeping-block-entities-after-the-fixes) |
 | 🔌 | **Lithium ports** | Redstone wire power, unused mob sensors, the rain tick and map names, with vanilla's results | 🏆 −7 % in the bases in their own A/B · 🤝 not visible against 26.3-11 · [more](docs/measurements/ticking.md#lithium-ports) |
 | 🐑 | **Cheaper natural spawning** | Entity types without a spawn cost skip the biome lookup | 🤝 no measurable change, equal spawn counts · [more](docs/measurements/ticking.md#natural-spawning-skipped-spawn-cost-lookups) |
 | ⏱️ | **Cheaper lagging check** | Computes only the 5-second TPS average the check uses; proposed to Leaf as [#970](https://github.com/Winds-Studio/Leaf/pull/970) | 🧪 13.6 % → 3.4 % of an idle main thread (one profile each) · [more](docs/measurements/ticking.md#the-lagging-check-of-the-tick-loop) |
 | 🧵 | **Async features, vanilla-safe** | Leaf's async entity tracker and player data saving are on, with Kindling's fixes (one mirrors Leaf PR #937). Async pathfinding and async mob spawning are opt-in, because a mob follows a new path a tick or more late and spawn counts can be stale | 🛡️ shared villager beds 5 and 3 → 0; the fixes cost nothing measurable with the options on · [more](docs/measurements/async.md#async-pathfinding-tracker-and-saving-after-the-fixes) |
-| 🧬 | **Vanilla parity** | Where Leaf or Gale changed vanilla behaviour unconditionally, Kindling restores it: the `Vec3i` hash (redstone update order), goal order, entity order in a chunk section, the order inside-block checks visit blocks, the biome zoom cell, lightning, zombie villager cure, shapeless recipes and more; ten Gale and Leaf defaults are vanilla in a fresh config ([list](docs/measurements/vanilla-parity.md)) | 🤝 no cost in the bases (11.5 against 11.5 ms) or the flight (27.2 against 28.1 ms) against 26.3-12 · 🔻 standing among 1 200 mobs +8 % (36.6 → 39.7 ms), mostly the async options being off · 🛡️ parity scenarios pass · [more](docs/measurements/vanilla-parity.md) |
+| 🧬 | **Vanilla parity** | Where Leaf or Gale changed vanilla behaviour unconditionally, Kindling restores it: the `Vec3i` hash (redstone update order), goal order, entity order in a chunk section, the order inside-block checks visit blocks, the biome zoom cell, lightning, zombie villager cure, shapeless recipes, unique UUIDs for mobs from world generation and more; ten Gale and Leaf defaults are vanilla in a fresh config ([list](docs/measurements/vanilla-parity.md)) | 🤝 no cost in the bases (11.5 against 11.5 ms) or the flight (27.2 against 28.1 ms) against 26.3-12 · 🔻 standing among 1 200 mobs +8 % (36.6 → 39.7 ms), mostly the async options being off · 🛡️ parity scenarios pass · [more](docs/measurements/vanilla-parity.md) |
 | 🔍 | **Differential test against the vanilla jar** | [`kindling-bench/vanilla-diff`](kindling-bench/vanilla-diff/README.md) runs Mojang's server and the jar under test on one seed and compares the saved worlds | 🛡️ contraptions (72 cells, 400 ticks): 0 block differences for this build, 8 for 26.3-12; worldgen mode not conclusive · [more](docs/measurements/vanilla-parity.md#vanilla-diff-against-mojangs-jar) |
 | 🌍 | **Frontier pregeneration** | Opt-in: while nobody is online, generates a margin around the tiles players have visited | ⏸️ not measured · [more](docs/measurements/pregeneration.md#frontier-pregeneration) |
 | 🎚️ | **Worker governor** | Opt-in (Linux): lowers the chunk worker count while the host crowds the main thread, raises it again when it is quiet | ⏸️ not measured · [more](docs/measurements/host.md#worker-governor) |
 | 🔬 | **Biome zoom shortcut** | Opt-in: skips the zoom's distance math where all eight candidate biome cells hold one biome; the zoom itself now picks exactly vanilla's cell | 🤝 no tick time difference on or off (flight 27.2 → 27.7 ms, p = 0.49), no memory gain claimed · ⏸️ stays off · 🛡️ the cell choice is checked against vanilla's algorithm · [more](docs/measurements/vanilla-parity.md#biome-zoom) |
 | 🩺 | **`/kindling doctor`** | Checks the machine and the settings and names the fix, including a "vanilla parity" finding for settings that differ from vanilla; on Linux also live CPU wait, steal and throttling | 🛡️ live readings agree with `/proc` within half a point · [more](docs/measurements/host.md#the-doctors-live-readings) |
 | 🔥 | **`/kindling stress`** | Puts your own server under load you can watch in game: fake players (standing or flying), mobs and hopper, furnace and redstone bases in a throwaway world, with live MSPT and TPS on a boss bar; the world is deleted afterwards · [more](#stress-test) | — |
-| 🧠 | **Measured JVM advice** | G1 with `-XX:+UseCompactObjectHeaders` and a 2 GB heap | 🧪 −29 % resident memory at the same tick time · [more](docs/measurements/memory-jvm.md#jvm-and-heap) |
+| 🧠 | **Measured JVM advice** | G1 with `-XX:+UseCompactObjectHeaders` and a 3 GB heap where the memory is there | 🏆 against 2 GB: full collections of 0.7 to 0.8 s while players explore 5–6 → 2 per run, CPU −3.8 %, 1 GB more memory · [more](docs/measurements/memory-jvm.md#jvm-and-heap) |
 | 💾 | **Idle memory return** | Opt-in: gives memory back while nobody is online | ⏸️ about 1.45 GiB less resident memory with nobody online · [more](docs/measurements/memory-jvm.md#idle-memory) |
 | 🪫 | **Worker priority** | Opt-in: chunk and I/O workers run at a lower OS priority on Linux | ⏸️ halves the main thread's wait for a CPU on the bench host · [more](docs/measurements/host.md#worker-priority-and-the-main-threads-wait-for-a-cpu) |
 | 🏷️ | **Own `/version`** | Shows the Kindling build, commit and date, and checks for a newer release | — |
@@ -104,8 +105,9 @@ Everything else is Leaf, unchanged: Paper, Gale, Pufferfish and Purpur patches, 
 1. Download the newest `kindling-26.3-<build>.jar` from [Releases](https://github.com/jonax1337/Kindling/releases).
 2. Use it like a Leaf or Paper jar:
    ```bash
-   java -Xms2G -Xmx2G -XX:+UseCompactObjectHeaders -jar kindling-26.3-<build>.jar --nogui
+   java -Xms3G -Xmx3G -XX:+UseCompactObjectHeaders -jar kindling-26.3-<build>.jar --nogui
    ```
+   With less memory, 2 GB works, but while players explore new terrain the server froze for 0.7 to 0.8 s every 15 to 20 seconds in the bench ([measured](docs/measurements/memory-jvm.md#jvm-and-heap)); pregenerating the area helps.
 3. Leave `chunk-system.worker-threads` in `config/paper-global.yml` at `-1`: Kindling then picks the measured default (5 on 8 cores). If several servers share the machine and generate at the same time, lower it per server.
 4. Pregenerate the area your players will use: `/pregen start world 5000`. Watch it with `/pregen status`.
 
@@ -235,6 +237,16 @@ performance:
 ```
 
 After every 5-second host sample the governor sorts the pressure on the main thread into four levels using the doctor's thresholds. Two high samples in a row (10 s) take one chunk worker away; `quiet-seconds` of quiet samples add one back. A worker that comes back and goes again within one quiet period doubles the wait (up to 8 times). The count stays between a quarter of the available processors (at least 1) and the configured or measured default; a Paper config reload sets the configured count again until the next sample. A removed worker finishes its current task, no chunk task is lost. `/kindling doctor` shows the status in the LIVE section. Gameplay does not change, only how fast chunks are generated. Off by default; not measured.
+
+### Compiled material rules
+
+```yaml
+performance:
+  compiled-material-rules:
+    enabled: true    # false: evaluate the surface, ore vein and underground block rules through vanilla's tree of lambdas
+```
+
+The class is written once per rule tree when the first chunk of a world is generated; a tree it cannot write (or one with a method too large for the JIT) falls back to vanilla's evaluation with a warning. `-Dkindling.verifyMaterialRules=true` evaluates every block both ways, logs differences and keeps vanilla's result; it is slow and meant for checking ([measurements](docs/measurements/chunks.md#compiled-material-rules)).
 
 ### Biome zoom shortcut
 
