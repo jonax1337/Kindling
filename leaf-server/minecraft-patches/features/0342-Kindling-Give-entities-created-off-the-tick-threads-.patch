@@ -1,0 +1,20 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Thu, 29 Oct 2026 16:21:05 +0100
+Subject: [PATCH] Kindling: Give entities created off the tick threads a random
+ of their own
+
+
+diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
+index 45bb7f5d463bd6fa9e5a729f6b6d071c4fb9fc4b..52fa8183d80ea6b60fcb8d348c1f65d05989630f 100644
+--- a/net/minecraft/world/entity/Entity.java
++++ b/net/minecraft/world/entity/Entity.java
+@@ -607,7 +607,7 @@ public abstract class Entity
+         this.dimensions = type.getDimensions();
+         this.maxAirTicks = level == null || this.getDefaultMaxAirSupply() != Entity.TOTAL_AIR_SUPPLY ? this.getDefaultMaxAirSupply() : this.level.purpurConfig.drowningAirTicks; // Purpur - Drowning Settings
+         // Purpur start - Add toggle for RNG manipulation
+-        this.random = level == null || level.purpurConfig.entitySharedRandom ? SHARED_RANDOM : RandomSource.create();
++        this.random = net.kindlingmc.entity.EntityRandoms.forNewEntity(level); // Kindling - entities created off the tick threads get their own random, so world generation gives no duplicate UUIDs
+         this.uuid = Mth.createInsecureUUID(this.random);
+         this.stringUUID = this.uuid.toString();
+         // Purpur end - Add toggle for RNG manipulation
