@@ -2,7 +2,7 @@
 
 [← Overview](../MEASUREMENTS.md)
 
-Leaf's async entity tracker, pathfinding, player data saving and mob spawning are the subject here. Since the vanilla-defaults change, only the tracker and the player data saving are on in a fresh Kindling configuration; async pathfinding and async mob spawning are opt-in. This page measures what the fixes that make them act as vanilla cost, and the figures below were taken with pathfinding switched on (the default at the time); nothing was measured with the new defaults.
+Leaf's async entity tracker, pathfinding, player data saving and mob spawning are the subject here. Since the vanilla-defaults change, only the tracker and the player data saving are on in a fresh Kindling configuration; async pathfinding and async mob spawning are opt-in. This page measures what the fixes that make them act as vanilla cost. The figures below were taken with pathfinding switched on (the default at the time). What the new defaults cost was measured on 2026-10-29: the standing tick time among 1 200 mobs is 8 % higher with the two options off (36.6 → 39.7 ms, 3 runs each), and about three quarters of that gap closes with them on again (p = 0.051, misses the rule; [details](vs-leaf.md#final-round-the-vanilla-build-of-2026-10-29-against-263-12-and-plain-leaf)).
 
 **Contents**
 
@@ -57,7 +57,7 @@ Nothing is significant; with three runs and a half range of 0.5 to 1 ms, an effe
 <details>
 <summary><b>Caveats and open points</b></summary>
 
-Their speed against plain Leaf is not measured on its own: the [comparison with plain Leaf](vs-leaf.md#final-round-the-build-of-2026-10-28-against-263-11-and-plain-leaf) also changes the chunk defaults, and plain Leaf was still generating while standing (an older two-run figure of −13 % standing does not meet the three-run rule).
+Their speed against plain Leaf is not measured on its own (Kindling's own build with the options on against off: see the intro): the [comparison with plain Leaf](vs-leaf.md#previous-round-the-build-of-2026-10-28-against-263-11-and-plain-leaf) also changes the chunk defaults, and plain Leaf was still generating while standing (an older two-run figure of −13 % standing does not meet the three-run rule).
 
 **Not tested on a running server:** async player data saving. Its new write ordering, flush barrier and shutdown drain have unit tests (`SerialWrites`), but `save-all flush` followed by a look at the file times, and a stop on a slow disk, were not run. The tracker's flag race has no unit test (`Entity` cannot be loaded without registries). The bench's fake players are creative by default, so mobs never path to them; the villager hall is the only scenario that exercises async pathfinding hard.
 

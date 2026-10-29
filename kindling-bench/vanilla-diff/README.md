@@ -3,7 +3,7 @@
 A differential test: it runs Mojang's official server jar and a server jar under test (Kindling, Leaf or Paper) on the same seed with the same scripted console input, then compares the two saved worlds. A difference means the jar under test does not do what vanilla does. The cases are the ones that tuned servers tend to break quietly: redstone update order, entity order, game events, block entity contents, world generation.
 
 > [!NOTE]
-> **Status.** The comparer, the fetch script and the command generators are tested (`python -I test_compare_worlds.py`, 36 tests on synthetic region files; the generated block, item and entity ids were checked against the 26.3 server jar). `run.sh` was exercised end to end against a stand-in server that only answers the commands it sends. **No real server has been started with it yet.** Do `./run.sh --self-check` first (vanilla against vanilla): a differential test is only worth anything once vanilla agrees with itself.
+> **Status.** The comparer, the fetch script and the command generators are tested (`python -I test_compare_worlds.py`, 36 tests on synthetic region files; the generated block, item and entity ids were checked against the 26.3 server jar). `run.sh` has run against real servers since 2026-10-29. Contraptions mode, 72 cells, 400 ticks: vanilla against vanilla differs in 0 blocks (80 entity and furnace-timing differences are the tool's noise), release 26.3-12 in 8 blocks and 5 chests, the Kindling build in 0 ([results](../../docs/measurements/vanilla-parity.md#vanilla-diff-against-mojangs-jar)). Worldgen mode is not conclusive: vanilla against vanilla already differs in 410 of 624 chunks. Do `./run.sh --self-check` first (vanilla against vanilla): a differential test is only worth anything once vanilla agrees with itself.
 
 ## Run it
 
@@ -126,6 +126,6 @@ How to judge a difference:
 
 ## Known limits
 
-- The designs were written against the 26.3 command syntax and ids (checked in the jar), not yet watched in a running server. If a design does nothing (a piston that never extends), it tests nothing; the first live run should look at a `--keep` world. The comparer has no way to know.
+- The designs were written against the 26.3 command syntax and ids (checked in the jar). If a design does nothing (a piston that never extends), it tests nothing, and the comparer has no way to know; the differences found on 26.3-12 (an unpowered wire network, chests filled in another order) show that at least those cells do something.
 - `@step` relies on `time query gametime` answering `The game time is N tick(s)` and on commands being processed while the game is frozen.
 - Bash 4+ (associative arrays) is required.

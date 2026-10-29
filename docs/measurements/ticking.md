@@ -63,7 +63,7 @@ On the release the tuned pair also showed `rewrite_arrived` 1 304 against 80. `h
 - **The bases check** (`parity/run.sh`, 15 counters against `bases-ci.json`): all counters matched on every build tested. The script itself exited 1 until the golden file's scenario block got the four fields the bench plugin gained later (`chunkAcks`, `gameMode`, `warmupMaxSeconds`, `warmupQuietSeconds`); that is fixed in the repository.
 - **Bench rounds of the fixed builds:**
   - the build with chunk quarantine: bases, sleeping (both pairs) and villagers parity all passed;
-  - the [final round](vs-leaf.md#final-round-the-build-of-2026-10-28-against-263-11-and-plain-leaf): the same checks passed again.
+  - the [previous round](vs-leaf.md#previous-round-the-build-of-2026-10-28-against-263-11-and-plain-leaf): the same checks passed again.
 
 **Speed.** Bases scenario (8 players × 4 plots, 60 s warm-up, 90 s measured, 3 GB heap), release 26.3-11 against the fixed build, sleeping on. The option is on by default in both, so the runs with and without the `sleeping-be` overlay are the same condition and are pooled: 6 runs per build, interleaved.
 
@@ -80,7 +80,7 @@ No difference is significant: the fix does not slow the bases down by 0.5 ms (ab
 **Does the option still help?**
 
 - *Three runs on the fixed build:* the option off gave 14.3 ±1.3 ms against 12.7 ±0.3 ms on (p = 0.20; p95 20.9 against 18.9, p = 0.65). That is the direction of the −12 to −15 % of 2026-10-27, but not significant.
-- *Final round, five runs each:* **12.3 → 11.3 ms (−8 %, p = 0.001)** with identical counters ([table](vs-leaf.md#final-round-the-build-of-2026-10-28-against-263-11-and-plain-leaf)). This is the figure the option is measured on now.
+- *Previous round, five runs each:* **12.3 → 11.3 ms (−8 %, p = 0.001)** with identical counters ([table](vs-leaf.md#previous-round-the-build-of-2026-10-28-against-263-11-and-plain-leaf)). This is the figure the option is measured on now.
 
 The absolute tick times of this day (11 to 13 ms) are far above those of the 2026-10-27 runs (7 to 8 ms in the same scenario), so only same-session comparisons count.
 
@@ -178,7 +178,7 @@ A differential test compares the wire power with vanilla's algorithm in 4 000 ra
 
 All 15 counters were identical in all six runs. That is about −7 % average, −10 % p95 and −19 % p99.
 
-Against release 26.3-11 the gain does not show: in the [final round](vs-leaf.md#final-round-the-build-of-2026-10-28-against-263-11-and-plain-leaf) the build with the ports and every later fix ran the bases at 11.7 ±0.4 ms, the release at 11.7 ±0.1 ms (p = 0.99, 3 runs each). The only later change to what the bases tick is the hopper cooldown after a failed transfer. Whether that change takes the gain back was not measured.
+Against release 26.3-11 the gain does not show: in the [previous round](vs-leaf.md#previous-round-the-build-of-2026-10-28-against-263-11-and-plain-leaf) the build with the ports and every later fix ran the bases at 11.7 ±0.4 ms, the release at 11.7 ±0.1 ms (p = 0.99, 3 runs each). The only later change to what the bases tick is the hopper cooldown after a failed transfer. Whether that change takes the gain back was not measured.
 
 Villagers (the sensor port): 2 players × 4 plots, `villagers-active`, 60 s warm-up, 90 s measured, 3 runs each: tick time avg 8.2 ±0.0 against 8.5 ±0.3 ms (p = 0.18), p95 9.6 against 10.9 (p = 0.17), p99 13.2 against 14.7 (p = 0.26), CPU 230 against 226 s (p = 0.16). No difference; the scenario's villagers are adults, so the skipped sensors had nothing to save there. Claims stayed at 384 and 384 with 0 shared.
 

@@ -195,6 +195,6 @@ A variant is a name. Its JVM arguments come from the `jvm` table in `matrix.sh` 
 
 ## Comparing a jar with Mojang's server
 
-[`vanilla-diff/`](vanilla-diff/README.md) is not a performance test: it runs the official server jar and the jar under test on one seed with the same console script, then compares the saved worlds block by block, entity by entity (redstone contraptions, and a world generation mode). It has not run against a real server yet.
+[`vanilla-diff/`](vanilla-diff/README.md) is not a performance test: it runs the official server jar and the jar under test on one seed with the same console script, then compares the saved worlds block by block, entity by entity (redstone contraptions, and a world generation mode). Its first runs are in [the vanilla-parity measurements](../docs/measurements/vanilla-parity.md#vanilla-diff-against-mojangs-jar): the contraptions mode works, the worldgen mode is not conclusive yet.
 
 What each variant showed is in [docs/MEASUREMENTS.md](../docs/MEASUREMENTS.md). Results land in `runs/<prefix>-<variant>.json` (a list of runs). `runs/`, `jars/` and `worlds/` are not checked in.

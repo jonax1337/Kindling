@@ -39,28 +39,29 @@ Kindling makes the parts that hurt on a cheap VPS cheaper: fast players outrunni
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/media/kindling-vs-leaf-dark.svg">
-  <img alt="Bar chart of Kindling's change against plain Leaf per figure: time over the void in the flight −98 %, flight tick time p95 −63 %, join until the full view −31 %, flight tick time average −26 %, standing tick time −20 %, survival bases tick time −6 % (not significant), CPU time of the bases run +26 %, CPU time of the flight-and-mobs run +53 %." src="docs/media/kindling-vs-leaf-light.svg" width="760">
+  <img alt="Bar chart of Kindling's change against plain Leaf per figure: time over the void in the flight −98 %, flight tick time p95 −63 %, join until the full view −28 %, flight tick time average −26 %, standing tick time −17 % (not significant), survival bases tick time −7 %, CPU time of the bases run +25 %, CPU time of the flight-and-mobs run +48 %." src="docs/media/kindling-vs-leaf-light.svg" width="760">
 </picture>
 
 | | Leaf | Kindling | |
 | --- | ---: | ---: | :---: |
-| 🛩️ Fliers over ungenerated void | 85.8 % | **2.0 %** | 🏆 |
-| ⏱️ Tick time while flying, average / p95 | 37.7 / 174.9 ms | **27.8 / 65.2 ms** | 🏆 |
-| 🚪 Join until the full view | 57.4 s | **39.9 s** | 🏆 |
-| 🐄 Tick time standing among 1 200 mobs | 44.4 ms | **35.4 ms** | 🏆 \* |
-| 🏠 Tick time in survival bases | 12.5 ms | 11.7 ms | 🤝 |
-| 🔥 CPU time, flight run / bases run | **927 / 298 s** | 1 416 / 376 s | 🔻 |
+| 🛩️ Fliers over ungenerated void | 85.5 % | **1.5 %** | 🏆 |
+| ⏱️ Tick time while flying, average / p95 | 37.0 / 172.0 ms | **27.2 / 63.4 ms** | 🏆 |
+| 🚪 Join until the full view | 56.7 s | **40.7 s** | 🏆 |
+| 🏠 Tick time in survival bases | 12.3 ms | **11.5 ms** | 🏆 |
+| 🐄 Tick time standing among 1 200 mobs | 47.9 ms | 39.7 ms | 🤝 \* |
+| 🧵 The same, release 26.3-12 in place of Leaf | 36.6 ms | 39.7 ms | 🔻 |
+| 🔥 CPU time, flight run / bases run | **968 / 294 s** | 1 433 / 368 s | 🔻 |
 
-Leaf `66f99f8e` against Kindling 26.3-12, each with its own defaults, 3 runs each on a 4-core, 8-thread Intel i7-7700 under Linux. 🏆 Kindling better · 🤝 no significant difference · 🔻 Kindling costs more. \* Leaf was still generating the players' surroundings while they stood, which flatters Kindling.
+Leaf `66f99f8e` against Kindling's build of 2026-10-29 (the coming 26.3-13), each with its own defaults, 3 runs each on a 4-core, 8-thread Intel i7-7700 under Linux. 🏆 Kindling better · 🤝 no significant difference · 🔻 Kindling costs more. \* Leaf's three standing runs spread by ±5.4 ms and it was still generating the players' surroundings while they stood.
 
-**In short:** Kindling wins where players outrun world generation. In survival bases it is a draw, and it uses more CPU time. Release 26.3-11 measured the same as 26.3-12. These figures are of build 26.3-12, whose defaults had async pathfinding and mob spawning on; later builds default to vanilla behaviour there and were not measured. [Details and method →](docs/measurements/vs-leaf.md#final-round-the-build-of-2026-10-28-against-263-11-and-plain-leaf)
+**In short:** Kindling wins where players outrun world generation. In survival bases it is 0.8 ms (7 %) faster, standing among mobs it is not significantly different, and it uses 25 to 48 % more CPU time. Against its own release 26.3-12 the vanilla build runs the bases and the flight the same and ticks 8 % slower standing among 1 200 mobs (36.6 → 39.7 ms). Most of that comes from async pathfinding and async mob spawning being opt-in now: with `async.async-pathfinding.enabled` and `async.async-mob-spawning.enabled` switched on it ticks 37.5 ms (p = 0.051, short of the bench's rule, so a likely cause, not a proven one). They are not vanilla behaviour, so they stay off. [Details and method →](docs/measurements/vs-leaf.md#final-round-the-vanilla-build-of-2026-10-29-against-263-12-and-plain-leaf)
 
 ## ✨ What Kindling adds on top of Leaf
 
 | | Feature | What you get | Measured |
 | --- | --- | --- | --- |
 | 🗺️ | **Built-in pregenerator** | `/pregen start <world> <radius>`, `pause`, `resume`, `status`; steps back when ticks get slow, resumes after a restart. No Chunky needed | 🧪 +59 % chunks per minute, −41 % CPU per chunk against its first version · [more](docs/measurements/pregeneration.md#pregeneration) |
-| 🧭 | **Directional chunk loading** | The chunks ahead of a moving player are loaded first | 🏆 with the two rows below: 2.0 % instead of 85.8 % of a flight over the void against plain Leaf · [more](docs/measurements/chunks.md#elytra-test-new-chunks-ahead-of-fast-players) |
+| 🧭 | **Directional chunk loading** | The chunks ahead of a moving player are loaded first | 🏆 with the two rows below: 1.5 % instead of 85.5 % of a flight over the void against plain Leaf · [more](docs/measurements/chunks.md#elytra-test-new-chunks-ahead-of-fast-players) |
 | ⚙️ | **Chunk workers sized for fast players** | Five eighths of the cores, at most five, never fewer than Paper (2 → 5 on 8 cores) | 🧪 0 % instead of 24 % void with eight fliers on 12 cores, against Paper's count · [more](docs/measurements/chunks.md#default-number-of-chunk-workers) |
 | 🚦 | **Shorter generation queues** | Paper's automatic number of concurrent generations per player is capped at 32, so the order keeps up | 🧪 0.9 % instead of 38.5 % void on the 8-thread bench host, same CPU time · [more](docs/measurements/chunks.md#concurrent-generations-per-player) |
 | 📦 | **Chunk loading without DataFixerUpper** | Saved block and biome palettes are read straight from NBT | 🛡️ same result, checked block by block; less chunk-worker time · [more](docs/measurements/chunks.md#loading-chunks-from-disk) |
@@ -69,12 +70,12 @@ Leaf `66f99f8e` against Kindling 26.3-12, each with its own defaults, 3 runs eac
 | 🔌 | **Lithium ports** | Redstone wire power, unused mob sensors, the rain tick and map names, with vanilla's results | 🏆 −7 % in the bases in their own A/B · 🤝 not visible against 26.3-11 · [more](docs/measurements/ticking.md#lithium-ports) |
 | 🐑 | **Cheaper natural spawning** | Entity types without a spawn cost skip the biome lookup | 🤝 no measurable change, equal spawn counts · [more](docs/measurements/ticking.md#natural-spawning-skipped-spawn-cost-lookups) |
 | ⏱️ | **Cheaper lagging check** | Computes only the 5-second TPS average the check uses; proposed to Leaf as [#970](https://github.com/Winds-Studio/Leaf/pull/970) | 🧪 13.6 % → 3.4 % of an idle main thread (one profile each) · [more](docs/measurements/ticking.md#the-lagging-check-of-the-tick-loop) |
-| 🧵 | **Async features, vanilla-safe** | Leaf's async entity tracker and player data saving are on, with Kindling's fixes (one mirrors Leaf PR #937). Async pathfinding and async mob spawning are opt-in, because a mob follows a new path a tick or more late and spawn counts can be stale | 🛡️ shared villager beds 5 and 3 → 0; the fixes cost nothing measurable · [more](docs/measurements/async.md#async-pathfinding-tracker-and-saving-after-the-fixes) |
-| 🧬 | **Vanilla parity** | Where Leaf or Gale changed vanilla behaviour unconditionally, Kindling restores it: the `Vec3i` hash (redstone update order), goal order, entity order in a chunk section, the order inside-block checks visit blocks, the biome zoom cell, lightning, zombie villager cure, shapeless recipes and more; ten Gale and Leaf defaults are vanilla in a fresh config ([list](docs/measurements/vanilla-parity.md)) | 🛡️ correctness, no speed claim; the cost of the restored vanilla code is not measured |
-| 🔍 | **Differential test against the vanilla jar** | [`kindling-bench/vanilla-diff`](kindling-bench/vanilla-diff/README.md) runs Mojang's server and the jar under test on one seed and compares the saved worlds | 🧪 comparer unit-tested; not yet run against a real server |
+| 🧵 | **Async features, vanilla-safe** | Leaf's async entity tracker and player data saving are on, with Kindling's fixes (one mirrors Leaf PR #937). Async pathfinding and async mob spawning are opt-in, because a mob follows a new path a tick or more late and spawn counts can be stale | 🛡️ shared villager beds 5 and 3 → 0; the fixes cost nothing measurable with the options on · [more](docs/measurements/async.md#async-pathfinding-tracker-and-saving-after-the-fixes) |
+| 🧬 | **Vanilla parity** | Where Leaf or Gale changed vanilla behaviour unconditionally, Kindling restores it: the `Vec3i` hash (redstone update order), goal order, entity order in a chunk section, the order inside-block checks visit blocks, the biome zoom cell, lightning, zombie villager cure, shapeless recipes and more; ten Gale and Leaf defaults are vanilla in a fresh config ([list](docs/measurements/vanilla-parity.md)) | 🤝 no cost in the bases (11.5 against 11.5 ms) or the flight (27.2 against 28.1 ms) against 26.3-12 · 🔻 standing among 1 200 mobs +8 % (36.6 → 39.7 ms), mostly the async options being off · 🛡️ parity scenarios pass · [more](docs/measurements/vanilla-parity.md) |
+| 🔍 | **Differential test against the vanilla jar** | [`kindling-bench/vanilla-diff`](kindling-bench/vanilla-diff/README.md) runs Mojang's server and the jar under test on one seed and compares the saved worlds | 🛡️ contraptions (72 cells, 400 ticks): 0 block differences for this build, 8 for 26.3-12; worldgen mode not conclusive · [more](docs/measurements/vanilla-parity.md#vanilla-diff-against-mojangs-jar) |
 | 🌍 | **Frontier pregeneration** | Opt-in: while nobody is online, generates a margin around the tiles players have visited | ⏸️ not measured · [more](docs/measurements/pregeneration.md#frontier-pregeneration) |
 | 🎚️ | **Worker governor** | Opt-in (Linux): lowers the chunk worker count while the host crowds the main thread, raises it again when it is quiet | ⏸️ not measured · [more](docs/measurements/host.md#worker-governor) |
-| 🔬 | **Biome zoom shortcut** | Opt-in: skips the zoom's distance math where all eight candidate biome cells hold one biome; the zoom itself now picks exactly vanilla's cell | ⏸️ not measured · 🛡️ the cell choice is checked against vanilla's algorithm · [more](docs/measurements/vanilla-parity.md#biome-zoom) |
+| 🔬 | **Biome zoom shortcut** | Opt-in: skips the zoom's distance math where all eight candidate biome cells hold one biome; the zoom itself now picks exactly vanilla's cell | 🤝 no tick time difference on or off (flight 27.2 → 27.7 ms, p = 0.49), no memory gain claimed · ⏸️ stays off · 🛡️ the cell choice is checked against vanilla's algorithm · [more](docs/measurements/vanilla-parity.md#biome-zoom) |
 | 🩺 | **`/kindling doctor`** | Checks the machine and the settings and names the fix, including a "vanilla parity" finding for settings that differ from vanilla; on Linux also live CPU wait, steal and throttling | 🛡️ live readings agree with `/proc` within half a point · [more](docs/measurements/host.md#the-doctors-live-readings) |
 | 🧠 | **Measured JVM advice** | G1 with `-XX:+UseCompactObjectHeaders` and a 2 GB heap | 🧪 −29 % resident memory at the same tick time · [more](docs/measurements/memory-jvm.md#jvm-and-heap) |
 | 💾 | **Idle memory return** | Opt-in: gives memory back while nobody is online | ⏸️ about 1.45 GiB less resident memory with nobody online · [more](docs/measurements/memory-jvm.md#idle-memory) |
@@ -85,7 +86,7 @@ Leaf `66f99f8e` against Kindling 26.3-12, each with its own defaults, 3 runs eac
 
 ### How vanilla is Kindling?
 
-Kindling aims at vanilla behaviour and has restored the deviations found in Leaf's and Gale's unconditional patches ([list](docs/measurements/vanilla-parity.md), [Leaf patches involved](docs/UPSTREAM.md#fixes-leaf-could-take)). That rests on reading code and unit tests, not on a differential run: the [vanilla-diff test](kindling-bench/vanilla-diff/README.md) exists but has not run against a real server yet. Known deviations that remain:
+Kindling aims at vanilla behaviour and has restored the deviations found in Leaf's and Gale's unconditional patches ([list](docs/measurements/vanilla-parity.md), [Leaf patches involved](docs/UPSTREAM.md#fixes-leaf-could-take)). That rests on reading code, unit tests, the parity scenarios and, for redstone and hopper contraptions, the [vanilla-diff test](kindling-bench/vanilla-diff/README.md): against Mojang's jar this build differs in 0 blocks of 72 contraption cells, release 26.3-12 in 8. World generation is not compared yet (the test is not conclusive there). Known deviations that remain:
 
 - **Opt-in options differ from vanilla by design:** async pathfinding (a path arrives a tick or more late; with several target positions the navigation target is set when the result arrives), async mob spawning, and Leaf's optional options (`cache-biome` keys its cache by quart cell while the biome zoom depends on the position inside it, so it can return another block's biome).
 - **Gale's zero-movement skip** (Leaf patch 0051) still skips side effects of a zero-length move that vanilla runs: the record for inside-block checks, `LivingEntity.checkFallDamage`'s fluid update when not in water, and the empty movement emission. Only the vertical collision flags and the ground state are restored.
@@ -218,7 +219,7 @@ performance:
     enabled: false   # true: answer a biome without the zoom's distance math when the 8 candidate cells hold one biome
 ```
 
-Where the eight cells the zoom chooses from lie in one chunk column and the chunk sections store one identical biome each, the shortcut returns it, which is what the zoom would pick. It only reads, and takes the exact zoom otherwise. The zoom itself (always on) now chooses exactly vanilla's cell. Off by default; not measured.
+Where the eight cells the zoom chooses from lie in one chunk column and the chunk sections store one identical biome each, the shortcut returns it, which is what the zoom would pick. It only reads, and takes the exact zoom otherwise. The zoom itself (always on) now chooses exactly vanilla's cell. Off by default: it showed no tick time difference in the mixed load ([measurements](docs/measurements/vanilla-parity.md#biome-zoom)).
 
 ### Worker priority
 

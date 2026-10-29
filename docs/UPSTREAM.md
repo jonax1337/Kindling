@@ -39,7 +39,7 @@ Kindling switches Leaf's async features and sleeping block entities on by defaul
 
 ### Deviations from vanilla that Kindling restores
 
-These are not bugs in a Leaf option that is switched off; they are changes Leaf (or Gale, through Leaf) applies unconditionally, so plain Leaf has them too. Kindling restores vanilla or Paper behaviour in a new patch on top; Leaf's own patch files are untouched. Nothing here was benchmarked: where the Leaf change was a speed-up, the cost of going back is not measured. The list with details is in [the parity measurements](measurements/vanilla-parity.md).
+These are not bugs in a Leaf option that is switched off; they are changes Leaf (or Gale, through Leaf) applies unconditionally, so plain Leaf has them too. Kindling restores vanilla or Paper behaviour in a new patch on top; Leaf's own patch files are untouched. The restorations were benchmarked together against release 26.3-12 (3 runs each): no cost in the bases or the flight, at most about 1 ms standing among 1 200 mobs; no restoration was measured on its own. The list with details is in [the parity measurements](measurements/vanilla-parity.md).
 
 | Leaf patch | What it changes | What Kindling restores | Kindling patch |
 | --- | --- | --- | --- |

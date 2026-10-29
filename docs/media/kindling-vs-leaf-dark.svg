@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="760" height="540" viewBox="0 0 760 540" role="img" aria-labelledby="title desc" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif">
 <title id="title">Kindling against plain Leaf</title>
-<desc id="desc">Time over the void in the flight: Leaf 85.8 %, Kindling 2.0 % (−98 %); Tick time in the flight, p95: Leaf 175 ms, Kindling 65.2 ms (−63 %); Join until the full view: Leaf 57.4 s, Kindling 39.9 s (−31 %); Tick time in the flight, average: Leaf 37.7 ms, Kindling 27.8 ms (−26 %); Tick time standing among mobs*: Leaf 44.4 ms, Kindling 35.4 ms (−20 %); Tick time in survival bases: Leaf 12.5 ms, Kindling 11.7 ms (−6 %); CPU time of the bases run: Leaf 298 s, Kindling 376 s (+26 %); CPU time of the flight-and-mobs run: Leaf 927 s, Kindling 1 416 s (+53 %)</desc>
+<desc id="desc">Time over the void in the flight: Leaf 85.5 %, Kindling 1.5 % (−98 %); Tick time in the flight, p95: Leaf 172 ms, Kindling 63.4 ms (−63 %); Join until the full view: Leaf 56.7 s, Kindling 40.7 s (−28 %); Tick time in the flight, average: Leaf 37.0 ms, Kindling 27.2 ms (−26 %); Tick time standing among mobs*: Leaf 47.9 ms, Kindling 39.7 ms (−17 %); Tick time in survival bases: Leaf 12.3 ms, Kindling 11.5 ms (−7 %); CPU time of the bases run: Leaf 294 s, Kindling 368 s (+25 %); CPU time of the flight-and-mobs run: Leaf 968 s, Kindling 1 433 s (+48 %)</desc>
 <rect width="760" height="540" rx="12" fill="#101A14"/>
 <text x="24.0" y="38.0" fill="#FAF7EF" font-size="19" font-weight="700" text-anchor="start">Kindling against plain Leaf</text>
 <text x="24.0" y="62.0" fill="#ACB9AA" font-size="13" font-weight="400" text-anchor="start">Change of Kindling&#x27;s mean of 3 runs against Leaf&#x27;s, same base and machine. Every figure is better when lower.</text>
@@ -19,36 +19,36 @@
 <line x1="500" y1="118" x2="500" y2="472" stroke="#ACB9AA" stroke-width="1"/>
 <text x="500.0" y="112.0" fill="#ACB9AA" font-size="11" font-weight="700" text-anchor="middle">Leaf</text>
 <text x="24.0" y="140.0" fill="#FAF7EF" font-size="13" font-weight="600" text-anchor="start">Time over the void in the flight</text>
-<text x="24.0" y="156.0" fill="#ACB9AA" font-size="12" font-weight="400" text-anchor="start">Leaf 85.8 % → Kindling 2.0 %</text>
-<path d="M500 132 H308.73970473970473 Q304.73970473970473 132 304.73970473970473 136 V142 Q304.73970473970473 146 308.73970473970473 146 H500 Z" fill="#E2601F"/>
-<text x="296.7" y="144.0" fill="#FAF7EF" font-size="13" font-weight="700" text-anchor="end">−98 %</text>
+<text x="24.0" y="156.0" fill="#ACB9AA" font-size="12" font-weight="400" text-anchor="start">Leaf 85.5 % → Kindling 1.5 %</text>
+<path d="M500 132 H307.50740452065475 Q303.50740452065475 132 303.50740452065475 136 V142 Q303.50740452065475 146 307.50740452065475 146 H500 Z" fill="#E2601F"/>
+<text x="295.5" y="144.0" fill="#FAF7EF" font-size="13" font-weight="700" text-anchor="end">−98 %</text>
 <text x="24.0" y="184.0" fill="#FAF7EF" font-size="13" font-weight="600" text-anchor="start">Tick time in the flight, p95</text>
-<text x="24.0" y="200.0" fill="#ACB9AA" font-size="12" font-weight="400" text-anchor="start">Leaf 175 ms → Kindling 65.2 ms</text>
-<path d="M500 176 H378.5984260970637 Q374.5984260970637 176 374.5984260970637 180 V186 Q374.5984260970637 190 378.5984260970637 190 H500 Z" fill="#E2601F"/>
-<text x="366.6" y="188.0" fill="#FAF7EF" font-size="13" font-weight="700" text-anchor="end">−63 %</text>
+<text x="24.0" y="200.0" fill="#ACB9AA" font-size="12" font-weight="400" text-anchor="start">Leaf 172 ms → Kindling 63.4 ms</text>
+<path d="M500 176 H377.6805394094397 Q373.6805394094397 176 373.6805394094397 180 V186 Q373.6805394094397 190 377.6805394094397 190 H500 Z" fill="#E2601F"/>
+<text x="365.7" y="188.0" fill="#FAF7EF" font-size="13" font-weight="700" text-anchor="end">−63 %</text>
 <text x="24.0" y="228.0" fill="#FAF7EF" font-size="13" font-weight="600" text-anchor="start">Join until the full view</text>
-<text x="24.0" y="244.0" fill="#ACB9AA" font-size="12" font-weight="400" text-anchor="start">Leaf 57.4 s → Kindling 39.9 s</text>
-<path d="M500 220 H442.9706095854215 Q438.9706095854215 220 438.9706095854215 224 V230 Q438.9706095854215 234 442.9706095854215 234 H500 Z" fill="#E2601F"/>
-<text x="431.0" y="232.0" fill="#FAF7EF" font-size="13" font-weight="700" text-anchor="end">−31 %</text>
+<text x="24.0" y="244.0" fill="#ACB9AA" font-size="12" font-weight="400" text-anchor="start">Leaf 56.7 s → Kindling 40.7 s</text>
+<path d="M500 220 H447.4369800760743 Q443.4369800760743 220 443.4369800760743 224 V230 Q443.4369800760743 234 447.4369800760743 234 H500 Z" fill="#E2601F"/>
+<text x="435.4" y="232.0" fill="#FAF7EF" font-size="13" font-weight="700" text-anchor="end">−28 %</text>
 <text x="24.0" y="272.0" fill="#FAF7EF" font-size="13" font-weight="600" text-anchor="start">Tick time in the flight, average</text>
-<text x="24.0" y="288.0" fill="#ACB9AA" font-size="12" font-weight="400" text-anchor="start">Leaf 37.7 ms → Kindling 27.8 ms</text>
-<path d="M500 264 H451.2884649355238 Q447.2884649355238 264 447.2884649355238 268 V274 Q447.2884649355238 278 451.2884649355238 278 H500 Z" fill="#E2601F"/>
+<text x="24.0" y="288.0" fill="#ACB9AA" font-size="12" font-weight="400" text-anchor="start">Leaf 37.0 ms → Kindling 27.2 ms</text>
+<path d="M500 264 H451.3161930536761 Q447.3161930536761 264 447.3161930536761 268 V274 Q447.3161930536761 278 451.3161930536761 278 H500 Z" fill="#E2601F"/>
 <text x="439.3" y="276.0" fill="#FAF7EF" font-size="13" font-weight="700" text-anchor="end">−26 %</text>
 <text x="24.0" y="316.0" fill="#FAF7EF" font-size="13" font-weight="600" text-anchor="start">Tick time standing among mobs*</text>
-<text x="24.0" y="332.0" fill="#ACB9AA" font-size="12" font-weight="400" text-anchor="start">Leaf 44.4 ms → Kindling 35.4 ms</text>
-<path d="M500 308 H463.4265986190333 Q459.4265986190333 308 459.4265986190333 312 V318 Q459.4265986190333 322 463.4265986190333 322 H500 Z" fill="#E2601F"/>
-<text x="451.4" y="320.0" fill="#FAF7EF" font-size="13" font-weight="700" text-anchor="end">−20 %</text>
+<text x="24.0" y="332.0" fill="#ACB9AA" font-size="12" font-weight="400" text-anchor="start">Leaf 47.9 ms → Kindling 39.7 ms</text>
+<path d="M500 308 H469.836694950619 Q465.836694950619 308 465.836694950619 312 V318 Q465.836694950619 322 469.836694950619 322 H500 Z" fill="#6B7569"/>
+<text x="457.8" y="320.0" fill="#FAF7EF" font-size="13" font-weight="700" text-anchor="end">−17 %</text>
 <text x="24.0" y="360.0" fill="#FAF7EF" font-size="13" font-weight="600" text-anchor="start">Tick time in survival bases</text>
-<text x="24.0" y="376.0" fill="#ACB9AA" font-size="12" font-weight="400" text-anchor="start">Leaf 12.5 ms → Kindling 11.7 ms</text>
-<path d="M500 352 H491.9273504273504 Q487.9273504273504 352 487.9273504273504 356 V362 Q487.9273504273504 366 491.9273504273504 366 H500 Z" fill="#6B7569"/>
-<text x="479.9" y="364.0" fill="#FAF7EF" font-size="13" font-weight="700" text-anchor="end">−6 %</text>
+<text x="24.0" y="376.0" fill="#ACB9AA" font-size="12" font-weight="400" text-anchor="start">Leaf 12.3 ms → Kindling 11.5 ms</text>
+<path d="M500 352 H490.2516914749662 Q486.2516914749662 352 486.2516914749662 356 V362 Q486.2516914749662 366 490.2516914749662 366 H500 Z" fill="#E2601F"/>
+<text x="478.3" y="364.0" fill="#FAF7EF" font-size="13" font-weight="700" text-anchor="end">−7 %</text>
 <text x="24.0" y="404.0" fill="#FAF7EF" font-size="13" font-weight="600" text-anchor="start">CPU time of the bases run</text>
-<text x="24.0" y="420.0" fill="#ACB9AA" font-size="12" font-weight="400" text-anchor="start">Leaf 298 s → Kindling 376 s</text>
-<path d="M500 396 H548.5702766267219 Q552.5702766267219 396 552.5702766267219 400 V406 Q552.5702766267219 410 548.5702766267219 410 H500 Z" fill="#3F8EDB"/>
-<text x="560.6" y="408.0" fill="#FAF7EF" font-size="13" font-weight="700" text-anchor="start">+26 %</text>
+<text x="24.0" y="420.0" fill="#ACB9AA" font-size="12" font-weight="400" text-anchor="start">Leaf 294 s → Kindling 368 s</text>
+<path d="M500 396 H546.3455307579019 Q550.3455307579019 396 550.3455307579019 400 V406 Q550.3455307579019 410 546.3455307579019 410 H500 Z" fill="#3F8EDB"/>
+<text x="558.3" y="408.0" fill="#FAF7EF" font-size="13" font-weight="700" text-anchor="start">+25 %</text>
 <text x="24.0" y="448.0" fill="#FAF7EF" font-size="13" font-weight="600" text-anchor="start">CPU time of the flight-and-mobs run</text>
-<text x="24.0" y="464.0" fill="#ACB9AA" font-size="12" font-weight="400" text-anchor="start">Leaf 927 s → Kindling 1 416 s</text>
-<path d="M500 440 H601.3229342630198 Q605.3229342630198 440 605.3229342630198 444 V450 Q605.3229342630198 454 601.3229342630198 454 H500 Z" fill="#3F8EDB"/>
-<text x="613.3" y="452.0" fill="#FAF7EF" font-size="13" font-weight="700" text-anchor="start">+53 %</text>
+<text x="24.0" y="464.0" fill="#ACB9AA" font-size="12" font-weight="400" text-anchor="start">Leaf 968 s → Kindling 1 433 s</text>
+<path d="M500 440 H592.0027543467033 Q596.0027543467033 440 596.0027543467033 444 V450 Q596.0027543467033 454 592.0027543467033 454 H500 Z" fill="#3F8EDB"/>
+<text x="604.0" y="452.0" fill="#FAF7EF" font-size="13" font-weight="700" text-anchor="start">+48 %</text>
 <text x="24.0" y="518.0" fill="#ACB9AA" font-size="12" font-weight="400" text-anchor="start">* Leaf was still generating the players&#x27; surroundings while they stood.</text>
 </svg>
