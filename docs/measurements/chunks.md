@@ -20,7 +20,7 @@ How fast players are kept over generated land and how saved chunks are read: dir
 > [!NOTE]
 > 🧪 **Time over void 9 % → 0 % at the same CPU (5 workers, five elytra players, 90 s)** · against the same build without directional loading · 2 runs each, one line ahead of each player, Windows machine pinned to 8 threads · 2026-10-26/27
 
-Chunks ahead of a moving player are queued before chunks behind them (`performance.directional-chunk-loading`, on by default, `look-ahead-ticks: 60`). It only reorders the queue: which chunks get loaded does not change. It is not a guarantee: on a 4-core, 8-thread Linux host the same kind of flight at 1.7 blocks/tick spent about half of the time over the void, because chunk generation there manages about 86 chunks/s against the roughly 225 needed. Against plain Leaf, together with the worker count and the generation cap: [final round](vs-leaf.md#final-round-the-build-of-2026-10-28-against-263-11-and-plain-leaf).
+Chunks ahead of a moving player are queued before chunks behind them (`performance.directional-chunk-loading`, on by default, `look-ahead-ticks: 60`). It only reorders the queue: which chunks get loaded does not change. It is not a guarantee: on a 4-core, 8-thread Linux host the same kind of flight at 1.7 blocks/tick spent about half of the time over the void, because chunk generation there manages about 86 chunks/s against the roughly 225 needed. Against plain Leaf, together with the worker count and the generation cap: [final round](vs-leaf.md#final-round-the-vanilla-build-of-2026-10-29-against-263-12-and-plain-leaf).
 
 | Variant | Lead avg / min | Time in the void | Tick time avg / p95 | CPU |
 | --- | ---: | ---: | ---: | ---: |
