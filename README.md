@@ -107,7 +107,7 @@ Everything else is Leaf, unchanged: Paper, Gale, Pufferfish and Purpur patches, 
    ```bash
    java -Xms3G -Xmx3G -XX:+UseCompactObjectHeaders -jar kindling-26.3-<build>.jar --nogui
    ```
-   With less memory, 2 GB works, but while players explore new terrain the server froze for 0.7 to 0.8 s every 15 to 20 seconds in the bench ([measured](docs/measurements/memory-jvm.md#jvm-and-heap)); pregenerating the area helps.
+   With less memory, use 2 GB with `-XX:G1ReservePercent=25 -XX:-G1UseAdaptiveIHOP -XX:InitiatingHeapOccupancyPercent=35`: in the bench that removed every full collection (longest pause 0.8 → 0.2 s) for about 5 % more CPU. Plain 2 GB froze for 0.7 to 0.8 s every 15 to 20 seconds while players explored new terrain ([measured](docs/measurements/memory-jvm.md#jvm-and-heap)).
 3. Leave `chunk-system.worker-threads` in `config/paper-global.yml` at `-1`: Kindling then picks the measured default (5 on 8 cores). If several servers share the machine and generate at the same time, lower it per server.
 4. Pregenerate the area your players will use: `/pregen start world 5000`. Watch it with `/pregen status`.
 

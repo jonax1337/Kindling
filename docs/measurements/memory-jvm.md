@@ -25,7 +25,8 @@ A server jar cannot bring its own JVM flags. Measured and recommended:
 
 - ✅ `-XX:+UseCompactObjectHeaders` (Java 25): live heap −5 %, GC time −17 %, no tick time cost.
 - ✅ Heap 3 GB with G1 where the memory is there. Under full load (8 players, 2 900 entities) the server holds about 1.0 to 1.2 GB of live data, and generating new terrain allocates fast. With 2 GB, G1 ran out of room to copy into and fell back to full collections: 5 to 6 per run while the players explored, each stopping the server for 0.7 to 0.8 s (the longest pause per run 689 to 838 ms). With 3 GB that dropped to 2 per run, the GC pauses fell from 8.1 to 5.0 s and the CPU time by 3.8 %, at 1 GB more resident memory (2.8 → 3.8 GB). The two full collections that remain still pause 640 to 744 ms.
-- 2 GB still works on a machine with less memory; expect sub-second freezes while players explore new terrain, and pregenerate the area players use. The earlier advice of 2 GB (−29 % memory at the same tick time) came from two runs whose figures did not include the longest pause or the number of full collections.
+- ✅ With 2 GB, add `-XX:G1ReservePercent=25 -XX:-G1UseAdaptiveIHOP -XX:InitiatingHeapOccupancyPercent=35`: G1 keeps a quarter of the heap free to copy into and starts marking at 35 % occupancy, so it never ran out of room. Full collections per run 6, 6, 7 → 0, 0, 0, the longest pause 762–849 → 120–202 ms, GC pauses 8.4 → 5.4 s (p = 0.005), at the same memory. It costs CPU: 1 228 → 1 288 s (+4.9 %, p = 0.030), and the standing tick time rose from 35.8 to 37.3 ms (p = 0.044), since G1 marks more often (GC count 200 → 282). Aikar's well-known flag set halved the full collections (3 to 4 per run) without that cost, but its pauses stayed at 735–850 ms.
+- 2 GB without these flags still works; expect sub-second freezes while players explore new terrain, and pregenerate the area players use. The earlier advice of 2 GB (−29 % memory at the same tick time) came from two runs whose figures did not include the longest pause or the number of full collections.
 - The process needs about 500 MB beyond the heap at `-Xmx2G` (metaspace, thread stacks, code cache, direct buffers; `kindling-bench`). `/kindling doctor` therefore wants `-Xmx` plus 600 MB to fit into the memory the server can use (container limit included), and counts every other server on the machine on top.
 - ❌ Not recommended:
   - ZGC: −22 % peak memory and returns memory to the OS, but +11 % CPU and worse tick spikes.
@@ -49,6 +50,18 @@ Mixed scenario of `kindling-bench` (8 creative players flying 90 s outward at 1 
 | Standing tick time avg | 35.6 ±0.4 ms | 35.1 ±0.9 ms | 35.8 ±0.1 ms (p = 0.41) |
 | CPU time | 1 252.6 ±10.9 s | 1 246.4 ±4.8 s | 1 205.5 ±4.5 s (p = 0.013) |
 | Peak RSS | 2 799 MB | 2 802 MB | 3 841 MB |
+
+G1 flags at 2 GB, on the build with compiled material rules (it generates faster, so its 2 GB baseline differs from the table above), same scenario, 3 runs each, labels `g1-2g`, `g1-aikar`, `g1-reserve`. Aikar's set as published, without `-XX:+DisableExplicitGC` (the bench calls `System.gc()` itself). The reserve variant is `-XX:G1ReservePercent=25 -XX:-G1UseAdaptiveIHOP -XX:InitiatingHeapOccupancyPercent=35`.
+
+| | 2 GB | Aikar's flags | Reserve 25 %, marking at 35 % |
+| --- | --- | --- | --- |
+| Full collections during play per run | 6, 6, 7 | 3, 4, 3 | 0, 0, 0 |
+| Longest pause per run | 849, 762, 795 ms | 850, 810, 735 ms | 120, 180, 202 ms |
+| GC pause time | 8 437 ±506 ms | 6 519 ±290 ms (p = 0.009) | 5 351 ±172 ms (p = 0.005) |
+| Flight tick time avg | 37.9 ±0.6 ms | 36.5 ±0.3 ms (p = 0.038) | 38.0 ±1.2 ms (p = 0.92) |
+| Standing tick time avg | 35.8 ±0.6 ms | 36.0 ±0.1 ms (p = 0.54) | 37.3 ±0.2 ms (p = 0.044) |
+| CPU time | 1 228.1 ±5.1 s | 1 228.7 ±1.0 s (p = 0.86) | 1 287.7 ±19.9 s (p = 0.030) |
+| Peak RSS | 2 829 MB | 2 805 MB | 2 822 MB |
 
 </details>
 
