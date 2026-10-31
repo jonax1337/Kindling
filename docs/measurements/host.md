@@ -8,6 +8,7 @@ How long Kindling's threads wait for a CPU on a shared host, what worker priorit
 
 - [Waiting for a CPU on the VPS](#waiting-for-a-cpu-on-the-vps)
 - [Worker priority and the main thread's wait for a CPU](#worker-priority-and-the-main-threads-wait-for-a-cpu)
+- [Worker demand](#worker-demand)
 - [Worker governor](#worker-governor)
 - [The doctor's live readings](#the-doctors-live-readings)
 
@@ -121,6 +122,53 @@ The throttle lowers the tick times, but at 0.10 it stops the pregenerator for th
 Two cautions: in the mixed load the time in the void rose from 3.1 to 6.3 % (p = 0.10, not significant) with a slightly lower lead, and more void means less to load, tick and send, so part of the better flight tick time can come from that; and the standing ticks after the pregeneration runs (a 5 s window) and after the elytra flight (p95 28.5 against 38.6 ms, p = 0.08) are too short and noisy to read. The runs say that nice 10 does not cost pregeneration speed or lead here; they were made on the bench host, and the [VPS check](#waiting-for-a-cpu-on-the-vps) saw no effect on a machine that was 85 to 90 % idle. The default stays off until a run under real load on the VPS confirms it.
 
 A limit such as 0.20 was not tested; the throttle's switching on and off could not be observed because the run does not log the progress over time. On the VPS the main thread of an idle test server already sat above 10 % ([see above](#waiting-for-a-cpu-on-the-vps)), so a share of the last minute is a poor criterion there; judging the absolute wait per tick, or only a busy machine, is an open item on the [roadmap](../ROADMAP.md).
+
+</details>
+
+## Worker demand
+
+> [!NOTE]
+> 🏆 **Flight over a pregenerated world: tick time 35.6 → 33.3 ms, p95 54.3 → 50.5 ms, main-thread wait 709 → 311 ms, CPU time 513 → 477 s; elytra, mixed flight and bases without a marked difference** · on by default since 2026-10-31 · against the same build with it off (five fixed workers) · 3 runs each · 2026-10-31
+>
+> 🔻 **Against plain Leaf `66f99f8e` the pregenerated flight still ticks 5 % slower (31.7 → 33.3 ms), at the same CPU time (462 → 477 s, p = 0.085); the bases keep 13 % more CPU time (276 → 313 s)** · same series
+
+`performance.worker-demand` runs every configured chunk worker only while new terrain waits for them. A profile of the pregenerated flight with the worker count as the variable (3 runs each, against Leaf) had put both losses of the [campaign](vs-leaf.md#campaign-of-2026-10-30-paper-plain-leaf-and-kindling) on the five workers: with Paper's two the flight ticked like Leaf (33.3 against 32.6 ms, p = 0.15) and the bases used Leaf's CPU time (281.5 against 280.0 s), with five it was 36.1 ms and 334 s. Five workers on four cores generate new terrain 3.6 times as fast, but where little is generated they only crowd the main thread.
+
+Every second the server reads how many generation steps waited for a worker on average (patch `0345` adds up the time each step of a chunk below its target status spends queued; by Little's law that sum over a second is the average queue length). Above 16 waiting steps every worker runs at once; after `quiet-seconds` (10) below 8 the count falls back to Paper's default for the machine, a quarter of the processors. Loading saved chunks does not count.
+
+<details>
+<summary><b>Method and all numbers</b></summary>
+
+**The thresholds.** A diagnostic build logged the average every second (1 run each, 2026-10-31): over a pregenerated world the median was 0.4 waiting steps, the 90th percentile 2.4 and the maximum 15; while flying over new terrain it was 90 to 240 (130 of 144 samples above 16); the mixed flight switched between 0 and full backlog. A first version (all workers above 2, back after 10 s below 1) kept five workers for 101 of 131 seconds of the pregenerated flight and measured the same as five fixed workers (36.6 against 36.8 ms, 3 runs).
+
+**The A/B** (the scenarios of the [campaign](vs-leaf.md#campaign-of-2026-10-30-paper-plain-leaf-and-kindling), worker priority on, `-Xms3G -Xmx3G`, 8 CPUs; a pregenerated world made once with five workers and copied in for every loaded run; 3 rounds in rotating order):
+
+| Scenario | Row | Leaf `66f99f8e` | Five fixed workers | Worker demand |
+| --- | --- | --- | --- | --- |
+| Pregenerated flight | Tick time avg / p95 (ms) | **31.7 / 43.5** | 35.6 \* / 54.3 \* | 33.3 \* / 50.5 \* |
+| | Main-thread wait (ms) | **149** | 709 \* | 311 \* |
+| | CPU time (s) | **462** | 513 \* | 477 (p = 0.085) |
+| | Chunk packets in the flight | 22 547 | 24 498 \* | 23 777 \* |
+| Bases | Tick time avg (ms) | 13.4 | 12.0 \* | **11.5** \* |
+| | CPU time (s) | **276** | 324 \* | 313 \* |
+| Elytra | Tick time avg (ms) | | 20.3 | 20.4 (p = 0.83) |
+| | New chunks per second | | 126.5 | 126.2 (p = 0.73) |
+| | Time over void | | 15.6 % | 11.7 % (p = 0.23) |
+| Mixed flight | Tick time avg (ms) | | 30.9 | 33.4 (p = 0.32) |
+| | New chunks per second | | 129.2 | 137.8 (p = 0.19) |
+| | CPU time (s) | | 1 283 | 1 266 (p = 0.24) |
+
+\* marked against Leaf. Against five fixed workers, worker demand is marked in the pregenerated tick time, p95, main-thread wait, chunk packets and CPU time, and nowhere else.
+
+</details>
+
+<details>
+<summary><b>Caveats and open points</b></summary>
+
+- The mixed flight ticked slower with worker demand in all three rounds (33.4 against 30.9 ms) while it generated 7 % more chunks per second; not significant, because the fixed-worker runs spread ±2.9 ms. Watch it in the next comparison.
+- The bases' extra CPU time against Leaf did not move (313 against 324 s, p = 0.09). They generate only at the start, so the cause is likely the spawn area being generated with every worker; not established.
+- The thresholds come from one host with five players at 1.7 blocks per tick. A host with more cores or more players may see a different queue over generated terrain; 16 is about three times what the pregenerated flight ever reached.
+- No effect while `performance.worker-governor` is on; a Paper config reload sets the configured count again until the next sample.
 
 </details>
 

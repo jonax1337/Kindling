@@ -56,7 +56,7 @@ Kindling makes the parts that hurt on a cheap VPS cheaper: fast players outrunni
 
 Paper 26.3 build 223 (the base Leaf builds on), plain Leaf `66f99f8e` and Kindling (the build of 2026-10-30), each with its own defaults, 3 runs each on a 4-core, 8-thread Intel i7-7700 under Linux; the verdict is Kindling against Leaf. 🏆 better · 🤝 no significant difference · 🔻 costs more. Every bases and villager counter was identical on the three servers.
 
-**In short:** where players reach new terrain, Kindling generates 2.5 to 3.6 times the chunks of plain Leaf and Paper and the void goes from 82 % to 0 %; the flight's average tick time rises because the server finishes and sends that many more chunks, while the p95 halves. Without new terrain it ticks bases 9 % and standing mobs 11 % faster than Leaf, and villagers the same. A pregenerated world is the one load Leaf wins (+7 % tick time for Kindling, cause not established), and Kindling uses 8 to 83 % more CPU time, most of it in its five chunk workers where Paper and Leaf start two. Async pathfinding and async mob spawning would make standing mobs another 9 % faster, but they are not vanilla behaviour, so they stay off. [Details and method →](docs/measurements/vs-leaf.md#campaign-of-2026-10-30-paper-plain-leaf-and-kindling)
+**In short:** where players reach new terrain, Kindling generates 2.5 to 3.6 times the chunks of plain Leaf and Paper and the void goes from 82 % to 0 %; the flight's average tick time rises because the server finishes and sends that many more chunks, while the p95 halves. Without new terrain it ticks bases 9 % and standing mobs 11 % faster than Leaf, and villagers the same. A pregenerated world is the one load Leaf wins: +7 % tick time in the campaign, the five chunk workers' doing; with worker demand, which runs them only while new terrain waits, it is +5 % at Leaf's CPU time ([details](docs/measurements/host.md#worker-demand)). Kindling uses 8 to 83 % more CPU time, most of it in the chunk workers where Paper and Leaf start two; the bases still use 13 % more. Async pathfinding and async mob spawning would make standing mobs another 9 % faster, but they are not vanilla behaviour, so they stay off. [Details and method →](docs/measurements/vs-leaf.md#campaign-of-2026-10-30-paper-plain-leaf-and-kindling)
 
 ## ✨ What Kindling adds on top of Leaf
 
@@ -84,6 +84,7 @@ Paper 26.3 build 223 (the base Leaf builds on), plain Leaf `66f99f8e` and Kindli
 | 🔥 | **`/kindling stress`** | Puts your own server under load you can watch in game: fake players (standing or flying), mobs and hopper, furnace and redstone bases in a throwaway world, with live MSPT and TPS on a boss bar; the world is deleted afterwards · [more](#stress-test) | — |
 | 🧠 | **Measured JVM advice** | G1 with `-XX:+UseCompactObjectHeaders` and a 3 GB heap where the memory is there | 🏆 against 2 GB: full collections of 0.7 to 0.8 s while players explore 5–6 → 2 per run, CPU −3.8 %, 1 GB more memory · [more](docs/measurements/memory-jvm.md#jvm-and-heap) |
 | 💾 | **Idle memory return** | Opt-in: gives memory back while nobody is online | ⏸️ about 1.45 GiB less resident memory with nobody online · [more](docs/measurements/memory-jvm.md#idle-memory) |
+| 🌱 | **Worker demand** | Every chunk worker runs only while new terrain waits; over generated terrain Paper's count runs | 🏆 flight over a pregenerated world 35.6 → 33.3 ms, CPU time −7 %, same chunk rate over new terrain · [more](docs/measurements/host.md#worker-demand) |
 | 🪫 | **Worker priority** | Chunk and I/O workers run at a lower OS priority on Linux, so they give way to the main thread | 🏆 elytra flight tick time p95 43.9 → 37.9 ms, main-thread wait −59 %, same chunk rate · [more](docs/measurements/host.md#worker-priority-and-the-main-threads-wait-for-a-cpu) |
 | 🏷️ | **Own `/version`** | Shows the Kindling build, commit and date, and checks for a newer release | — |
 
@@ -270,6 +271,17 @@ performance:
 ```
 
 Where the eight cells the zoom chooses from lie in one chunk column and the chunk sections store one identical biome each, the shortcut returns it, which is what the zoom would pick. It only reads, and takes the exact zoom otherwise. The zoom itself (always on) now chooses exactly vanilla's cell. Off by default: it showed no tick time difference in the mixed load ([measurements](docs/measurements/vanilla-parity.md#biome-zoom)).
+
+### Worker demand
+
+```yaml
+performance:
+  worker-demand:
+    enabled: true     # false: every chunk worker thread runs all the time
+    quiet-seconds: 10 # 1 to 3600: how long fewer than 8 generation steps must wait before Paper's count runs again
+```
+
+Every second the server reads how many generation steps waited for a chunk worker on average. Above 16 every worker runs (`chunk-system.worker-threads`, or Kindling's default); after `quiet-seconds` below 8 the count falls back to Paper's default for the machine, a quarter of the processors. Loading saved chunks does not count. Gameplay does not change, only how many threads generate chunks. No effect while the worker governor is on ([measurements](docs/measurements/host.md#worker-demand)).
 
 ### Worker priority
 
