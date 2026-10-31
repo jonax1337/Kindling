@@ -1,5 +1,6 @@
 package net.kindlingmc.os;
 
+import org.dreeam.leaf.config.modules.opt.WorkerPriority;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -23,7 +24,12 @@ class LowerPriorityTest {
     @Test
     void aTaskStaysUnwrappedWhileTheSettingIsOff() {
         final Runnable task = () -> { };
-
-        assertEquals(task, LowerPriority.onStart(task));
+        final boolean before = WorkerPriority.enabled;
+        WorkerPriority.enabled = false;
+        try {
+            assertEquals(task, LowerPriority.onStart(task));
+        } finally {
+            WorkerPriority.enabled = before;
+        }
     }
 }
