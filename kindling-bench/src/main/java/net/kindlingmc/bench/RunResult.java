@@ -16,6 +16,11 @@ final class RunResult {
 
     private final Map<String, Object> figures = new LinkedHashMap<>();
 
+    /** A result starts with the Java runtime it ran on, so runs on different JDK builds cannot be mixed up. */
+    RunResult() {
+        figures.put("java_version", Runtime.version().toString());
+    }
+
     void put(String name, Object value) {
         figures.put(name, value);
     }

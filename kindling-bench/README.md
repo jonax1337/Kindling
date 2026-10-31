@@ -37,9 +37,11 @@ During the flight, `chunk_lead` samples every 5 ticks per player how many chunks
 | `join_full_view_ms`, `join_full_view_ms_avg` | From the joins until every chunk within the send distance of a player had reached it: the slowest player (-1 if one never got its view during the warm-up) and the mean |
 | `chunk_packets_warmup`, `chunk_packets_travel`, `chunk_batches_travel` | Chunk packets the fake players received during the warm-up and the flight, summed over the players, and the chunk batches of the flight (0 as long as the server does not send chunks in batches) |
 | `travel`, `steady`, `bases`: `wall_seconds`, `gc_count`, `gc_pause_millis` | Wall time of the phase and the garbage collection pauses in it, as the change over the phase. Only stop-the-world pauses count: ZGC and Shenandoah report their concurrent cycles as collectors of their own ("... Cycles"), which are left out; G1's "Concurrent GC" bean counts the remark and cleanup pauses and is included |
+| `travel`, `steady`, `bases`: `main_alloc_mb`, `all_alloc_mb` | Heap MiB the server main thread and all threads together allocated during the phase, as HotSpot counts them (`com.sun.management.ThreadMXBean`); the total for all threads is the JVM's own approximation. Left out where the JVM does not count |
 | `travel`, `steady`, `bases`: `main_run_ms`, `main_wait_ms` | Linux only: how long the server main thread ran and how long it waited in the run queue for a CPU (`/proc/self/task/<tid>/schedstat`). A high wait is a machine that is too busy, not a slow server |
 | `travel`, `steady`, `bases`: `cpu_steal_pct`, `cpu_idle_pct` | Linux only: the share of CPU time of the whole machine that was stolen by the hypervisor or idle during the phase (`/proc/stat`) |
 | `gc_pause_millis` | Pause time over the whole run, next to the older `gc_count` and `gc_millis`, which add up every collector bean including the overlapping cycles of ZGC and Shenandoah |
+| `java_version` | The Java runtime the server ran on (`Runtime.version()`), so that runs on different JDK builds, early-access builds in particular, are not mixed up |
 
 Where `/proc` is missing (Windows), the Linux figures are left out; `compare.py` leaves out the rows of figures no run has.
 
