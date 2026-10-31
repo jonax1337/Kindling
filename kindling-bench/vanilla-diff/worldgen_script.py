@@ -2,8 +2,9 @@
 from commandscript import CommandScript
 
 SERVER_PROPERTIES = {"level-type": "normal", "generate-structures": "true"}
-GAME_RULES = (("doMobSpawning", False), ("doPatrolSpawning", False), ("doTraderSpawning", False),
-              ("doWardenSpawning", False), ("doDaylightCycle", False), ("doWeatherCycle", False))
+# 26.3 names; the pre-26 names were rejected, so these rules were never set before (../worldgen-parity/IMPL-NOTES.md)
+GAME_RULES = (("spawn_mobs", False), ("spawn_patrols", False), ("spawn_wandering_traders", False),
+              ("spawn_wardens", False), ("advance_time", False), ("advance_weather", False))
 SQUARE_CHUNKS = 6
 DISTANCES_BLOCKS = (1000, 2000, 6000)
 

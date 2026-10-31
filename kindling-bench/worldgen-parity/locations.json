@@ -1,0 +1,19 @@
+{
+  "comment": "Chunk coordinates of the north-west corner of each swept rectangle, seed -4172144997902289642. Each was found with /locate in a throwaway Mojang run (IMPL-NOTES.md), never in a bootstrap. The standard and full profiles still need their remaining locations picked on the bench host (DESIGN.md 5).",
+  "locations": {
+    "village_desert": {
+      "dimension": "minecraft:overworld",
+      "chunk": [186, 137],
+      "found": "locate structure #minecraft:village from 3200 64 3200: village_desert at [2992, ~, 2208] = chunk (187, 138)"
+    },
+    "lush_caves": {
+      "dimension": "minecraft:overworld",
+      "chunk": [212, -188],
+      "found": "locate biome minecraft:lush_caves from 3200 64 -3200: [3424, 64, -2976] = chunk (214, -186)"
+    }
+  },
+  "profiles": {
+    "dev": {"size": 4, "locations": ["village_desert"]},
+    "standard": {"size": 24, "locations": ["village_desert", "lush_caves"]}
+  }
+}

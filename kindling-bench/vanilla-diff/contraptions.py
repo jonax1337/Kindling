@@ -10,10 +10,13 @@ GRID_COLUMNS = 9
 FIRST_CHUNK = 1  # chunk 0 and the last row and column stay empty, so that every cell has loaded neighbours
 FUZZ_CELLS = 22
 STEP_PLAN = (1, 1, 2, 5, 11, 20, 60, 100, 200)  # tick steps; stage n of a design runs after step n
+# 26.3 names (GameRules.java); the pre-26 camel-case names are rejected with "Incorrect argument for command", so
+# before this change none of these rules was set (seen in a worldgen-parity dev run, ../worldgen-parity/IMPL-NOTES.md).
+# doFireTick has no direct 26.3 counterpart (fire_spread_radius_around_player is a radius) and is left out.
 GAME_RULES = (
-    ("randomTickSpeed", 0), ("doMobSpawning", False), ("doPatrolSpawning", False), ("doTraderSpawning", False),
-    ("doWardenSpawning", False), ("doWeatherCycle", False), ("doDaylightCycle", False), ("doFireTick", False),
-    ("doTileDrops", False), ("doEntityDrops", False), ("doMobLoot", False),
+    ("random_tick_speed", 0), ("spawn_mobs", False), ("spawn_patrols", False), ("spawn_wandering_traders", False),
+    ("spawn_wardens", False), ("advance_weather", False), ("advance_time", False),
+    ("block_drops", False), ("entity_drops", False), ("mob_drops", False),
 )
 SERVER_PROPERTIES = {
     "level-type": "flat",

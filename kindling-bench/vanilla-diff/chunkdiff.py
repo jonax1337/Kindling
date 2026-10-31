@@ -36,12 +36,12 @@ def diff_chunks(chunk_x: int, chunk_z: int, a: dict, b: dict) -> Iterator[Differ
 
 def diff_entities(a: list, b: list) -> Iterator[Difference]:
     """Entities are matched as a multiset (their UUIDs are random), so a moved item shows as one missing and one extra."""
-    in_a = Counter(canonical(_without_volatile(entity)) for entity in a)
-    in_b = Counter(canonical(_without_volatile(entity)) for entity in b)
+    in_a = Counter(canonical(without_volatile(entity)) for entity in a)
+    in_b = Counter(canonical(without_volatile(entity)) for entity in b)
     for text in sorted((in_a - in_b).elements()):
-        yield Difference("entity", f"only in A: {_shorten(text)}")
+        yield Difference("entity", f"only in A: {shorten(text)}")
     for text in sorted((in_b - in_a).elements()):
-        yield Difference("entity", f"only in B: {_shorten(text)}")
+        yield Difference("entity", f"only in B: {shorten(text)}")
 
 
 def canonical(value) -> str:
@@ -93,6 +93,11 @@ def _decode(container: dict, name_of, min_bits: int, count: int) -> _Cells:
     return _Cells(palette, unpack_indices(data, bits, count))
 
 
+def cell_names(container: dict, name_of, min_bits: int, count: int) -> list[str]:
+    """Every cell of a block or biome container as a name, whatever its palette order or bit width."""
+    return _decode(container, name_of, min_bits, count).values(count)
+
+
 def _differing_cells(a: dict, b: dict, name_of, min_bits: int, count: int) -> Iterator[tuple[int, str, str]]:
     if a == b:
         return
@@ -137,17 +142,17 @@ def _diff_section_biomes(chunk_x: int, chunk_z: int, section_y: int, a: dict, b:
         yield Difference("biome", f"quart ({x}, {y}, {z}) {name_a} -> {name_b}")
 
 
-def _without_volatile(value):
+def without_volatile(value):
     if isinstance(value, dict):
-        return {key: _without_volatile(inner) for key, inner in value.items() if not is_volatile_key(key)}
+        return {key: without_volatile(inner) for key, inner in value.items() if not is_volatile_key(key)}
     if isinstance(value, list):
-        return [_without_volatile(inner) for inner in value]
+        return [without_volatile(inner) for inner in value]
     return value
 
 
 def _block_entities_by_position(chunk: dict) -> dict[tuple, dict]:
     return {
-        (entity["x"], entity["y"], entity["z"]): _without_volatile(entity)
+        (entity["x"], entity["y"], entity["z"]): without_volatile(entity)
         for entity in chunk.get("block_entities", [])
     }
 
@@ -165,10 +170,10 @@ def _diff_block_entities(a: dict, b: dict) -> Iterator[Difference]:
 
 
 def _diff_block_entity(label: str, a: dict, b: dict) -> Iterator[Difference]:
-    changes = list(_value_changes(a, b, ""))
+    changes = list(value_changes(a, b, ""))
     for path, value_a, value_b in changes[:_MAX_PATHS_PER_BLOCK_ENTITY]:
-        yield Difference("block entity", f"{label} {a.get('id')} {path}: {_shorten(canonical(value_a))}"
-                                         f" -> {_shorten(canonical(value_b))}")
+        yield Difference("block entity", f"{label} {a.get('id')} {path}: {shorten(canonical(value_a))}"
+                                         f" -> {shorten(canonical(value_b))}")
     if len(changes) > _MAX_PATHS_PER_BLOCK_ENTITY:
         yield Difference("block entity", f"{label} {a.get('id')} ... {len(changes) - _MAX_PATHS_PER_BLOCK_ENTITY} more")
     if changes and ("Items" in a or "Items" in b):
@@ -184,17 +189,17 @@ def _item_totals(block_entity: dict) -> Counter:
     return totals
 
 
-def _value_changes(a, b, path: str) -> Iterator[tuple[str, object, object]]:
+def value_changes(a, b, path: str) -> Iterator[tuple[str, object, object]]:
     if isinstance(a, dict) and isinstance(b, dict):
         for key in sorted(set(a) | set(b)):
             inner = f"{path}.{key}" if path else key
             if key not in b or key not in a:
                 yield inner, a.get(key), b.get(key)
             else:
-                yield from _value_changes(a[key], b[key], inner)
+                yield from value_changes(a[key], b[key], inner)
     elif isinstance(a, list) and isinstance(b, list) and len(a) == len(b):
         for index, (inner_a, inner_b) in enumerate(zip(a, b)):
-            yield from _value_changes(inner_a, inner_b, f"{path}[{index}]")
+            yield from value_changes(inner_a, inner_b, f"{path}[{index}]")
     elif a != b:
         yield path or "<root>", a, b
 
@@ -207,5 +212,5 @@ def _diff_scheduled_ticks(a: list, b: list, label: str) -> Iterator[Difference]:
         yield Difference("scheduled tick", f"{label} only in B: {text}")
 
 
-def _shorten(text: str) -> str:
+def shorten(text: str) -> str:
     return text if len(text) <= _SUMMARY_LIMIT else text[:_SUMMARY_LIMIT] + "..."
