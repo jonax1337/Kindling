@@ -4,7 +4,7 @@ on:
   push:
     branches: [ "ver/26.3" ]
     # Every push is a release; these files do not change the server jar.
-    paths-ignore: [ "docs/**", "website/**", "**.md", "kindling-bench/**", ".github/workflows/leaf-upstream.yml", ".github/workflows/parity.yml", ".github/workflows/website.yml" ]
+    paths-ignore: [ "docs/**", "website/**", "**.md", "kindling-bench/**", ".claude/**", ".github/workflows/leaf-upstream.yml", ".github/workflows/parity.yml", ".github/workflows/website.yml" ]
   pull_request:
     branches: [ "ver/26.3" ]
   workflow_dispatch:
