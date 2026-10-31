@@ -1,0 +1,61 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Sat, 31 Oct 2026 11:47:56 +0100
+Subject: [PATCH] Kindling: Count how long generation steps wait for a chunk
+ worker
+
+
+diff --git a/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/task/ChunkUpgradeGenericStatusTask.java b/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/task/ChunkUpgradeGenericStatusTask.java
+index 78fd90e0aa4d84ab13de8c101c5d31596e9ba1f7..c784c4ad72861b3915162c4f37765274f5709f7f 100644
+--- a/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/task/ChunkUpgradeGenericStatusTask.java
++++ b/ca/spottedleaf/moonrise/patches/chunk_system/scheduling/task/ChunkUpgradeGenericStatusTask.java
+@@ -32,6 +32,10 @@ public final class ChunkUpgradeGenericStatusTask extends ChunkProgressionTask im
+     private final StaticCache2D<GenerationChunkHolder> neighbours;
+ 
+     private final PrioritisedExecutor.PrioritisedTask generateTask;
++    // Kindling start - chunk worker count that follows the generation backlog
++    private boolean waitsAsGeneration;
++    private long queuedNanos;
++    // Kindling end - chunk worker count that follows the generation backlog
+ 
+     public ChunkUpgradeGenericStatusTask(final ChunkTaskScheduler scheduler, final ServerLevel world, final int chunkX,
+                                          final int chunkZ, final ChunkAccess chunk, final StaticCache2D<GenerationChunkHolder> neighbours,
+@@ -69,6 +73,7 @@ public final class ChunkUpgradeGenericStatusTask extends ChunkProgressionTask im
+ 
+     @Override
+     public void run() {
++        this.stopWaiting(); // Kindling - chunk worker count that follows the generation backlog
+         final ChunkAccess chunk = this.fromChunk;
+ 
+         final ServerChunkCache serverChunkCache = this.world.getChunkSource();
+@@ -174,13 +179,30 @@ public final class ChunkUpgradeGenericStatusTask extends ChunkProgressionTask im
+                 this.run();
+             }
+         } else {
++            // Kindling start - chunk worker count that follows the generation backlog
++            if (!this.fromStatus.isOrAfter(this.toStatus)) {
++                this.waitsAsGeneration = true;
++                this.queuedNanos = net.kindlingmc.chunk.GenerationBacklog.queued();
++            }
++            // Kindling end - chunk worker count that follows the generation backlog
+             this.generateTask.queue();
+         }
+     }
+ 
++    // Kindling start - chunk worker count that follows the generation backlog
++    /** A cancelled task never runs and a run task cannot be cancelled, so this counts each queued step once. */
++    private void stopWaiting() {
++        if (this.waitsAsGeneration) {
++            this.waitsAsGeneration = false;
++            net.kindlingmc.chunk.GenerationBacklog.stoppedWaiting(this.queuedNanos);
++        }
++    }
++    // Kindling end - chunk worker count that follows the generation backlog
++
+     @Override
+     public void cancel() {
+         if (this.generateTask.cancel()) {
++            this.stopWaiting(); // Kindling - chunk worker count that follows the generation backlog
+             this.complete(null, null);
+         }
+     }
