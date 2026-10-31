@@ -1,0 +1,18 @@
+[package]
+name = "kindling_noise"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.88"
+publish = false
+description = "Native volume noise kernels for the Kindling native-kernel experiment"
+
+[lib]
+crate-type = ["cdylib"]
+
+[profile.release]
+opt-level = 3
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+
+[workspace]
