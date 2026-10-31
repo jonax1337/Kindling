@@ -39,33 +39,36 @@ Kindling makes the parts that hurt on a cheap VPS cheaper: fast players outrunni
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/media/kindling-vs-leaf-dark.svg">
-  <img alt="Bar chart of Kindling's change against plain Leaf per figure: time over the void in the flight −98 %, flight tick time p95 −63 %, join until the full view −28 %, flight tick time average −26 %, standing tick time −17 % (not significant), survival bases tick time −7 %, CPU time of the bases run +25 %, CPU time of the flight-and-mobs run +48 %." src="docs/media/kindling-vs-leaf-light.svg" width="760">
+  <img alt="Bar chart of Kindling's change against plain Leaf per figure: time over the void in the flight −100 %, flight tick time p95 −54 %, join until the full view −46 %, flight tick time average +12 %, standing tick time −11 %, survival bases tick time −9 %, CPU time of the bases run +15 %, CPU time of the flight-and-mobs run +43 %." src="docs/media/kindling-vs-leaf-light.svg" width="760">
 </picture>
 
-| | Leaf | Kindling | |
-| --- | ---: | ---: | :---: |
-| 🛩️ Fliers over ungenerated void | 85.5 % | **1.5 %** | 🏆 |
-| ⏱️ Tick time while flying, average / p95 | 37.0 / 172.0 ms | **27.2 / 63.4 ms** | 🏆 |
-| 🚪 Join until the full view | 56.7 s | **40.7 s** | 🏆 |
-| 🏠 Tick time in survival bases | 12.3 ms | **11.5 ms** | 🏆 |
-| 🐄 Tick time standing among 1 200 mobs | 47.9 ms | 39.7 ms | 🤝 \* |
-| 🧵 The same, release 26.3-12 in place of Leaf | 36.6 ms | 39.7 ms | 🔻 |
-| 🔥 CPU time, flight run / bases run | **968 / 294 s** | 1 433 / 368 s | 🔻 |
+| | Paper | Leaf | Kindling | |
+| --- | ---: | ---: | ---: | :---: |
+| 🗺️ New chunks per second, 8 players exploring / 5 elytras | 68 / 44 | 65 / 40 | **160 / 144** | 🏆 |
+| 🛩️ Fliers over ungenerated void, 8 players / 5 elytras | 82 / 93 % | 82 / 93 % | **0 / 7.5 %** | 🏆 |
+| 🚪 Join until the full view | 50.2 s | 50.1 s | **27.2 s** | 🏆 |
+| ⏱️ Tick time while flying, p95 / average | 280 / 32.8 ms | 130 / **32.4 ms** | **60** / 36.3 ms | 🏆 / 🔻 |
+| 🐄 Tick time standing among 1 200 mobs | 51.6 ms | 39.1 ms | **34.6 ms** | 🏆 |
+| 🏠 Tick time in survival bases | 13.2 ms | 11.8 ms | **10.8 ms** | 🏆 |
+| 🧑‍🌾 Tick time among working villagers | 14.4 ms | 8.5 ms | 8.4 ms | 🤝 |
+| 🧱 Tick time flying over a pregenerated world | 30.2 ms | **25.5 ms** | 27.2 ms | 🔻 |
+| 🔥 CPU time, bases / exploring | 242 / 845 s | 246 / **810 s** | 282 / 1 160 s | 🔻 |
 
-Leaf `66f99f8e` against Kindling's build of 2026-10-29 (the coming 26.3-13), each with its own defaults, 3 runs each on a 4-core, 8-thread Intel i7-7700 under Linux. 🏆 Kindling better · 🤝 no significant difference · 🔻 Kindling costs more. \* Leaf's three standing runs spread by ±5.4 ms and it was still generating the players' surroundings while they stood.
+Paper 26.3 build 223 (the base Leaf builds on), plain Leaf `66f99f8e` and Kindling (the build of 2026-10-30), each with its own defaults, 3 runs each on a 4-core, 8-thread Intel i7-7700 under Linux; the verdict is Kindling against Leaf. 🏆 better · 🤝 no significant difference · 🔻 costs more. Every bases and villager counter was identical on the three servers.
 
-**In short:** Kindling wins where players outrun world generation. In survival bases it is 0.8 ms (7 %) faster, standing among mobs it is not significantly different, and it uses 25 to 48 % more CPU time. Against its own release 26.3-12 the vanilla build runs the bases and the flight the same and ticks 8 % slower standing among 1 200 mobs (36.6 → 39.7 ms). Most of that comes from async pathfinding and async mob spawning being opt-in now: with `async.async-pathfinding.enabled` and `async.async-mob-spawning.enabled` switched on it ticks 37.5 ms (p = 0.051, short of the bench's rule, so a likely cause, not a proven one). They are not vanilla behaviour, so they stay off. [Details and method →](docs/measurements/vs-leaf.md#final-round-the-vanilla-build-of-2026-10-29-against-263-12-and-plain-leaf)
+**In short:** where players reach new terrain, Kindling generates 2.5 to 3.6 times the chunks of plain Leaf and Paper and the void goes from 82 % to 0 %; the flight's average tick time rises because the server finishes and sends that many more chunks, while the p95 halves. Without new terrain it ticks bases 9 % and standing mobs 11 % faster than Leaf, and villagers the same. A pregenerated world is the one load Leaf wins (+7 % tick time for Kindling, cause not established), and Kindling uses 8 to 83 % more CPU time, most of it in its five chunk workers where Paper and Leaf start two. Async pathfinding and async mob spawning would make standing mobs another 9 % faster, but they are not vanilla behaviour, so they stay off. [Details and method →](docs/measurements/vs-leaf.md#campaign-of-2026-10-30-paper-plain-leaf-and-kindling)
 
 ## ✨ What Kindling adds on top of Leaf
 
 | | Feature | What you get | Measured |
 | --- | --- | --- | --- |
 | 🗺️ | **Built-in pregenerator** | `/pregen start <world> <radius>`, `pause`, `resume`, `status`; steps back when ticks get slow, resumes after a restart. No Chunky needed | 🧪 +59 % chunks per minute, −41 % CPU per chunk against its first version · [more](docs/measurements/pregeneration.md#pregeneration) |
-| 🧭 | **Directional chunk loading** | The chunks ahead of a moving player are loaded first | 🏆 with the two rows below: 1.5 % instead of 85.5 % of a flight over the void against plain Leaf · [more](docs/measurements/chunks.md#elytra-test-new-chunks-ahead-of-fast-players) |
+| 🧭 | **Directional chunk loading** | The chunks ahead of a moving player are loaded first | 🏆 with the two rows below: 0 % instead of 82 % of a flight over the void against plain Leaf · [more](docs/measurements/chunks.md#elytra-test-new-chunks-ahead-of-fast-players) |
 | ⚙️ | **Chunk workers sized for fast players** | Five eighths of the cores, at most five, never fewer than Paper (2 → 5 on 8 cores) | 🧪 0 % instead of 24 % void with eight fliers on 12 cores, against Paper's count · [more](docs/measurements/chunks.md#default-number-of-chunk-workers) |
 | 🚦 | **Shorter generation queues** | Paper's automatic number of concurrent generations per player is capped at 32, so the order keeps up | 🧪 0.9 % instead of 38.5 % void on the 8-thread bench host, same CPU time · [more](docs/measurements/chunks.md#concurrent-generations-per-player) |
 | 📦 | **Chunk loading without DataFixerUpper** | Saved block and biome palettes are read straight from NBT | 🛡️ same result, checked block by block; less chunk-worker time · [more](docs/measurements/chunks.md#loading-chunks-from-disk) |
 | ⚡ | **Compiled material rules** | World generation picks surface, ore vein and underground blocks through a class written once per rule tree instead of a tree of lambdas; every condition is still vanilla's own | 🏆 +8.4 % chunks in a pregeneration at the same CPU time · 🛡️ 0 differences in 1.3 billion blocks · [more](docs/measurements/chunks.md#compiled-material-rules) |
+| 🏔️ | **Compiled density** | The terrain density is sampled for each cell corner without the branches that corner cannot take; the cache cells are filled as vanilla fills them | 🏆 +0.8 % chunks per second in a pregeneration · 🛡️ 0 differences in 40 000 checked calls and a whole world · [more](docs/measurements/chunks.md#compiled-density) |
 | 🛟 | **Copies of unreadable chunks** | A stored chunk that cannot be read, including one the region file gives up on (truncated header or stream, bad length or compression), is copied to `<world>/kindling-quarantine/` before it is generated anew | 🛡️ checked with damaged region files; the region-file cases by unit tests · [more](docs/measurements/chunks.md#copies-of-unreadable-chunks) |
 | 💤 | **Sleeping block entities, plugin-safe** | Idle hoppers, furnaces, brewing stands, crafters and chests stop ticking; Kindling makes Leaf's port act as Paper. Paper's temporary stack count during `InventoryMoveItemEvent` no longer wakes sleeping hoppers, and furnaces and brewing stands wake on in-place stack changes | 🏆 −8 % tick time in survival bases with identical items (on against off) · 🛡️ no duplicated items · [more](docs/measurements/ticking.md#sleeping-block-entities-after-the-fixes) |
 | 🔌 | **Lithium ports** | Redstone wire power, unused mob sensors, the rain tick and map names, with vanilla's results | 🏆 −7 % in the bases in their own A/B · 🤝 not visible against 26.3-11 · [more](docs/measurements/ticking.md#lithium-ports) |
@@ -81,7 +84,7 @@ Leaf `66f99f8e` against Kindling's build of 2026-10-29 (the coming 26.3-13), eac
 | 🔥 | **`/kindling stress`** | Puts your own server under load you can watch in game: fake players (standing or flying), mobs and hopper, furnace and redstone bases in a throwaway world, with live MSPT and TPS on a boss bar; the world is deleted afterwards · [more](#stress-test) | — |
 | 🧠 | **Measured JVM advice** | G1 with `-XX:+UseCompactObjectHeaders` and a 3 GB heap where the memory is there | 🏆 against 2 GB: full collections of 0.7 to 0.8 s while players explore 5–6 → 2 per run, CPU −3.8 %, 1 GB more memory · [more](docs/measurements/memory-jvm.md#jvm-and-heap) |
 | 💾 | **Idle memory return** | Opt-in: gives memory back while nobody is online | ⏸️ about 1.45 GiB less resident memory with nobody online · [more](docs/measurements/memory-jvm.md#idle-memory) |
-| 🪫 | **Worker priority** | Opt-in: chunk and I/O workers run at a lower OS priority on Linux | ⏸️ halves the main thread's wait for a CPU on the bench host · [more](docs/measurements/host.md#worker-priority-and-the-main-threads-wait-for-a-cpu) |
+| 🪫 | **Worker priority** | Chunk and I/O workers run at a lower OS priority on Linux, so they give way to the main thread | 🏆 elytra flight tick time p95 43.9 → 37.9 ms, main-thread wait −59 %, same chunk rate · [more](docs/measurements/host.md#worker-priority-and-the-main-threads-wait-for-a-cpu) |
 | 🏷️ | **Own `/version`** | Shows the Kindling build, commit and date, and checks for a newer release | — |
 
 🏆 better, significant · 🤝 no measurable difference · 🛡️ correctness, no speed claim · 🧪 fewer than three runs or one profile, below the [three-run rule](docs/MEASUREMENTS.md#how-to-read-the-numbers) · ⏸️ opt-in, off by default. Every measurement names what it was compared with; the overview is in [docs/MEASUREMENTS.md](docs/MEASUREMENTS.md).
@@ -248,6 +251,16 @@ performance:
 
 The class is written once per rule tree when the first chunk of a world is generated; a tree it cannot write (or one with a method too large for the JIT) falls back to vanilla's evaluation with a warning. `-Dkindling.verifyMaterialRules=true` evaluates every block both ways, logs differences and keeps vanilla's result; it is slow and meant for checking ([measurements](docs/measurements/chunks.md#compiled-material-rules)).
 
+### Compiled density
+
+```yaml
+performance:
+  compiled-density:
+    enabled: true    # false: sample the terrain density through vanilla's tree for every cell corner
+```
+
+For each cell corner the final density tree is sampled without the branches of range choices that corner cannot take, and the cache cells are filled as vanilla fills them. `-Dkindling.verifyDensity=true` compares every call with vanilla's sampler and keeps vanilla's result ([measurements](docs/measurements/chunks.md#compiled-density)).
+
 ### Biome zoom shortcut
 
 ```yaml
@@ -263,11 +276,11 @@ Where the eight cells the zoom chooses from lie in one chunk column and the chun
 ```yaml
 performance:
   worker-priority:
-    enabled: false   # true: chunk and I/O worker threads lower their own priority when they start
+    enabled: true    # false: chunk and I/O worker threads keep the main thread's priority
     nice: 10         # 0 to 19, higher is lower priority
 ```
 
-Paper raises the main thread's Java priority and lowers its own workers', but HotSpot ignores Java thread priorities on Linux (with the default `-XX:ThreadPriorityPolicy=0`), so there the chunk workers compete with the main thread on equal terms. With `enabled`, each chunk and I/O worker thread lowers its own priority. It stays off until a run under real load on a VPS confirms the bench host's result ([measurements](docs/measurements/host.md#worker-priority-and-the-main-threads-wait-for-a-cpu)).
+Paper raises the main thread's Java priority and lowers its own workers', but HotSpot ignores Java thread priorities on Linux (with the default `-XX:ThreadPriorityPolicy=0`), so there the chunk workers compete with the main thread on equal terms. With `enabled`, each chunk and I/O worker thread lowers its own priority. On by default since the bench host showed a lower flight tick time and the same chunk rate; a run under real load on a VPS is still open ([measurements](docs/measurements/host.md#worker-priority-and-the-main-threads-wait-for-a-cpu)).
 
 <details>
 <summary><b>How it works</b></summary>

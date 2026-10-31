@@ -6,6 +6,7 @@ How Kindling compares with plain Leaf and with its own release under the same lo
 
 **Contents**
 
+- [Campaign of 2026-10-30: Paper, plain Leaf and Kindling](#campaign-of-2026-10-30-paper-plain-leaf-and-kindling)
 - [Final round: the vanilla build of 2026-10-29 against 26.3-12 and plain Leaf](#final-round-the-vanilla-build-of-2026-10-29-against-263-12-and-plain-leaf)
 - [Previous round: the build of 2026-10-28 against 26.3-11 and plain Leaf](#previous-round-the-build-of-2026-10-28-against-263-11-and-plain-leaf)
 - [Mixed load: Leaf against the Kindling defaults](#mixed-load-leaf-against-the-kindling-defaults)
@@ -14,15 +15,92 @@ How Kindling compares with plain Leaf and with its own release under the same lo
 
 ---
 
-## Final round: the vanilla build of 2026-10-29 against 26.3-12 and plain Leaf
+## Campaign of 2026-10-30: Paper, plain Leaf and Kindling
 
 > [!TIP]
-> 🏆 **Against plain Leaf in the mixed flight: 85.5 % → 1.5 % of the time over void, tick time p95 172.0 → 63.4 ms; in the bases 12.3 → 11.5 ms** · 🔻 costs 48 % more CPU time in the mixed load (968 → 1 433 s) and 25 % in the bases (294 → 368 s) · 🔻 standing among 1 200 mobs it is 8 % slower than 26.3-12 (36.6 → 39.7 ms), most likely because async pathfinding and async mob spawning are off now · against plain Leaf `66f99f8e` and release 26.3-12, each with its own defaults · 3 runs each · 2026-10-28/29
+> 🏆 **New terrain: 2.5 to 3.6 times the new chunks per second of plain Leaf, 0 % instead of 82 % of the mixed flight over void, join 50.1 → 27.2 s, flight tick time p95 130 → 60 ms** · 🏆 **bases 11.8 → 10.8 ms (Paper 13.2), 1 200 standing mobs 39.1 → 34.6 ms, villagers equal to Leaf (8.4 against 8.5 ms, Paper 14.4)** · 🔻 a pregenerated world ticks 7 % slower than Leaf (25.5 → 27.2 ms) · 🔻 8 to 83 % more CPU time · against Paper 26.3-223 (`e415f5e0`, Leaf's base) and plain Leaf `66f99f8e`, each with its own defaults · 3 runs each · 2026-10-30, the final build confirmed on 2026-10-31
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="../media/kindling-vs-leaf-dark.svg">
-  <img alt="Bar chart of Kindling's change against plain Leaf per figure: time over the void in the flight −98 %, flight tick time p95 −63 %, join until the full view −28 %, flight tick time average −26 %, standing tick time −17 % (not significant), survival bases tick time −7 %, CPU time of the bases run +25 %, CPU time of the flight-and-mobs run +48 %." src="../media/kindling-vs-leaf-light.svg" width="760">
+  <img alt="Bar chart of Kindling's change against plain Leaf per figure: time over the void in the flight −100 %, flight tick time p95 −54 %, join until the full view −46 %, flight tick time average +12 %, standing tick time −11 %, survival bases tick time −9 %, CPU time of the bases run +15 %, CPU time of the flight-and-mobs run +43 %." src="../media/kindling-vs-leaf-light.svg" width="760">
 </picture>
+
+Three servers with the same JVM flags on the bench host, each with the defaults it ships: Paper build 223 (the `paperCommit` Leaf builds on), plain Leaf `66f99f8e` and Kindling (`03437f89` with the density pruning, `kindling-campaign.jar`, sha256 `5e89563b…`). Five scenarios, three rounds, the server order rotating per round. `*` = marked by `compare.py` against plain Leaf.
+
+| Scenario | Figure | Paper | Leaf | Kindling |
+| --- | --- | ---: | ---: | ---: |
+| **Mixed** (8 players fly outward, then stand among 1 200 mobs) | Time over void | 82.0 % | 82.2 % | **0.0 %** \* |
+| | New chunks per second | 68.1 | 64.8 | **159.8** \* |
+| | Join until the full view | 50.2 s | 50.1 s | **27.2 s** \* |
+| | Flight tick time p95 | 280.1 | 130.3 | **59.6** \* |
+| | Flight tick time avg | 32.8 | **32.4** | 36.3 \* |
+| | Standing tick time avg / p95 | 51.6 / 68.6 | 39.1 / 51.7 | **34.6 / 41.4** \* |
+| | CPU time | 845 s | **810 s** | 1 160 s \* |
+| **Elytra** (5 players, 1.7 blocks/tick, new world) | Time over void | 92.5 % | 92.7 % | **7.5 %** \* |
+| | New chunks per second | 43.5 | 39.7 | **143.6** \* |
+| | Flight tick time avg / p95 | 39.2 / 158.8 | 39.3 / 158.2 | **22.4 / 43.1** \* |
+| | Join until the full view | 35.8 s | 36.3 s | **20.9 s** \* |
+| | CPU time | **485 s** | 492 s | 900 s \* |
+| **Loaded** (the same flight over a pregenerated world) | Flight tick time avg / p95 | 30.2 / 40.2 | **25.5 / 34.8** | 27.2 \* / 37.2 |
+| | Tick time after the flight | 23.3 | **18.4** | 20.7 \* |
+| | CPU time | 332 s | **326 s** | 351 s \* |
+| **Bases** (8 players among 32 survival bases) | Tick time avg / p95 | 13.2 / 18.7 | 11.8 / 16.5 | **10.8 / 14.8** \* |
+| | CPU time | **242 s** | 246 s | 282 s \* |
+| **Villagers** (12 halls, villagers working) | Tick time avg / p95 | 14.4 / 16.7 | 8.5 / **9.9** | **8.4** / 10.3 |
+| | CPU time | 192 s | **176 s** | 190 s |
+
+Every bases counter and every villager counter (384 job site claims, 0 shared beds, 0 shared job sites) was identical on all three servers in every run.
+
+**What the campaign says.**
+
+- **Where players reach new terrain, Kindling is in another class:** 2.5 times Leaf's chunk rate in the mixed load and 3.6 times in the elytra flight, with the void share going from 82 to 0 % and 93 to 7.5 %. Paper and Leaf are equal there; both start two chunk workers.
+- **The flight's average tick time is higher (+12 %)** because the main thread finishes and sends 2.5 times the chunks; the p95 halves.
+- **Ticking without new terrain:** bases −9 % against Leaf and −18 % against Paper with identical counters, standing mobs −11 % against Leaf and −33 % against Paper, villagers equal to Leaf.
+- **A pregenerated world is the one load Leaf wins**, by 1.7 ms (7 %). The control run below rules out the async options as the cause.
+- **CPU time** is the price: +15 % in the bases, +8 % in the pregenerated world, +43 % in the mixed load and +83 % in the elytra flight, where Kindling generates 3.6 times the chunks. Per new chunk the mixed load costs less CPU time: 127 → 79 ms. A JFR profile of the bases puts the extra CPU in the chunk workers: Kindling starts five on eight threads, where Paper and Leaf start two.
+
+<details>
+<summary><b>Control run of the final build, and the async options (2026-10-31)</b></summary>
+
+The final build (density pruning and worker priority on, `kindling-final.jar`, sha256 `5dd632a4…`) against plain Leaf, and the same build with async pathfinding and async mob spawning on (overlay `async-previous-defaults`). 3 runs each, interleaved; `*` against Leaf, `†` against the final build:
+
+| Scenario | Figure | Leaf | Kindling | Kindling, async options on |
+| --- | --- | ---: | ---: | ---: |
+| Elytra | New chunks per second | 41.4 | **150.5** \* | – |
+| | Time over void | 92.6 % | **4.0 %** \* | – |
+| | Flight tick time avg / p95 | 38.3 / 156.1 | **21.6 / 37.8** \* | – |
+| | Join until the full view | 35.7 s | **20.4 s** \* | – |
+| Mixed | New chunks per second | 64.6 | **159.4** \* | 150.4 |
+| | Time over void | 82.4 % | **0.0 %** \* | 0.0 % |
+| | Flight tick time p95 | 133.6 | 51.4 \* | **48.5** |
+| | Standing tick time avg | 38.5 | 34.9 \* | **31.8** † |
+| | CPU time | **811 s** | 1 161 s | 1 175 s |
+| Loaded | Flight tick time avg | **25.3** | 27.3 \* | 26.9 (p = 0.40 †) |
+| | Main thread's wait for a CPU | **88 ms** | 243 ms \* | 314 ms |
+| | Chunk packets sent in the flight | 24 010 | 24 605 \* | 24 728 |
+| | CPU time | **328 s** | 352 s \* | 357 s |
+
+- The final build repeats the campaign; with worker priority the elytra flight improves a little (143.6 → 150.5 chunks/s, tick time 22.4 → 21.6 ms).
+- **The async options make standing mobs 9 % faster** (34.9 → 31.8 ms, †). Kindling keeps them off because they are not vanilla ([async](async.md)); it is faster than Leaf there without them.
+- **They do not explain the pregenerated world** (27.3 → 26.9 ms, not significant). There Kindling sends 2.5 % more chunk packets and its main thread waits about three times as long for a CPU; the cause is not established. A JFR profile of the main thread (1 run each) shows natural spawning equal and the extra time spread over entity ticks (movement and goals), with pathfinding below 2.5 % of the main thread on both servers.
+
+</details>
+
+<details>
+<summary><b>Method and caveats</b></summary>
+
+- Bench host: Intel i7-7700 (4 cores, 8 threads) under WSL2 Ubuntu 24.04, Java 25, `-XX:ActiveProcessorCount=8 -XX:+UseCompactObjectHeaders -Xms3G -Xmx3G`, `--cpus 8`, port 25999.
+- Paper is the 26.3 build 223 from Paper's download service, the `paperCommit` Leaf builds on; plain Leaf is the base Kindling builds on. Neither gets a configuration change.
+- The pregenerated world was made once by Kindling on the same five paths (0.8 blocks/tick, 200 s) and copied in for every loaded run.
+- The fake players are in creative mode, so mobs never path to them; the villager halls are the scenario that exercises pathfinding.
+- Kindling's built-in pregenerator is not in the comparison: Paper and Leaf have none.
+
+</details>
+
+## Final round: the vanilla build of 2026-10-29 against 26.3-12 and plain Leaf
+
+> [!TIP]
+> Superseded against plain Leaf by the [campaign above](#campaign-of-2026-10-30-paper-plain-leaf-and-kindling), kept for the comparison with 26.3-12. 🏆 **Against plain Leaf in the mixed flight: 85.5 % → 1.5 % of the time over void, tick time p95 172.0 → 63.4 ms; in the bases 12.3 → 11.5 ms** · 🔻 costs 48 % more CPU time in the mixed load (968 → 1 433 s) and 25 % in the bases (294 → 368 s) · 🔻 standing among 1 200 mobs it is 8 % slower than 26.3-12 (36.6 → 39.7 ms), most likely because async pathfinding and async mob spawning are off now · against plain Leaf `66f99f8e` and release 26.3-12, each with its own defaults · 3 runs each · 2026-10-28/29
 
 The build of `work/kindling-hardening` (`kindling-deep-1.jar`, sha256 `cd74236e47c7…`, "the new build" below) has the vanilla-parity restorations and the new defaults of 26.3-13. It ran against release 26.3-12 (the code released as 26.3-12) and plain Leaf, each with its own defaults, in the mixed load (8 players fly outward, then stand among 1 200 mobs) and with 8 players among 32 survival bases. The variants ran interleaved.
 

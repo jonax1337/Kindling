@@ -21,9 +21,9 @@ New items need the 7.5 bar of the review.
 
 | Open item | Why it is open |
 | --- | --- |
-| `worker-priority` as a default | The bench host halves the main thread's wait in four scenarios and does not hurt pregeneration speed or lead, but the mixed load showed a (non-significant) rise in void time, and the VPS check never ran short of CPUs and saw no effect. A run under real load on the VPS decides ([host measurements](measurements/host.md)) |
+| The pregenerated world against Leaf | Flying over a pregenerated world Kindling ticks 7 % slower than plain Leaf (25.5 → 27.2 ms) and its main thread waits about three times as long for a CPU. The async options are not the cause (27.3 → 26.9 ms, p = 0.40); candidates are the five chunk workers and the extra chunk packets (+2.5 %). Needs a profile with the worker count as the variable ([campaign](measurements/vs-leaf.md#campaign-of-2026-10-30-paper-plain-leaf-and-kindling)) |
 | A usable criterion for the pregenerator's wait throttle | A share of the last minute fires at baseline on the VPS (a nearly idle thread waits 10 to 14 %) and at 0.10 stops pregeneration during a flight. Candidates: the absolute wait per tick, a higher limit such as 0.20 (untested), or throttling only while the machine is busy. The doctor's contention warning already uses the absolute wait (at least 20 ms per second) |
-| A documented "fast" profile | Async pathfinding and async mob spawning on recover most of the 3.9 ms standing cost of the vanilla defaults (37.5 against 40.5 ms; the gap misses the rule at p = 0.051, so repeat it with more runs first). Whether a profile with them on belongs in the README and the doctor, given that a mob follows a path a tick or more late and spawn counts can be stale (not vanilla, [ground rule 1](../AGENTS.md)) |
+| A documented "fast" profile | Async pathfinding and async mob spawning on make standing among 1 200 mobs 9 % faster (34.9 → 31.8 ms, 3 runs, marked; Kindling is already faster than Leaf without them). Whether a profile with them on belongs in the README and the doctor, given that a mob follows a path a tick or more late and spawn counts can be stale (not vanilla, [ground rule 1](../AGENTS.md)) |
 
 **Measurements still missing**
 

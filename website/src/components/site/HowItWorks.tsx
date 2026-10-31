@@ -25,7 +25,7 @@ const STEPS: Step[] = [
     mode: "directional",
     label: "Kindling",
     title: "Ahead first.",
-    body: "Directional loading weights each chunk by its angle to the flight path, each player's generation queue stays short enough to keep re-sorting toward it, and on eight threads five chunk workers do the work where Paper starts two. Eight fliers on a four-core i7-7700 spent 86 % of their flight over the void on plain Leaf and 2 % on Kindling, with flight ticks of 28 instead of 38 ms. It costs CPU time: about half as much again, because the server now generates twice the chunks and sends them.",
+    body: "Directional loading weights each chunk by its angle to the flight path, each player's generation queue stays short enough to keep re-sorting toward it, and on eight threads five chunk workers do the work where Paper starts two. Eight fliers on a four-core i7-7700 spent 82 % of their flight over the void on plain Leaf and on Paper and none on Kindling, which generated 2.5 times the chunks per second, with a tick time p95 of 60 instead of 130 ms. It costs CPU time: about 43 % more, for 2.5 times the chunks.",
   },
   {
     mode: "tiles",

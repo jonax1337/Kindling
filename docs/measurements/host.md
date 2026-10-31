@@ -59,11 +59,15 @@ The doctor's `LIVE` section agreed with `/proc` seen from outside on an idle tes
 ## Worker priority and the main thread's wait for a CPU
 
 > [!NOTE]
-> ⏸️ **Main-thread wait roughly halves (elytra flight 5 430 → 2 673 ms, p = 0.002); the pregenerator's wait throttle at 0.10 cuts pregeneration alone by 55 %** · both settings off by default · against the settings off · 3 runs each · 2026-10-28
+> 🏆 **Worker priority: elytra flight tick time 22.5 → 21.2 ms, p95 43.9 → 37.9 ms, main-thread wait −59 %, same chunk rate and void; pregenerated flight p95 38.3 → 37.1 ms; bases unchanged** · on by default since 2026-10-31 · against the same build with it off · 3 runs each · 2026-10-30
+>
+> ⏸️ **The pregenerator's wait throttle at 0.10 cuts pregeneration alone by 55 %** · off by default · against it off · 3 runs each · 2026-10-28
 
-`performance.worker-priority` lets the chunk and I/O worker threads lower their own priority when they start (nice 10 by default; on Windows and macOS the Java thread priority instead), and `performance.pregeneration.max-main-thread-wait` makes the pregenerator throttle while the main thread waited for a CPU longer than that share of the last minute. Both are off by default. HotSpot ignores Java thread priorities on Linux, so there the chunk workers compete with the main thread on equal terms. A priority is never raised, and the setting applies to threads started after it is read, so restart the server after changing it.
+`performance.worker-priority` lets the chunk and I/O worker threads lower their own priority when they start (nice 10 by default; on Windows and macOS the Java thread priority instead), and `performance.pregeneration.max-main-thread-wait` makes the pregenerator throttle while the main thread waited for a CPU longer than that share of the last minute. Worker priority is on by default, the throttle off. HotSpot ignores Java thread priorities on Linux, so there the chunk workers compete with the main thread on equal terms. A priority is never raised, and the setting applies to threads started after it is read, so restart the server after changing it.
 
-**Worker priority off against on** (nice 10 for the chunk and I/O workers; pregeneration throttle off):
+**Worker priority off against on, 2026-10-30** (the build with five chunk workers and the density pruning, the scenarios of the [campaign](vs-leaf.md#campaign-of-2026-10-30-paper-plain-leaf-and-kindling), 3 runs each): elytra flight tick time avg 22.5 → 21.2 ms and p95 43.9 → 37.9 ms (both marked), main-thread wait −59 % (marked), new chunks per second and time over void unchanged; flight over a pregenerated world p95 38.3 → 37.1 ms (marked), average unchanged; bases unchanged. The worker governor in the same series lowered the elytra tick time to 16.9 ms but cut the chunk rate by 11 %, so it stays off.
+
+**Worker priority off against on, 2026-10-28** (nice 10 for the chunk and I/O workers; pregeneration throttle off):
 
 | Scenario | Figure | Off | On | p |
 | --- | --- | ---: | ---: | ---: |
@@ -85,7 +89,7 @@ The doctor's `LIVE` section agreed with `/proc` seen from outside on an idle tes
 <details>
 <summary><b>Method</b></summary>
 
-Two opt-in settings come out of the finding that on Linux the chunk workers compete with the main thread on equal terms ([VPS facts](#waiting-for-a-cpu-on-the-vps)): `performance.worker-priority` (chunk and I/O worker threads lower their own priority, nice 10) and `performance.pregeneration.max-main-thread-wait` (the pregenerator throttles while the main thread waited for a CPU longer than that share of the last minute). Both are off by default; this is what the bench host showed.
+Two opt-in settings come out of the finding that on Linux the chunk workers compete with the main thread on equal terms ([VPS facts](#waiting-for-a-cpu-on-the-vps)): `performance.worker-priority` (chunk and I/O worker threads lower their own priority, nice 10) and `performance.pregeneration.max-main-thread-wait` (the pregenerator throttles while the main thread waited for a CPU longer than that share of the last minute). This is what the bench host showed in the first series; worker priority became the default after the second (above).
 
 Method: Linux (WSL2) bench host, 8 CPUs, `-XX:ActiveProcessorCount=8` flags of `pregen.sh`, the build that introduced the settings, three runs per variant, interleaved with alternating order, 36 flight and pregeneration runs and 6 mixed runs, none failed. The main thread's wait is `main_wait_ms` (run-queue time from `schedstat`, see [the bench README](../../kindling-bench/README.md#more-figures-per-run)).
 

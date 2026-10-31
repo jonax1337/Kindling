@@ -12,6 +12,7 @@ How fast players are kept over generated land and how saved chunks are read: dir
 - [Loading chunks from disk](#loading-chunks-from-disk)
 - [Copies of unreadable chunks](#copies-of-unreadable-chunks)
 - [Compiled material rules](#compiled-material-rules)
+- [Compiled density](#compiled-density)
 - [Client-paced chunk sending](#client-paced-chunk-sending)
 
 ---
@@ -21,7 +22,7 @@ How fast players are kept over generated land and how saved chunks are read: dir
 > [!NOTE]
 > 🧪 **Time over void 9 % → 0 % at the same CPU (5 workers, five elytra players, 90 s)** · against the same build without directional loading · 2 runs each, one line ahead of each player, Windows machine pinned to 8 threads · 2026-10-26/27
 
-Chunks ahead of a moving player are queued before chunks behind them (`performance.directional-chunk-loading`, on by default, `look-ahead-ticks: 60`). It only reorders the queue: which chunks get loaded does not change. It is not a guarantee: on a 4-core, 8-thread Linux host the same kind of flight at 1.7 blocks/tick spent about half of the time over the void, because chunk generation there manages about 86 chunks/s against the roughly 225 needed. Against plain Leaf, together with the worker count and the generation cap: [final round](vs-leaf.md#final-round-the-vanilla-build-of-2026-10-29-against-263-12-and-plain-leaf).
+Chunks ahead of a moving player are queued before chunks behind them (`performance.directional-chunk-loading`, on by default, `look-ahead-ticks: 60`). It only reorders the queue: which chunks get loaded does not change. It is not a guarantee: on a 4-core, 8-thread Linux host the same kind of flight at 1.7 blocks/tick spent about half of the time over the void, because chunk generation there manages about 86 chunks/s against the roughly 225 needed. Against plain Leaf and Paper, together with the worker count and the generation cap: [campaign](vs-leaf.md#campaign-of-2026-10-30-paper-plain-leaf-and-kindling).
 
 | Variant | Lead avg / min | Time in the void | Tick time avg / p95 | CPU |
 | --- | ---: | ---: | ---: | ---: |
@@ -222,6 +223,35 @@ World generation decides the surface, ore vein and underground block of every so
 - Only the overworld was checked block by block; the nether and end trees are covered by the unit tests only.
 - Biome conditions return one of three evaluator classes depending on the chunk's possible biomes, so their call sites still see several classes; specialising them is not done.
 - The largest remaining part of the surface step is looking up the ore vein densities (`DensityVolume.indexOfBlock`, about 3 % of the workers' time).
+
+</details>
+
+## Compiled density
+
+> [!NOTE]
+> 🏆 **New chunks per second in a pregeneration 195.0 → 196.5 (+0.8 %, marked), chunks in 240 s 69 518 → 69 977 (+0.7 %, ranges overlap), same CPU time** · against the same build with `performance.compiled-density.enabled: false` · 3 runs each · 2026-10-30
+>
+> 🛡️ **Same terrain:** 40 000 calls checked against vanilla's sampler, 0 differences; a world generated with the setting off and one with it on are identical
+
+The terrain's final density is a tree of range choices, interpolations and noises that vanilla samples for every cell corner, evaluating both branches of every range choice. A [profile](pregeneration.md#discarded-density-branches) put the branches thrown away at 7 to 10 % of the chunk workers' time. Kindling hands the final density sampler (new patch `0344`) to `net.kindlingmc.worldgen.density`, which samples each corner without the branches it cannot take, and fills the cache cells the tree's other users read the way vanilla fills them.
+
+- **Throughput:** small. On the final density alone the pruned sampler was 1.25 times as fast in an isolated benchmark, but the pregeneration as a whole gains 0.8 %: the rest of the generation (noise sampling, surface, features, lighting) dominates.
+- **Main thread:** its tick during the pregeneration rose from 5.4 to 5.6 ms (marked), as it takes in more finished chunks.
+
+<details>
+<summary><b>Method</b></summary>
+
+- Verification: `-Dkindling.verifyDensity=true` samples every call both ways and compares the value and the state of every cache cell afterwards; a run of 150 s checked 40 000 calls. A first run reported 3 % of the calls as different, all in a cache cell vanilla had left untouched; that was the check's copy starting empty, fixed before the second run.
+- Parity: a block-by-block comparison of a world generated with the setting off against one with it on (an experimental parity tool, not checked in yet): identical.
+- Throughput: `pregen-w5` overlay, scenario `players=1,blocks-per-tick=0,travel-seconds=240`, `--cpus 8`, labels `dp-off`, `dp-on`. Unit tests: 12 in `DensityPruningTest`.
+
+</details>
+
+<details>
+<summary><b>Caveats</b></summary>
+
+- The gain passes the bench's rule on the chunk rate, not on the chunk count after 240 s; read it as "slightly faster and the same terrain".
+- Only the overworld was compared block by block.
 
 </details>
 
