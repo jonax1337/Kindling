@@ -1,4 +1,4 @@
-# 🤝 Contributing to Kindling
+# Contributing to Kindling
 
 Thanks for helping. Kindling is small on purpose: it is Leaf plus a few changes that each won a measurement. That shapes what gets merged.
 
@@ -6,10 +6,10 @@ Thanks for helping. Kindling is small on purpose: it is Leaf plus a few changes 
 
 | Rule | Meaning |
 | --- | --- |
-| 🎮 **No gameplay changes by default** | Mob spawning, AI, redstone, world generation and everything else a player can notice behave as in vanilla (and Leaf). An optimisation that changes behaviour can only be an opt-in setting with an honest description. |
-| 📏 **Measured, not guessed** | A performance change comes with `kindling-bench` numbers before and after (three runs each, see [kindling-bench/README.md](kindling-bench/README.md)). A difference counts only if `compare.py` marks it `*` (p < 0.05 and a gap of more than twice the larger half range). |
-| 🍃 **Leaf stays the base** | Fixes for problems plain Leaf has too belong in [Leaf](https://github.com/Winds-Studio/Leaf); Kindling picks them up with the next merge. |
-| ✂️ **Small patches** | Code that does not need to live inside a Minecraft class goes into `leaf-server/src/main/java/net/kindlingmc/`; the patch only hooks it in. This keeps merging Leaf updates cheap. |
+| **No gameplay changes by default** | Mob spawning, AI, redstone, world generation and everything else a player can notice behave as in vanilla (and Leaf). An optimisation that changes behaviour can only be an opt-in setting with an honest description. |
+| **Measured, not guessed** | A performance change comes with `kindling-bench` numbers before and after (three runs each, see [kindling-bench/README.md](kindling-bench/README.md)). A difference counts only if `compare.py` marks it `*` (p < 0.05 and a gap of more than twice the larger half range). |
+| **Leaf stays the base** | Fixes for problems plain Leaf has too belong in [Leaf](https://github.com/Winds-Studio/Leaf); Kindling picks them up with the next merge. |
+| **Small patches** | Code that does not need to live inside a Minecraft class goes into `leaf-server/src/main/java/net/kindlingmc/`; the patch only hooks it in. This keeps merging Leaf updates cheap. |
 
 ## Working on the code
 
@@ -33,3 +33,4 @@ Tests for Kindling's own code go into `leaf-server/src/test/java/net/kindlingmc/
 - One topic per pull request, with the measurement in the description.
 - Commit messages in English, imperative mood (`feat: …`, `fix: …`, `docs: …`).
 - The build workflow has to pass.
+- Documentation follows [docs/STYLE.md](docs/STYLE.md); `node .claude/hooks/docs-lint.mjs` checks it.

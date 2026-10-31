@@ -9,17 +9,17 @@ Rules for coding agents working on Kindling. What Kindling is and does: [README.
 
 | Path | What it is | Edit? |
 | --- | --- | --- |
-| `leaf-server/src/main/java/net/kindlingmc/` | Kindling's own server code (`pregen`, `chunk`, `version`) | ✅ first choice for new code |
-| `leaf-server/src/test/java/net/kindlingmc/` | Kindling's tests (run by `KindlingTestSuite`) | ✅ |
-| `leaf-server/src/minecraft/java/` | Applied Minecraft sources; a Git repository with one commit per patch | ✅ through the patch workflow below |
-| `paper-server/`, `paper-api/` | Applied Paper sources | ✅ through the patch workflow below |
+| `leaf-server/src/main/java/net/kindlingmc/` | Kindling's own server code (packages listed in [docs/UPSTREAM.md](docs/UPSTREAM.md#layout)) | yes, first choice for new code |
+| `leaf-server/src/test/java/net/kindlingmc/` | Kindling's tests (run by `KindlingTestSuite`) | yes |
+| `leaf-server/src/minecraft/java/` | Applied Minecraft sources; a Git repository with one commit per patch | yes, through the patch workflow below |
+| `paper-server/`, `paper-api/` | Applied Paper sources | yes, through the patch workflow below |
 | `leaf-server/minecraft-patches/features/0316-…`+, `leaf-server/paper-patches/features/0069-…`+ | Kindling's patches (subject `Kindling:`) | only by rebuilding them, never by hand |
-| other `*-patches/` | Leaf's patches | ❌ read only |
+| other `*-patches/` | Leaf's patches | no, read only |
 | `leaf-server/src/main/java/org/dreeam/leaf/` | Leaf's own code | small changes only, each line marked `// Kindling - …` |
-| `leaf-archived-patches/` | history, not the current baseline | ❌ read only |
-| `kindling-bench/` | the load test ([README](kindling-bench/README.md)) | ✅ |
-| `docs/`, `*.md` | documentation, English | ✅ keep it true to the code |
-| `website/` | the public site (Vite, React, TypeScript, published by `website.yml`); [README](website/README.md) | ✅ |
+| `leaf-archived-patches/` | history, not the current baseline | no, read only |
+| `kindling-bench/` | the load test ([README](kindling-bench/README.md)) | yes |
+| `docs/`, `*.md` | documentation, English | yes, keep it true to [docs/STYLE.md](docs/STYLE.md) |
+| `website/` | the public site (Vite, React, TypeScript, published by `website.yml`); [README](website/README.md) | yes |
 
 ## Ground rules
 
@@ -31,22 +31,16 @@ Rules for coding agents working on Kindling. What Kindling is and does: [README.
 
 ## Documentation
 
-Each file has one job. Put a fact in the one file it belongs to and link to it from the others.
+The docs follow [Diátaxis](https://diataxis.fr/) and the rules in [docs/STYLE.md](docs/STYLE.md): where each page goes, the result words, and how a measurement section is shaped. The short version:
 
-| File | Job | Shape |
-| --- | --- | --- |
-| `README.md` | The front door: what Kindling is, the result against plain Leaf, the features, getting started, configuration | Short. One line per feature; long explanations in `<details>` or in the measurement files |
-| `CHANGELOG.md` | What changed in each release | Newest first, one entry per release, one line per change, the emoji legend at the top |
-| `docs/MEASUREMENTS.md` | The measurement overview: how to read the numbers, the bench host, the scoreboard | One scoreboard row per change, linking to its topic file |
-| `docs/measurements/*.md` | Why each change exists and what it measured, one file per topic | Per change: a result line first (verdict, key number, baseline, runs, date), then what it does, then Method, All numbers and Caveats folded in `<details>` |
-| `docs/ROADMAP.md` | What is open and what was dropped | Done items move to the changelog |
-| `docs/UPSTREAM.md` | How Kindling follows Leaf and which fixes Leaf could take | |
-| `kindling-bench/README.md` | How to run and read the bench | |
+- **One job per page, one place per fact.** Settings and commands live in `docs/reference/`, tasks in `docs/guides/`, measurements in `docs/measurements/`; others link there.
+- **Current state only.** When a change is measured again, replace the old result. History goes into `CHANGELOG.md` and Git, never into dated paragraphs.
+- **No emoji anywhere, no dates** outside the changelog's release headings. Name a baseline by what it is (plain Leaf at a commit, the same build with the setting off, the release before the change) and give the number of runs.
+- **Result first**, using the result words of `docs/STYLE.md`; method and raw numbers folded in `<details>`.
+- **Keep it true to the code.** A new or changed setting updates `docs/reference/configuration.md`; a new or changed command updates `docs/reference/commands.md`.
+- **Charts come from data.** `docs/media/kindling-vs-leaf-*.svg` is drawn by `kindling-bench/chart.py`; when that comparison is measured again, draw the chart again instead of editing the SVG.
 
-- **Result first.** Lead with the result and what it was compared with; method and raw numbers come after, folded.
-- **Name the baseline** of every number (plain Leaf at a commit, the same build without the change, or an earlier build) and the number of runs. Use the verdicts defined in `docs/MEASUREMENTS.md`: 🏆 🤝 🔻 🛡️ 🧪 ⏸️ ❌.
-- **Living docs describe the current state.** History goes into `CHANGELOG.md`, not into dated paragraphs elsewhere.
-- **Charts come from data.** `docs/media/kindling-vs-leaf-*.svg` is drawn by `kindling-bench/chart.py` from the final round's runs; when that comparison is measured again, draw the chart again instead of editing the SVG.
+Check with `node .claude/hooks/docs-lint.mjs` (emoji, dates, broken links and anchors). In Claude Code it runs as a hook after every edit of a doc.
 
 ## Changing a patch
 
