@@ -1,0 +1,160 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Fri, 30 Oct 2026 13:46:40 +0100
+Subject: [PATCH] Kindling: Compiled density pruning
+
+
+diff --git a/net/minecraft/world/level/levelgen/RandomState.java b/net/minecraft/world/level/levelgen/RandomState.java
+index a322ff5deabaa258e951fad7e1938f75a96016f4..8f48b74da55758b9bb988998893a6e5b357d8f0b 100644
+--- a/net/minecraft/world/level/levelgen/RandomState.java
++++ b/net/minecraft/world/level/levelgen/RandomState.java
+@@ -37,6 +37,7 @@ public final class RandomState {
+     private final DensityFunctionCompiler densityFunctionCompiler;
+     private final ReentrantLock densityBufferPoolLock = new ReentrantLock();
+     private final List<DensityBufferPool> densityBufferPools = new ArrayList<>(16);
++    private volatile @org.jspecify.annotations.Nullable DensitySampler kindling$finalDensity; // Kindling - compiled density pruning
+ 
+     public static RandomState create(final HolderGetter<NormalNoise> noises, final long seed, final NoiseGeneratorSettings settings) {
+         return create(noises, seed, settings.useLegacyRandomSource(), settings.defaultBlock(), settings.seaLevel(), settings.noiseRouter());
+@@ -130,9 +131,23 @@ public final class RandomState {
+     }
+ 
+     public DensitySampler getSampler(final DensityFunction function) {
++        if (function == this.router.finalDensity()) return this.kindling$finalDensity(); // Kindling - compiled density pruning
+         return this.densityFunctionCompiler.getSampler(function);
+     }
+ 
++    // Kindling start - compiled density pruning
++    private DensitySampler kindling$finalDensity() {
++        DensitySampler sampler = this.kindling$finalDensity;
++        if (sampler == null) {
++            // two threads may both build it; the results are equivalent and either one is kept
++            sampler = net.kindlingmc.worldgen.density.DensityPruning.finalDensity(this.densityFunctionCompiler.getSampler(this.router.finalDensity()));
++            this.kindling$finalDensity = sampler;
++        }
++
++        return sampler;
++    }
++    // Kindling end - compiled density pruning
++
+     @VisibleForDebug
+     public float sampleBlockValueUncached(final DensityFunction function, final int x, final int y, final int z) {
+         return this.getSampler(function).sampleValue(SamplerContext.EMPTY_UNCACHED, x, y, z);
+diff --git a/net/minecraft/world/level/levelgen/densityfunction/SamplerContext.java b/net/minecraft/world/level/levelgen/densityfunction/SamplerContext.java
+index b4520b2b9942ce5e16eb7290b1aa79dfb9e46189..c8db62653d4af01018ec0a0b399c6b9a9d3e779f 100644
+--- a/net/minecraft/world/level/levelgen/densityfunction/SamplerContext.java
++++ b/net/minecraft/world/level/levelgen/densityfunction/SamplerContext.java
+@@ -14,6 +14,7 @@ public class SamplerContext {
+     private final ContextMap userFields;
+     private final DensityBufferArena bufferArena;
+     private SamplerContext.CacheCell @Nullable [] cacheCells;
++    private @Nullable SamplerContext kindling$uncached; // Kindling - compiled density pruning
+ 
+     private SamplerContext(final ContextMap userFields, final DensityBufferArena bufferArena, final boolean enableCaches) {
+         this.userFields = userFields;
+@@ -65,10 +66,13 @@ public class SamplerContext {
+                     cell.buffer.close();
+                 }
+ 
++                cell.kindling$pending = null; // Kindling - compiled density pruning
+                 cell.volume = volume;
+                 cell.buffer = this.acquireBuffer(volume);
+                 input.sampleVolume(this, cell.buffer, volume);
+-            }
++            } else if (cell.kindling$pending != null) { // Kindling start - compiled density pruning
++                this.kindling$complete(cell);
++            } // Kindling end - compiled density pruning
+ 
+             outputBuffer.copyFrom(cell.buffer);
+         }
+@@ -88,6 +92,7 @@ public class SamplerContext {
+         if (cell.buffer != null && cell.volume != null) {
+             int index = cell.volume.indexOfBlock(blockX, blockY, blockZ);
+             if (index != -1) {
++                if (cell.kindling$pending != null && !cell.kindling$pending.isComputed(index)) this.kindling$complete(cell); // Kindling - compiled density pruning
+                 return cell.buffer.get(index);
+             }
+         }
+@@ -98,6 +103,75 @@ public class SamplerContext {
+         return value;
+     }
+ 
++    // Kindling start - compiled density pruning
++    private void kindling$complete(final SamplerContext.CacheCell cell) {
++        net.kindlingmc.worldgen.density.PendingCacheCell pending = cell.kindling$pending;
++        cell.kindling$pending = null;
++        pending.complete(this, cell.volume, cell.buffer);
++    }
++
++    public boolean kindling$cachesEnabled() {
++        return this.cacheCells != null;
++    }
++
++    /** A context with the same user fields and arena and its own (or no) cache cells. */
++    public SamplerContext kindling$copy(final boolean enableCaches) {
++        return new SamplerContext(this.userFields, this.bufferArena, enableCaches);
++    }
++
++    /** The same user fields and arena without caches: evaluating through it changes no cache cell of this context. */
++    public SamplerContext kindling$uncached() {
++        if (this.kindling$uncached == null) {
++            this.kindling$uncached = this.kindling$copy(false);
++        }
++
++        return this.kindling$uncached;
++    }
++
++    /** The buffer of the cache cell of cacheId if it holds exactly this volume, else null. */
++    public @Nullable ScopedDensityBuffer kindling$cachedBuffer(final int cacheId, final DensityVolume volume) {
++        SamplerContext.CacheCell cell = this.getCacheCell(cacheId);
++        return cell != null && cell.buffer != null && volume.equals(cell.volume) ? cell.buffer : null;
++    }
++
++    public net.kindlingmc.worldgen.density.@Nullable PendingCacheCell kindling$pending(final int cacheId) {
++        SamplerContext.CacheCell cell = this.getCacheCell(cacheId);
++        return cell == null ? null : cell.kindling$pending;
++    }
++
++    /** Evicts the cell of cacheId as a miss would and gives it a new buffer for volume whose values pending tracks. */
++    public ScopedDensityBuffer kindling$install(final int cacheId, final DensityVolume volume, final net.kindlingmc.worldgen.density.PendingCacheCell pending) {
++        SamplerContext.CacheCell cell = Objects.requireNonNull(this.getCacheCell(cacheId), "caches are disabled");
++        if (cell.buffer != null) {
++            cell.buffer.close();
++        }
++
++        cell.volume = volume;
++        cell.buffer = this.acquireBuffer(volume);
++        cell.kindling$pending = pending;
++        return cell.buffer;
++    }
++
++    public @Nullable DensityVolume kindling$cellVolume(final int cacheId) {
++        SamplerContext.CacheCell cell = this.getCacheCell(cacheId);
++        return cell == null || cell.buffer == null ? null : cell.volume;
++    }
++
++    /** The buffer of the cache cell of cacheId with every value present, or null for an empty cell. */
++    public @Nullable DensityBuffer kindling$completedCell(final int cacheId) {
++        SamplerContext.CacheCell cell = this.getCacheCell(cacheId);
++        if (cell == null || cell.buffer == null) {
++            return null;
++        }
++
++        if (cell.kindling$pending != null) {
++            this.kindling$complete(cell);
++        }
++
++        return cell.buffer;
++    }
++    // Kindling end - compiled density pruning
++
+     public static class Builder {
+         private ContextMap userFields = ContextMap.EMPTY;
+         private DensityBufferArena bufferArena = DensityBufferArena.GLOBAL;
+@@ -131,5 +205,6 @@ public class SamplerContext {
+         private @Nullable ScopedDensityBuffer buffer;
+         private long valueKey;
+         private float value = Float.NaN;
++        private net.kindlingmc.worldgen.density.@Nullable PendingCacheCell kindling$pending; // Kindling - compiled density pruning
+     }
+ }
