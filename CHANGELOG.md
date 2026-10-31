@@ -6,8 +6,8 @@ Legend: ✨ new · 🏆 faster (measured) · 🛡️ fixed · 🔧 changed · �
 
 Numbers come from [docs/MEASUREMENTS.md](docs/MEASUREMENTS.md) and carry their baseline. Results from two runs are marked as such and are not claimed as speed-ups.
 
-## Unreleased
-Exact savings from the profiles of 2026-10-29 and a full comparison with Paper and plain Leaf; bench host, 3 interleaved runs each, the baseline on every line.
+## 26.3-16 · 2026-10-31
+Chunk workers that follow the demand for new terrain, exact savings from the profiles of 2026-10-29 and a full comparison with Paper and plain Leaf; bench host, 3 interleaved runs each, the baseline on every line.
 
 - 🏆 The terrain density is sampled for each cell corner without the branches that corner cannot take, `performance.compiled-density.enabled` (on by default; new patch `0344`): new chunks per second in a pregeneration 195.0 → 196.5 (+0.8 %) at the same CPU time, against the setting off; 40 000 verified calls and a whole world identical ([details](docs/measurements/chunks.md#compiled-density))
 - 🏆 Every chunk worker runs only while new terrain waits for one, `performance.worker-demand` (on by default; new patch `0345` measures the wait): flight over a pregenerated world 35.6 → 33.3 ms, main-thread wait 709 → 311 ms, CPU time 513 → 477 s against the setting off; elytra, mixed flight and bases unchanged; against plain Leaf the pregenerated flight is now +5 % at the same CPU time ([details](docs/measurements/host.md#worker-demand))
