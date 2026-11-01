@@ -1,6 +1,7 @@
 package net.kindlingmc.preview;
 
 import io.papermc.paper.configuration.WorldConfiguration;
+import it.unimi.dsi.fastutil.objects.Reference2LongOpenHashMap;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
@@ -10,6 +11,7 @@ import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.flag.FeatureFlags;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.Biome;
@@ -20,6 +22,8 @@ import net.minecraft.world.level.biome.MultiNoiseBiomeSourceParameterLists;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.PalettedContainerFactory;
 import net.minecraft.world.level.chunk.ProtoChunk;
+import net.minecraft.world.level.dimension.BuiltinDimensionTypes;
+import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
 import net.minecraft.world.level.levelgen.RandomState;
@@ -81,6 +85,14 @@ final class PreviewTestWorld {
         trees.decorate(chunk);
         PreviewSnow.freeze(chunk, this.seed, this.seaLevel());
         return chunk;
+    }
+
+    /** Vanilla's vegetation for this world, with no configured feature seeds. */
+    PreviewVegetation vegetation() {
+        DimensionType overworld = this.registries.lookupOrThrow(Registries.DIMENSION_TYPE).getOrThrow(BuiltinDimensionTypes.OVERWORLD).value();
+        PreviewRegion.World world = new PreviewRegion.World(this.seed, OVERWORLD_SEA_LEVEL, this.registries, overworld, FeatureFlags.DEFAULT_FLAGS,
+            this.terrain.randomState(), this.terrain.containerFactory());
+        return PreviewVegetation.of(this.terrain.generator(), world, new Reference2LongOpenHashMap<>());
     }
 
     /** Up to the wanted number of chunks, on a coarse grid, whose probe columns all lie in the given biome. */

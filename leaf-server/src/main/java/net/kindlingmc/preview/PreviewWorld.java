@@ -21,15 +21,15 @@ final class PreviewWorld {
     private static final Map<ServerLevel, PreviewWorld> WORLDS = Collections.synchronizedMap(new WeakHashMap<>());
 
     private final Optional<PreviewGenerator> generator;
-    /** Built on first use, on a preview worker: deriving every biome's trees takes a moment. */
-    private final Supplier<PreviewTrees> trees;
+    /** Vanilla's vegetation, or where the world's generator does not allow it, the approximate trees. */
+    private final Decoration decoration;
     private final long seed;
     private final int seaLevel;
     private final RecentPackets recent = new RecentPackets();
 
-    private PreviewWorld(final Optional<PreviewGenerator> generator, final Supplier<PreviewTrees> trees, final long seed, final int seaLevel) {
+    private PreviewWorld(final Optional<PreviewGenerator> generator, final Decoration decoration, final long seed, final int seaLevel) {
         this.generator = generator;
-        this.trees = trees;
+        this.decoration = decoration;
         this.seed = seed;
         this.seaLevel = seaLevel;
     }
@@ -39,9 +39,22 @@ final class PreviewWorld {
     }
 
     private static PreviewWorld create(final ServerLevel level) {
+        final Optional<PreviewGenerator> generator = PreviewGenerator.forLevel(level);
+        final Decoration decoration = generator.isEmpty() ? Decoration.NONE : decoration(level);
+        return new PreviewWorld(generator, decoration, level.getSeed(), level.getSeaLevel());
+    }
+
+    /** Never keeps the level: this world is the value of a weak map keyed by it. */
+    private static Decoration decoration(final ServerLevel level) {
+        final Optional<PreviewVegetation> vegetation = PreviewVegetation.forLevel(level);
+        if (vegetation.isPresent()) {
+            return vegetation.get()::decorate;
+        }
         final RegistryAccess registries = level.registryAccess();
         final long seed = level.getSeed();
-        return new PreviewWorld(PreviewGenerator.forLevel(level), Suppliers.memoize(() -> PreviewTrees.of(registries, seed)), seed, level.getSeaLevel());
+        // Built on first use, on a preview worker: deriving every biome's trees takes a moment.
+        final Supplier<PreviewTrees> trees = Suppliers.memoize(() -> PreviewTrees.of(registries, seed));
+        return preview -> trees.get().decorate(preview.chunk());
     }
 
     boolean available() {
@@ -54,14 +67,24 @@ final class PreviewWorld {
         if (known.isPresent()) {
             return known.get();
         }
-        final ProtoChunk chunk = this.generator.orElseThrow().generate(ChunkPos.unpack(chunkKey));
+        final PreviewGenerator.Generated generated = this.generator.orElseThrow().generateWithBiomes(ChunkPos.unpack(chunkKey));
         if (PreviewChunks.trees) {
-            this.trees.get().decorate(chunk);
+            this.decoration.decorate(generated);
         }
+        final ProtoChunk chunk = generated.chunk();
         PreviewSnow.freeze(chunk, this.seed, this.seaLevel);
         final PreviewPacket built = PreviewPacket.of(chunk);
         this.recent.put(chunkKey, built);
         return built;
+    }
+
+    /** Trees and plants on a generated preview, on the thread that generated it. */
+    @FunctionalInterface
+    private interface Decoration {
+        Decoration NONE = preview -> {
+        };
+
+        void decorate(PreviewGenerator.Generated preview);
     }
 
     /** The {@code cache-size} most recently used preview packets, by chunk key. */

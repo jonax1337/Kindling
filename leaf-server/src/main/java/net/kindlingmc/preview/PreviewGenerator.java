@@ -73,8 +73,17 @@ public final class PreviewGenerator {
         return noise.minY() == level.getMinY() && noise.height() == level.getHeight();
     }
 
+    /** A preview chunk and the noise biomes its surface rules read, for decorating it on the same thread. */
+    record Generated(ProtoChunk chunk, ChunkBiomes biomes) {
+    }
+
     /** The preview of one chunk: band terrain with surface rules, stone below. Safe to call concurrently from several threads. */
     public ProtoChunk generate(ChunkPos pos) {
+        return generateWithBiomes(pos).chunk();
+    }
+
+    /** {@link #generate}, together with the biomes the chunk was built with. */
+    Generated generateWithBiomes(ChunkPos pos) {
         ChunkBiomes.Outside outside = new ChunkBiomes.Outside(this.terrain);
         Band band = initialBand(preliminarySurface(pos));
         while (true) {
@@ -84,10 +93,10 @@ public final class PreviewGenerator {
                 this.terrain.fill(noiseChunk, chunk);
                 Band needed = neededBand(chunk, band);
                 if (needed.equals(band)) {
-                    this.terrain.buildSurface(chunk, noiseChunk,
-                        ChunkBiomes.sections(this.terrain.seed(), chunk, band.minSectionY(), band.maxSectionY(), outside).manager());
+                    ChunkBiomes biomes = ChunkBiomes.sections(this.terrain.seed(), chunk, band.minSectionY(), band.maxSectionY(), outside);
+                    this.terrain.buildSurface(chunk, noiseChunk, biomes.manager());
                     Skin.fillBelowBand(chunk, band, this.terrain.settings().defaultBlock(), this.terrain.containerFactory());
-                    return chunk;
+                    return new Generated(chunk, biomes);
                 }
                 band = needed;
             }

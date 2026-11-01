@@ -1,6 +1,8 @@
 package net.kindlingmc.preview;
 
 import it.unimi.dsi.fastutil.longs.Long2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+import java.util.Set;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Holder;
 import net.minecraft.core.QuartPos;
@@ -41,6 +43,10 @@ final class ChunkBiomes implements BiomeResolver {
             }
             return biome;
         }
+
+        void addKnownTo(Set<Holder<Biome>> biomes) {
+            biomes.addAll(this.known.values());
+        }
     }
 
     private final long seed;
@@ -71,6 +77,20 @@ final class ChunkBiomes implements BiomeResolver {
 
     BiomeManager manager() {
         return new BiomeManager(this, BiomeManager.obfuscateSeed(this.seed));
+    }
+
+    /**
+     * The biomes of the chunk's generated sections plus those already read around them: what features placed in the
+     * chunk can find. Vanilla's set (the biomes of every section of the 3 x 3 chunks around) is larger, but the biome
+     * check of every feature drops the extra biomes' features anyway, except where a feature looks below the surface.
+     */
+    Set<Holder<Biome>> possibleBiomes() {
+        Set<Holder<Biome>> biomes = new ObjectOpenHashSet<>();
+        for (int sectionY = QuartPos.toSection(this.minQuartY); sectionY <= QuartPos.toSection(this.maxQuartY); sectionY++) {
+            this.chunk.getSection(this.chunk.getSectionIndexFromSectionY(sectionY)).getBiomes().getAll(biomes::add);
+        }
+        this.outside.addKnownTo(biomes);
+        return biomes;
     }
 
     /** Quarts above or below the world read the nearest quart inside it, as ChunkAccess.getNoiseBiome does for every chunk. */
