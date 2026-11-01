@@ -6,6 +6,7 @@ export const links = {
   releases: `${REPOSITORY}/releases`,
   measurements: `${DOCS}/MEASUREMENTS.md`,
   elytraTest: `${DOCS}/measurements/chunks.md#elytra-test-new-chunks-ahead-of-fast-players`,
+  previewChunks: `${DOCS}/measurements/preview-chunks.md`,
   leafComparison: `${DOCS}/measurements/vs-leaf.md#campaign-of-2026-10-30-paper-plain-leaf-and-kindling`,
   roadmap: `${DOCS}/ROADMAP.md`,
   license: `${REPOSITORY}/blob/ver/26.3/LICENSE.md`,
