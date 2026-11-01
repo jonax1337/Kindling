@@ -37,7 +37,7 @@ public class PreviewChunks extends ConfigModule {
             chunk, or with the linear region format open the region file for writing; the preview code writes
             nothing); changes show after the next save, and worlds with Paper's Anti-Xray keep the seed previews
             (packet-based anti-xray plugins are not detected). With `fill-gaps`, chunks within the view distance that the server has
-            not loaded yet also get a preview until the real one arrives, except the closest two chunks around the player. Real chunks a player leaves stay on
+            not loaded yet also get a preview until the real one arrives while the player is moving, except the closest two chunks around the player. Real chunks a player leaves stay on
             the client as their own preview while within `radius` (`keep-real-chunks`); plugins still see the usual
             chunk unload event for them, and they get no block updates. Players see the previews beyond the view
             distance only with a render distance above it. Overworld-like worlds only. Costs CPU on `threads`

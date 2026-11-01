@@ -6,6 +6,7 @@ the server. This script adds what only the operating system sees: the resident m
 
     python -I run_bench.py --jar <server.jar> --plugin <kindling-bench.jar> --label leaf-stock [--jvm "-XX:+Flag ..."]
                             [--overlay <folder with config files> ...] [--world <world folder to copy>] [--repeat 3]
+                            [--view-distance 10]
 """
 
 import argparse
@@ -22,14 +23,15 @@ import psutil
 RUNS = Path(__file__).resolve().parent / "runs"
 PORT = 25999
 SEED = "-4172144997902289642"
+DEFAULT_VIEW_DISTANCE = 10
 SAMPLE_SECONDS = 1.0
 TIMEOUT_SECONDS = 1800
 
-SERVER_PROPERTIES = f"""server-ip=127.0.0.1
-server-port={PORT}
+SERVER_PROPERTIES = """server-ip=127.0.0.1
+server-port={port}
 online-mode=false
-level-seed={SEED}
-view-distance=10
+level-seed={seed}
+view-distance={view_distance}
 simulation-distance=8
 spawn-protection=0
 max-players=100
@@ -62,6 +64,8 @@ def parse_arguments() -> argparse.Namespace:
     parser.add_argument("--world", type=Path, help="world folder copied in as 'world' before the start")
     parser.add_argument("--scenario", default="", help="key=value pairs for the plugin, comma separated")
     parser.add_argument("--repeat", type=int, default=1)
+    parser.add_argument("--view-distance", type=int, default=DEFAULT_VIEW_DISTANCE,
+                        help="view distance in server.properties; the simulation distance stays 8")
     parser.add_argument("--cpus", type=int,
                         help="pin the server to the first N logical CPUs, as a stand-in for a smaller machine "
                              "(taskset on Linux, psutil elsewhere)")
@@ -95,7 +99,8 @@ def prepare_folder(args: argparse.Namespace, attempt: int) -> Path:
         shutil.rmtree(folder)
     (folder / "plugins" / "KindlingBench").mkdir(parents=True)
     (folder / "eula.txt").write_text("eula=true\n", encoding="utf-8")
-    (folder / "server.properties").write_text(SERVER_PROPERTIES, encoding="utf-8")
+    (folder / "server.properties").write_text(
+        SERVER_PROPERTIES.format(port=PORT, seed=SEED, view_distance=args.view_distance), encoding="utf-8")
     shutil.copy(args.plugin, folder / "plugins" / "kindling-bench.jar")
     if args.world:
         shutil.copytree(args.world, folder / "world")

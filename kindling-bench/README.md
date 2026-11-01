@@ -4,7 +4,7 @@
 
 ## What a run does
 
-`run_bench.py` creates a fresh server under `runs/<label>-<n>/` (port 25999, bound to `127.0.0.1`, fixed seed, view distance 10, simulation distance 8), drops the plugin in and starts the given jar. The `KindlingBench` plugin waits until startup is done (`ServerLoadEvent`) and then plays the scenario from `plugins/KindlingBench/scenario.properties`:
+`run_bench.py` creates a fresh server under `runs/<label>-<n>/` (port 25999, bound to `127.0.0.1`, fixed seed, view distance 10 (`--view-distance`), simulation distance 8), drops the plugin in and starts the given jar. The `KindlingBench` plugin waits until startup is done (`ServerLoadEvent`) and then plays the scenario from `plugins/KindlingBench/scenario.properties`:
 
 | # | Phase | Key (default) | What happens | Measured |
 | :-: | --- | --- | --- | --- |
@@ -38,8 +38,14 @@ During the flight, `chunk_lead` samples every 5 ticks per player how many chunks
 | `chunk_packets_warmup`, `chunk_packets_travel`, `chunk_batches_travel` | Chunk packets the fake players received during the warm-up and the flight, summed over the players, and the chunk batches of the flight (0 as long as the server does not send chunks in batches) |
 | `travel`, `steady`, `bases`: `wall_seconds`, `gc_count`, `gc_pause_millis` | Wall time of the phase and the garbage collection pauses in it, as the change over the phase. Only stop-the-world pauses count: ZGC and Shenandoah report their concurrent cycles as collectors of their own ("... Cycles"), which are left out; G1's "Concurrent GC" bean counts the remark and cleanup pauses and is included |
 | `travel`, `steady`, `bases`: `main_alloc_mb`, `all_alloc_mb` | Heap MiB the server main thread and all threads together allocated during the phase, as HotSpot counts them (`com.sun.management.ThreadMXBean`); the total for all threads is the JVM's own approximation. Left out where the JVM does not count |
+| `travel`, `steady`, `bases`: `process_cpu_ms` | CPU time all threads of the JVM used during the phase (`com.sun.management.OperatingSystemMXBean#getProcessCpuTime`, user plus system; works on Windows and Linux). Includes the chunk workers, the preview workers and the garbage collector, which `main_run_ms` does not. Left out where the JVM does not tell |
 | `travel`, `steady`, `bases`: `main_run_ms`, `main_wait_ms` | Linux only: how long the server main thread ran and how long it waited in the run queue for a CPU (`/proc/self/task/<tid>/schedstat`). A high wait is a machine that is too busy, not a slow server |
 | `travel`, `steady`, `bases`: `cpu_steal_pct`, `cpu_idle_pct` | Linux only: the share of CPU time of the whole machine that was stolen by the hypervisor or idle during the phase (`/proc/stat`) |
+| `previews` | Only on a server with Kindling's preview chunks (left out on plain Leaf or Paper): the server-wide counters of the previews since the server started, as `flight_end` (right after the flight; not in `type=bases` runs) and `run_end` (end of the run). All counters are zero while `network.preview-chunks.enabled` is off. Fields below |
+| `previews.*`: `computed_saved`, `computed_seed`, `computed_seed_cached` | Previews computed from a saved chunk, from the world seed, and answered from the cache of seed packets. Each has a `..._ms` field with the worker time they took, from the request to the finished packet (the time of a saved read that timed out or found nothing is part of the seed preview that follows) |
+| `previews.*`: `saved_read_timeouts` | Saved chunk reads that did not finish in 250 ms, so the seed preview was used |
+| `previews.*`: `sent`, `sent_raw_mb` | Previews sent to players (once per player) and their uncompressed size in MiB |
+| `previews.*`: `dropped_on_arrival`, `failed`, `kept_on_client` | Previews computed but no longer wanted when they arrived (the player came closer, or the server loaded the chunk meanwhile), previews that could not be computed, and real chunks the client was told to keep as their own preview |
 | `gc_pause_millis` | Pause time over the whole run, next to the older `gc_count` and `gc_millis`, which add up every collector bean including the overlapping cycles of ZGC and Shenandoah |
 | `java_version` | The Java runtime the server ran on (`Runtime.version()`), so that runs on different JDK builds, early-access builds in particular, are not mixed up |
 
@@ -157,6 +163,7 @@ bash kindling-bench/matrix.sh <server.jar> <prefix> [variant ...]   # all varian
 | `--overlay <folder>` | Copies files over the server folder before the start, for example `overlays/leaf-safe/config/leaf-global.yml`. Leaf fills in missing keys, so an overlay only needs the keys it changes. May be given more than once; later folders overwrite earlier ones |
 | `--world <folder>` | Copies a world in as `world` before the start |
 | `--scenario "players=4,travel-seconds=30"` | Overrides single scenario keys. An overlay may also ship `plugins/KindlingBench/scenario.properties`; its keys are written first and the `--scenario` keys after them, so the command line wins when both set a key |
+| `--view-distance N` | The `view-distance` in `server.properties` (default 10); the simulation distance stays 8. An overlay with its own `server.properties` (such as `vd-8`) overwrites it |
 | `--cpus N` | Pins the server to the first N logical cores as a stand-in for a smaller machine (pair it with `-XX:ActiveProcessorCount=N` in `--jvm`, so the JVM sizes its thread pools accordingly). On Linux the server starts under `taskset -c 0-(N-1)`, so every thread inherits the mask; on Windows the affinity is set after the start |
 
 | Script | Measures |
@@ -193,6 +200,7 @@ A variant is a name. Its JVM arguments come from the `jvm` table in `matrix.sh` 
 | Used by `elytra.sh` and `pregen.sh` | `workers-5`, `workers-7`, `vd-8` (view distance 8), `pregen-w5` (automatic pregeneration, 5 workers) |
 | Worker priority and the pregenerator's main-thread wait throttle (A/B, Linux only) | `worker-priority-off`, `worker-priority-on` (chunk and I/O workers at nice 10) for flights; `pregen-w5-prio-off`, `pregen-w5-prio-on`, `pregen-w5-wait`, `pregen-w5-prio-on-wait`: like `pregen-w5` with `worker-priority` off or on and `max-main-thread-wait` 0 (off) or 0.10. Plain `pregen-w5` runs with the default `max-main-thread-wait: 0` (off) |
 | Hoppers with a move event listener (A/B, for sleeping hoppers) | `parity-sleeping-listener-on` (`performance.sleeping-block-entity: true`) and `parity-sleeping-listener-off` (`false`), each with `move-event-listener=true`; for example `python -I kindling-bench/run_bench.py --jar <jar> --plugin kindling-bench/build/libs/kindling-bench.jar --label x --scenario "type=bases" --overlay kindling-bench/overlays/parity-sleeping-listener-on`. `parity/run.sh <jar> sleeping` runs both with the bases contraptions in their CI size and checks each against `bases-ci.json` |
+| Preview chunks | `preview-chunks-on` (`network.preview-chunks.enabled: true`, everything else at its default); the runs report the counters in `previews`. Compare against a run of the same jar without the overlay, or against plain Leaf |
 | Functional check of the pregenerator's disk guard | `pregen-disk-guard` (like `pregen-w5` with `min-free-disk-gb: 100000000`): the run must stop by itself at the first tick and `pregeneration.properties` must stay at `next=0` |
 
 ## Comparing a jar with Mojang's server

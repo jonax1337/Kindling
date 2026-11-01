@@ -101,6 +101,7 @@ final class BenchRun {
             HandlerList.unregisterAll(lead);
             result.put("chunk_lead", lead.summary());
             result.put("travel", phase.stop());
+            PreviewFigures.record(result, "flight_end");
             putChunkTraffic();
             result.put("flown_blocks_avg", averageFlownBlocks());
             land();
@@ -180,6 +181,7 @@ final class BenchRun {
         players.forEach(Player::kick);
         later(scenario.idleSeconds(), () -> {
             result.put("idle", idleFigures());
+            PreviewFigures.record(result, "run_end");
             result.writeAndStop(plugin);
         });
     }

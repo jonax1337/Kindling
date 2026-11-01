@@ -27,6 +27,7 @@ FIGURES = [
     ("travel main wait ms", ("travel", "main_wait_ms")),
     ("travel main alloc MB", ("travel", "main_alloc_mb")),
     ("travel all alloc MB", ("travel", "all_alloc_mb")),
+    ("travel process CPU ms", ("travel", "process_cpu_ms")),
     ("travel CPU steal %", ("travel", "cpu_steal_pct")),
     ("travel CPU idle %", ("travel", "cpu_idle_pct")),
     ("steady mspt avg", ("steady", "mspt_avg")),
@@ -35,6 +36,7 @@ FIGURES = [
     ("steady main wait ms", ("steady", "main_wait_ms")),
     ("steady main alloc MB", ("steady", "main_alloc_mb")),
     ("steady all alloc MB", ("steady", "all_alloc_mb")),
+    ("steady process CPU ms", ("steady", "process_cpu_ms")),
     ("bases mspt avg", ("bases", "mspt_avg")),
     ("bases mspt p95", ("bases", "mspt_p95")),
     ("bases mspt p99", ("bases", "mspt_p99")),
@@ -42,6 +44,7 @@ FIGURES = [
     ("bases main wait ms", ("bases", "main_wait_ms")),
     ("bases main alloc MB", ("bases", "main_alloc_mb")),
     ("bases all alloc MB", ("bases", "all_alloc_mb")),
+    ("bases process CPU ms", ("bases", "process_cpu_ms")),
     ("warm-up s", ("warmup_seconds",)),
     ("join full view ms", ("join_full_view_ms",)),
     ("chunk packets warm-up", ("chunk_packets_warmup",)),
@@ -67,6 +70,23 @@ FIGURES = [
     ("GC pause ms", ("gc_pause_millis",)),
     ("CPU s", ("process_cpu_seconds",)),
 ]
+PREVIEW_FIGURES = [
+    ("saved n", "computed_saved"),
+    ("saved ms", "computed_saved_ms"),
+    ("seed n", "computed_seed"),
+    ("seed ms", "computed_seed_ms"),
+    ("cached n", "computed_seed_cached"),
+    ("cached ms", "computed_seed_cached_ms"),
+    ("read timeouts", "saved_read_timeouts"),
+    ("sent", "sent"),
+    ("sent raw MB", "sent_raw_mb"),
+    ("dropped", "dropped_on_arrival"),
+    ("failed", "failed"),
+    ("kept", "kept_on_client"),
+]
+# The counters of the server's previews, at the end of the flight and at the end of the run (since the server started).
+FIGURES += [(f"prev {moment} {label}", ("previews", key_moment, key))
+            for moment, key_moment in (("flight", "flight_end"), ("run", "run_end")) for label, key in PREVIEW_FIGURES]
 NAME_WIDTH = 26
 SIGNIFICANCE_LEVEL = 0.05
 HALF_RANGES_APART = 2

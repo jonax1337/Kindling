@@ -72,6 +72,7 @@ final class SavedChunks {
         try {
             return read(world, pos).map(tag -> build(world, pos, tag)).orElse(SavedOutcome.NONE_LASTING);
         } catch (TimeoutException e) {
+            PreviewStats.recordSavedReadTimeout();
             return SavedOutcome.NONE_FOR_NOW;
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();

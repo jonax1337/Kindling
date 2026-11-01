@@ -74,13 +74,23 @@ final class PreviewWorld {
      * only when computing.
      */
     PreviewPacket preview(final long chunkKey) {
+        final long startNanos = System.nanoTime();
         final Optional<PreviewPacket> known = this.recent.get(chunkKey);
         if (known.isPresent()) {
-            return known.get();
+            return counted(PreviewStats.Source.SEED_FROM_CACHE, startNanos, known.get());
         }
         final ChunkPos pos = ChunkPos.unpack(chunkKey);
         final SavedOutcome saved = savedOutcome(pos);
-        return saved.packet().isPresent() ? saved.packet().get() : seedPreview(pos, chunkKey, saved.seedPreviewMayBeCached());
+        if (saved.packet().isPresent()) {
+            return counted(PreviewStats.Source.SAVED, startNanos, saved.packet().get());
+        }
+        return counted(PreviewStats.Source.SEED, startNanos, seedPreview(pos, chunkKey, saved.seedPreviewMayBeCached()));
+    }
+
+    /** Records that the preview came from {@code source} and took until now, and returns it. */
+    private static PreviewPacket counted(final PreviewStats.Source source, final long startNanos, final PreviewPacket packet) {
+        PreviewStats.recordComputed(source, System.nanoTime() - startNanos);
+        return packet;
     }
 
     private SavedOutcome savedOutcome(final ChunkPos pos) {
