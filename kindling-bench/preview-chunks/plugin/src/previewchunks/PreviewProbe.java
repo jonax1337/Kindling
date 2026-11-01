@@ -133,7 +133,6 @@ public final class PreviewProbe extends JavaPlugin implements Listener {
             player.sendMessage("tour stopped");
             return;
         }
-        this.players.computeIfAbsent(player.getUniqueId(), id -> new PlayerPreviews(this.radius));
         this.tours.put(player.getUniqueId(), Tour.start(player, Double.parseDouble(speed)));
         player.sendMessage("flying straight on at " + speed + " blocks/s; look around with the mouse; /preview tour stop ends it");
     }
