@@ -102,17 +102,25 @@ final class PreviewWorld {
     }
 
     private PreviewPacket seedPreview(final ChunkPos pos, final long chunkKey, final boolean cache) {
+        final PreviewPacket built = PreviewPacket.of(seedChunk(pos));
+        if (cache) {
+            this.recent.put(chunkKey, built);
+        }
+        return built;
+    }
+
+    /**
+     * The finished seed preview of a chunk, as the server sends it before the packet is built: generated with its
+     * biomes, decorated when {@code trees} is on, frozen where it is cold.
+     */
+    ProtoChunk seedChunk(final ChunkPos pos) {
         final PreviewGenerator.Generated generated = this.generator.orElseThrow().generateWithBiomes(pos);
         if (PreviewChunks.trees) {
             this.decoration.decorate(generated);
         }
         final ProtoChunk chunk = generated.chunk();
         PreviewSnow.freeze(chunk, this.seed, this.seaLevel);
-        final PreviewPacket built = PreviewPacket.of(chunk);
-        if (cache) {
-            this.recent.put(chunkKey, built);
-        }
-        return built;
+        return chunk;
     }
 
     /** Trees and plants on a generated preview, on the thread that generated it. */

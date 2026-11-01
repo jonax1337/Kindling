@@ -4,9 +4,9 @@ the runs (half the gap between the highest and the lowest value) and how many ru
 Every label after the first is also tested against the first: its cell ends in the p-value of Welch's t-test. A '*'
 marks a difference as significant, which takes both p < 0.05 and a difference of the means larger than twice the
 larger half range of the two labels. The test needs two runs per label; with fewer there is no p-value, so no
-difference can be called significant. Rows that no run has are left out, so mixed and bases runs can be compared
-with the same script. The counters of a bases run must be identical in every run of every label; a row marked '!'
-differs, which means behaviour changed.
+difference can be called significant. Rows that no run has are left out, so mixed, bases and fidelity runs can be
+compared with the same script. The counters of a bases run must be identical in every run of every label; a row
+marked '!' differs, which means behaviour changed.
 
     python -I compare.py up-stock up-coh up-elastic ...
 """
@@ -87,6 +87,18 @@ PREVIEW_FIGURES = [
 # The counters of the server's previews, at the end of the flight and at the end of the run (since the server started).
 FIGURES += [(f"prev {moment} {label}", ("previews", key_moment, key))
             for moment, key_moment in (("flight", "flight_end"), ("run", "run_end")) for label, key in PREVIEW_FIGURES]
+# The share of columns per height bucket and per top block category of a fidelity run, and its sky light figures.
+FIGURES += [(f"fid height {bucket} %", ("fidelity", "height", bucket, "percent"))
+            for bucket in ("equal", "off_by_1_to_2", "off_by_3_to_8", "off_by_more")]
+FIGURES += [(f"fid top {category} %", ("fidelity", "top_block", category, "percent"))
+            for category in ("equal", "tree_missing", "tree_extra", "snow_ice", "water", "plant", "structure_or_other")]
+FIGURES += [
+    ("fid light above equal %", ("fidelity", "light", "above_surface_equal_percent")),
+    ("fid light band mean diff", ("fidelity", "light", "band_mean_abs_difference")),
+    ("fid light band >= 2 %", ("fidelity", "light", "band_differ_by_2_plus_percent")),
+    ("fid light band >= 5 %", ("fidelity", "light", "band_differ_by_5_plus_percent")),
+    ("fid light unsettled chunks", ("fidelity", "light_unsettled_chunks")),
+]
 NAME_WIDTH = 26
 SIGNIFICANCE_LEVEL = 0.05
 HALF_RANGES_APART = 2

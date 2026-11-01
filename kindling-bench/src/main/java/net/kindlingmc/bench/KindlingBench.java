@@ -35,6 +35,7 @@ public final class KindlingBench extends JavaPlugin implements Listener {
         Runnable run = switch (scenario.type()) {
             case MIXED -> () -> new BenchRun(this, scenario, phase, fakePlayers).start();
             case BASES, SLEEPING, VILLAGERS -> () -> new BaseRun(this, scenario, phase, fakePlayers).start();
+            case FIDELITY -> () -> new FidelityRun(this, scenario).start();
         };
         Bukkit.getScheduler().runTask(this, run);
     }

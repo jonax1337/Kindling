@@ -42,7 +42,7 @@ interface Layout {
             case BASES -> new BasesLayout(plots, scenario.hopperGuardSeconds());
             case SLEEPING -> new SleepingLayout(plots);
             case VILLAGERS -> new VillagerLayout(plots);
-            case MIXED -> throw new IllegalArgumentException("a mixed run builds no plots");
+            case MIXED, FIDELITY -> throw new IllegalArgumentException("a " + scenario.type() + " run builds no plots");
         };
     }
 }

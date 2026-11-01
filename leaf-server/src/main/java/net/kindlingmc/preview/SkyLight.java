@@ -23,7 +23,7 @@ import net.minecraft.world.level.chunk.LevelChunkSection;
  * <p>Thread safety: each thread works in its own reusable buffers; nothing is shared.
  */
 final class SkyLight {
-    private static final int MAX_LIGHT = 15;
+    static final int MAX_LIGHT = 15;
     private static final int OPAQUE_DAMPENING = 15;
     private static final int SECTION_CELLS = 4096;
     private static final int LIGHT_ARRAY_BYTES = SECTION_CELLS / 2;

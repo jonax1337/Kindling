@@ -12,7 +12,9 @@ enum ScenarioType {
     /** Block entities and plugin stand-ins in the cases where sleeping block entities can differ; see {@link SleepingLayout}. */
     SLEEPING,
     /** Villagers competing for beds and job sites in sealed halls; see {@link VillagerLayout}. */
-    VILLAGERS;
+    VILLAGERS,
+    /** Seed previews of chunks around the origin compared with the real chunks; needs a Kindling server, see {@link FidelityRun}. */
+    FIDELITY;
 
     static ScenarioType named(String name) {
         return valueOf(name.trim().toUpperCase(Locale.ROOT));

@@ -160,23 +160,14 @@ class SkyLightTest {
     }
 
     /** The sky light of a chunk, read back from the arrays the packet carries. */
-    private record Lit(SkyLight.Layers sky, int minY) {
+    private record Lit(SkyLight.Light light, int minY) {
         static Lit of(ProtoChunk chunk) {
-            return new Lit(SkyLight.fromAbove(chunk.getSections()).sky(), chunk.getMinY());
+            return new Lit(SkyLight.fromAbove(chunk.getSections()), chunk.getMinY());
         }
 
         /** The light at a cell; 15 in sections without an array above the highest block, 0 in all-zero sections. */
         int at(int x, int y, int z) {
-            int lightSection = ((y - this.minY) >> 4) + 1;
-            if (this.sky.empty().get(lightSection)) {
-                return 0;
-            }
-            if (!this.sky.present().get(lightSection)) {
-                return 15;
-            }
-            byte[] array = this.sky.arrays().get(this.sky.present().get(0, lightSection).cardinality());
-            int cell = (y & 15) << 8 | z << 4 | x;
-            return array[cell >> 1] >> 4 * (cell & 1) & 15;
+            return PreviewFidelity.skyLightAt(this.light, this.minY, x, y, z);
         }
     }
 }

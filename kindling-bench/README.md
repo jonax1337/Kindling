@@ -148,6 +148,23 @@ SCENARIO="type=villagers,players=2,plots-per-player=4,warmup-seconds=60,steady-s
 
 Run it once per jar or setting under comparison. Every variant needs the `villagers-active` overlay (or a copy of it with the setting under test added); without it most villagers do not think and there is nothing to measure.
 
+## The fidelity scenario
+
+`--scenario "type=fidelity"` measures how faithful the seed previews of Kindling's preview chunks are to the real chunks, so that the largest error is fixed first. It needs a Kindling server with previews (the class `net.kindlingmc.preview.PreviewFidelity`), runs without fake players and does not measure any time. After the start it draws `fidelity-chunks` (400) chunks at random from the square of `fidelity-radius` (1500) chunks around the origin, always the same ones for the same two keys, and loads each with its neighbours to full status through a plugin ticket, two chunks per tick. Once the light engine is idle and 40 ticks have passed, it builds the seed preview of the chunk the way the server sends it (generated, decorated when `trees` is on, snow frozen), compares it with the real chunk column by column, and writes the totals as `fidelity` into `bench-result.json`; then it stops the server. The overworld only; the saved-chunk preview is never compared.
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `fidelity-chunks` | 400 | Chunks compared (at most the chunks in the square) |
+| `fidelity-radius` | 1500 | Half side of the square, in chunks; the run stops without a result if the world border is closer than this plus 4 chunks |
+
+The result holds, as a count of columns and a percentage of all columns (`chunks × 256`) each:
+
+- **`height`**: the `MOTION_BLOCKING` height of the preview against the real chunk's (leaves and water count, grass does not): `equal`, `off_by_1_to_2`, `off_by_3_to_8`, `off_by_more`.
+- **`top_block`**: the top block of the column (at the `WORLD_SURFACE` height), which is what a player sees on top (grass, flowers and snow layers included), compared as a block, not a state: `equal`, or one reason, the first that fits: `tree_missing` (the real top is a log or leaves, the preview's is not), `tree_extra` (the reverse), `snow_ice` (either side is snow or ice), `water` (exactly one side is water or waterlogged), `plant` (either side is a block that is neither air nor fluid and does not block motion), `structure_or_other`. Two different kinds of tree count as `structure_or_other`.
+- **`light`**: the sky light of the preview ([`SkyLight`](../leaf-server/src/main/java/net/kindlingmc/preview/SkyLight.java)) against the real light engine's: `above_surface_equal_percent` for the first free block above the real surface, and for the band from 8 blocks below to 4 above that block `band_mean_abs_difference` and the percentage of band blocks that differ by 2 or more and by 5 or more. `light_unsettled_chunks` counts chunks compared before their light was settled or correct (should be 0; the result is then not trustworthy for light).
+
+`preview_trees` records whether `network.preview-chunks.trees` was on. Compare two builds or settings with `compare.py`, which prints the figures as `fid …` rows.
+
 ## Building and running
 
 ```bash
