@@ -5,7 +5,7 @@ Subject: [PATCH] Kindling: Preview chunks beyond the view distance
 
 
 diff --git a/ca/spottedleaf/moonrise/patches/chunk_system/player/RegionizedPlayerChunkLoader.java b/ca/spottedleaf/moonrise/patches/chunk_system/player/RegionizedPlayerChunkLoader.java
-index 116a66303a1da9a9b5bfc3560d7adb4778c96cbb..f9f99cd11084a4ec6adddf1640f4907592629491 100644
+index 116a66303a1da9a9b5bfc3560d7adb4778c96cbb..532c86ef20aab42ad4f7cba0be26caad1dc6db84 100644
 --- a/ca/spottedleaf/moonrise/patches/chunk_system/player/RegionizedPlayerChunkLoader.java
 +++ b/ca/spottedleaf/moonrise/patches/chunk_system/player/RegionizedPlayerChunkLoader.java
 @@ -315,6 +315,7 @@ public final class RegionizedPlayerChunkLoader {
@@ -53,7 +53,23 @@ index 116a66303a1da9a9b5bfc3560d7adb4778c96cbb..f9f99cd11084a4ec6adddf1640f49075
          }
  
          private Packet<?> updateClientSimulationDistance(final int distance) {
-@@ -981,7 +986,7 @@ public final class RegionizedPlayerChunkLoader {
+@@ -936,12 +941,13 @@ public final class RegionizedPlayerChunkLoader {
+             final ViewDistances playerDistances = ((ChunkSystemServerPlayer)this.player).moonrise$getViewDistanceHolder().getViewDistances();
+             final ViewDistances worldDistances = ((ChunkSystemServerLevel)this.world).moonrise$getViewDistanceHolder().getViewDistances();
+ 
+-            final int tickViewDistance = getTickDistance(
++            final int configuredTickViewDistance = getTickDistance( // Kindling - previews stand in for the far chunks of a player on a fast journey
+                     playerDistances.tickViewDistance, worldDistances.tickViewDistance,
+                     playerDistances.loadViewDistance, worldDistances.loadViewDistance
+             );
+             // load view cannot be less-than tick view + 1
+-            final int loadViewDistance = getLoadViewDistance(tickViewDistance, playerDistances.loadViewDistance, worldDistances.loadViewDistance);
++            final int loadViewDistance = this.previews.loadDistance(getLoadViewDistance(configuredTickViewDistance, playerDistances.loadViewDistance, worldDistances.loadViewDistance)); // Kindling - previews stand in for the far chunks of a player on a fast journey
++            final int tickViewDistance = Math.min(configuredTickViewDistance, loadViewDistance - 1); // Kindling - previews stand in for the far chunks of a player on a fast journey
+             // send view cannot be greater-than load view
+             final int clientViewDistance = getClientViewDistance(this.player);
+             final int sendViewDistance = getSendViewDistance(loadViewDistance, clientViewDistance, playerDistances.sendViewDistance, worldDistances.sendViewDistance);
+@@ -981,7 +987,7 @@ public final class RegionizedPlayerChunkLoader {
  
              // update VDs for client
              // this should be after the distance map updates, as they will send unload packets
@@ -62,7 +78,7 @@ index 116a66303a1da9a9b5bfc3560d7adb4778c96cbb..f9f99cd11084a4ec6adddf1640f49075
                  this.player.connection.send(this.updateClientChunkRadius(sendViewDistance));
              }
              if (this.lastSentSimulationDistance != tickViewDistance) {
-@@ -1078,18 +1083,33 @@ public final class RegionizedPlayerChunkLoader {
+@@ -1078,18 +1084,33 @@ public final class RegionizedPlayerChunkLoader {
              // update the chunk center
              // this must be done last so that the client does not ignore any of our unload chunk packets above
              if (this.lastSentChunkCenterX != currentChunkX || this.lastSentChunkCenterZ != currentChunkZ) {

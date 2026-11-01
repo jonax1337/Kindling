@@ -55,6 +55,7 @@ public final class PlayerPreviews {
     /** Chunks whose preview failed; not tried again while in range. */
     private final LongOpenHashSet failed = new LongOpenHashSet();
     private final ConcurrentLinkedQueue<Ready> ready = new ConcurrentLinkedQueue<>();
+    private final FastTravel travel = new FastTravel();
     private volatile boolean closed;
     private volatile boolean warned;
     /** Resolved on first use with previews on, so that a server with previews off never builds one. */
@@ -80,7 +81,20 @@ public final class PlayerPreviews {
         return this.isActive() ? Math.max(sendViewDistance, PreviewChunks.radius) : sendViewDistance;
     }
 
-    /** One tick: sends computed previews, forgets those out of range, and starts the next ones. */
+    /**
+     * The load distance the chunk loader uses: the configured one, but at most {@code travel-view-distance} + 1 while
+     * the player is on a fast journey and its previews reach beyond that distance, so that previews stand in for the
+     * far chunks instead of generating them. The loader keeps the tick and send distances below it, as always.
+     */
+    public int loadDistance(final int configuredLoadDistance) {
+        final int travelViewDistance = PreviewChunks.travelViewDistance;
+        if (travelViewDistance == 0 || travelViewDistance >= this.radius || !this.travel.isFast() || this.closed || !this.isActive()) {
+            return configuredLoadDistance;
+        }
+        return Math.min(configuredLoadDistance, travelViewDistance + 1);
+    }
+
+    /** One tick: notes the player's speed, sends computed previews, forgets those out of range, and starts the next ones. */
     public void tick(final int centerX, final int centerZ, final int sendDistance, final int clientViewDistance,
                      final LookAheadDirection order) {
         if (this.closed) {
@@ -90,6 +104,7 @@ public final class PlayerPreviews {
             this.forgetAll();
             return;
         }
+        this.noteSpeed();
         this.centerX = centerX;
         this.centerZ = centerZ;
         this.sendDistance = sendDistance;
@@ -140,6 +155,13 @@ public final class PlayerPreviews {
 
     private boolean isActive() {
         return PreviewChunks.enabled && this.world().available();
+    }
+
+    /** Only with {@code travel-view-distance} on; turned on later, the first sample starts over. */
+    private void noteSpeed() {
+        if (PreviewChunks.travelViewDistance > 0) {
+            this.travel.sample(this.player.getX(), this.player.getZ(), MinecraftServer.currentTick, PreviewChunks.travelSpeed);
+        }
     }
 
     private PreviewWorld world() {
