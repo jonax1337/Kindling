@@ -90,7 +90,7 @@ final class Verify {
     }
 
     private static float[] finalDensity(Terrain terrain, DensityVolume volume) {
-        DensityFunction finalDensity = terrain.world().vanilla().settings().noiseRouter().finalDensity();
+        DensityFunction finalDensity = terrain.world().settings().noiseRouter().finalDensity();
         try (NoiseChunk noiseChunk = terrain.noiseChunk(volume);
              ScopedDensityBuffer values = noiseChunk.cachingSamplers().get(finalDensity).sampleVolume(volume)) {
             return Arrays.copyOf(values.values, volume.size());

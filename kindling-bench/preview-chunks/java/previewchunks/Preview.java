@@ -59,8 +59,8 @@ final class Preview {
     /** The preview as it would be sent: generated, then the default block below the band (see {@link Skin}). */
     ProtoChunk generateSkin(ChunkPos pos) {
         Result result = generate(pos);
-        Vanilla vanilla = this.terrain.world().vanilla();
-        Skin.fillBelowBand(result.chunk(), result.band(), vanilla.settings().defaultBlock(), vanilla.containerFactory());
+        World world = this.terrain.world();
+        Skin.fillBelowBand(result.chunk(), result.band(), world.settings().defaultBlock(), world.containerFactory());
         return result.chunk();
     }
 
@@ -102,7 +102,7 @@ final class Preview {
             lowest = Math.min(lowest, level);
             highest = Math.max(highest, level);
         }
-        int seaSurfaceY = this.terrain.world().vanilla().settings().seaLevel() - 1;
+        int seaSurfaceY = this.terrain.world().settings().seaLevel() - 1;
         return Band.covering(Mth.floor(lowest) - this.margins.below(),
             Math.max(Mth.ceil(highest) + this.margins.above(), seaSurfaceY), this.terrain.noiseSettings());
     }

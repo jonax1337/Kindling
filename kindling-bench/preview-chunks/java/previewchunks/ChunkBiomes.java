@@ -27,7 +27,7 @@ final class ChunkBiomes implements BiomeResolver {
         private final Long2ObjectOpenHashMap<Holder<Biome>> known = new Long2ObjectOpenHashMap<>();
 
         Outside(World world) {
-            this.climate = world.vanilla().generator().getBiomeSource()
+            this.climate = world.generator().getBiomeSource()
                 .createResolver(world.randomState().createClimateSampler(SamplerContext.builder().enableCaches().build()));
         }
 

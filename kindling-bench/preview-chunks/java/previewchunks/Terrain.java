@@ -69,7 +69,7 @@ final class Terrain {
     Terrain(World world, PossibleBiomes possibleBiomes) {
         this.world = world;
         this.possibleBiomes = possibleBiomes;
-        this.fluidPicker = globalFluidPicker(world.vanilla().generator());
+        this.fluidPicker = globalFluidPicker(world.generator());
     }
 
     World world() {
@@ -77,7 +77,7 @@ final class Terrain {
     }
 
     NoiseSettings noiseSettings() {
-        return this.world.vanilla().settings().noiseSettings();
+        return this.world.settings().noiseSettings();
     }
 
     /** The reference: the BIOMES and TERRAIN work on the whole chunk, as the server does it (minus carvers). */
@@ -98,7 +98,7 @@ final class Terrain {
     ProtoChunk emptyChunk(ChunkPos pos) {
         NoiseSettings noise = noiseSettings();
         LevelHeightAccessor height = LevelHeightAccessor.create(noise.minY(), noise.height());
-        return new ProtoChunk(pos, UpgradeData.EMPTY, height, this.world.vanilla().containerFactory(), null);
+        return new ProtoChunk(pos, UpgradeData.EMPTY, height, this.world.containerFactory(), null);
     }
 
     DensityVolume chunkVolume(ChunkPos pos) {
@@ -108,7 +108,7 @@ final class Terrain {
 
     /** ChunkGenerator.createBiomes, as the BIOMES status runs it (its structure manager is unused). */
     void createBiomes(ProtoChunk chunk) {
-        this.world.vanilla().generator().createBiomes(this.world.randomState(), Blender.empty(), null, chunk).join();
+        this.world.generator().createBiomes(this.world.randomState(), Blender.empty(), null, chunk).join();
         chunk.setPersistedStatus(ChunkStatus.BIOMES);
     }
 
@@ -134,7 +134,7 @@ final class Terrain {
         ChunkPos pos = chunk.getPos();
         int quartX = QuartPos.fromBlock(pos.getMinBlockX());
         int quartZ = QuartPos.fromBlock(pos.getMinBlockZ());
-        BiomeResolver resolver = this.world.vanilla().generator().getBiomeSource().createResolverForChunk(
+        BiomeResolver resolver = this.world.generator().getBiomeSource().createResolverForChunk(
             sampler, quartX, QuartPos.fromSection(minSectionY), quartZ, 4, QuartPos.fromSection(maxSectionY - minSectionY + 1), 4);
         for (int sectionY = minSectionY; sectionY <= maxSectionY; sectionY++) {
             chunk.getSection(chunk.getSectionIndexFromSectionY(sectionY)).fillBiomesFromNoise(resolver, quartX, QuartPos.fromSection(sectionY), quartZ);
@@ -142,13 +142,13 @@ final class Terrain {
     }
 
     NoiseChunk noiseChunk(DensityVolume volume) {
-        return new NoiseChunk(this.world.randomState(), Beardifier.EMPTY, this.world.vanilla().settings(), this.fluidPicker, Blender.empty(), volume);
+        return new NoiseChunk(this.world.randomState(), Beardifier.EMPTY, this.world.settings(), this.fluidPicker, Blender.empty(), volume);
     }
 
     /** NoiseBasedChunkGenerator.doFill: density and aquifer over the noise chunk's volume, plus the two worldgen heightmaps. */
     void fill(NoiseChunk noiseChunk, ProtoChunk chunk) {
         try {
-            DO_FILL.invoke(this.world.vanilla().generator(), noiseChunk, chunk);
+            DO_FILL.invoke(this.world.generator(), noiseChunk, chunk);
         } catch (Throwable t) {
             throw new IllegalStateException("doFill failed for " + chunk.getPos(), t);
         }
@@ -157,10 +157,10 @@ final class Terrain {
     /** MaterialSystem.buildSurface as NoiseBasedChunkGenerator.buildSurface calls it, with the chosen set of possible biomes. */
     void buildSurface(ProtoChunk chunk, NoiseChunk noiseChunk, BiomeManager biomes) {
         RandomState randomState = this.world.randomState();
-        WorldGenerationContext context = new WorldGenerationContext(this.world.vanilla().generator(), chunk.getHeightAccessorForGeneration(),
-            StandInLevel.INSTANCE);
+        WorldGenerationContext context = new WorldGenerationContext(this.world.generator(), chunk.getHeightAccessorForGeneration(),
+            this.world.level());
         randomState.surfaceSystem().buildSurface(randomState, biomes, context, chunk, noiseChunk,
-            this.world.vanilla().settings().materialRule().value(), this.possibleBiomes.of(chunk));
+            this.world.settings().materialRule().value(), this.possibleBiomes.of(chunk));
     }
 
     private static Aquifer.FluidPicker globalFluidPicker(NoiseBasedChunkGenerator generator) {

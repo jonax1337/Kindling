@@ -5,6 +5,8 @@
 #   run.sh bench [--forks 3] [--threads N] [--out-dir dir] [options]   writes <out-dir>/fork-N.json
 #   run.sh report [--dir dir]
 #   run.sh packets [--world <region dir> --world-seed S --limit N] [options]
+#   run.sh plugin          builds plugin/build/preview-probe.jar (stage 2 probe)
+#   run.sh server          runs a throwaway test server with the probe in ./server on 127.0.0.1:25999
 # Options: --seeds a,b,c --chunks N (per seed) --radius R (chunks) --above N --below N --skin N --grow N
 #          --threads N --rounds N --warmup-rounds N
 # Env: JAVA (default java), JAVAC (default: javac next to JAVA), SERVER_JAR, BUNDLER_JAR.
@@ -57,6 +59,40 @@ build_java() {
   "$JAVAC" -Xlint:all -Xlint:-processing -d "$(native_path "$BUILD")" "@$(native_path "$ARGS")"
 }
 
+PLUGIN_BUILD=$HERE/plugin/build
+PLUGIN_JAR=$PLUGIN_BUILD/preview-probe.jar
+
+# The stage 2 probe: the harness's generator classes plus plugin/src, as a plugin compiled against Mojang names.
+build_plugin() {
+  CP=$(sh "$HERE/classpath.sh")
+  rm -rf "$PLUGIN_BUILD"
+  mkdir -p "$PLUGIN_BUILD/classes"
+  ARGS=$PLUGIN_BUILD/javac.args
+  printf -- '-cp\n"%s"\n' "$CP" > "$ARGS"
+  for source in "$HERE"/java/previewchunks/*.java "$HERE"/plugin/src/previewchunks/*.java; do
+    printf '"%s"\n' "$(native_path "$source")" >> "$ARGS"
+  done
+  "$JAVAC" -Xlint:all -Xlint:-processing -d "$(native_path "$PLUGIN_BUILD/classes")" "@$(native_path "$ARGS")"
+  cp "$HERE"/plugin/resources/plugin.yml "$HERE"/plugin/resources/config.yml "$PLUGIN_BUILD/classes/"
+  printf 'Manifest-Version: 1.0\npaperweight-mappings-namespace: mojang\n' > "$PLUGIN_BUILD/MANIFEST.MF"
+  "${JAR:-jar}" cfm "$(native_path "$PLUGIN_JAR")" "$(native_path "$PLUGIN_BUILD/MANIFEST.MF")" -C "$(native_path "$PLUGIN_BUILD/classes")" .
+  echo "built $PLUGIN_JAR"
+}
+
+# A throwaway test server in ./server on the bench address, with the probe. Console commands: append lines to server/console.txt.
+run_server() {
+  PAPERCLIP=${PAPERCLIP_JAR:-$FALLBACK_ROOT/$LEAF_LIBS/leaf-paperclip-26.3.local-SNAPSHOT.jar}
+  DIR=$HERE/server
+  [ -f "$PLUGIN_JAR" ] || die "build the probe first: run.sh plugin"
+  mkdir -p "$DIR/plugins"
+  cp "$PLUGIN_JAR" "$DIR/plugins/"
+  echo "eula=true" > "$DIR/eula.txt"
+  [ -f "$DIR/server.properties" ] || printf '%s\n' server-ip=127.0.0.1 server-port=25999 online-mode=true view-distance=12 \
+    simulation-distance=8 level-seed=1 spawn-protection=0 'motd=Kindling preview probe' > "$DIR/server.properties"
+  touch "$DIR/console.txt"
+  cd "$DIR" && tail -f console.txt | "$JAVA" -Xms2g -Xmx4g -jar "$(native_path "$PAPERCLIP")" --nogui
+}
+
 run_harness() {
   CP=$(sh "$HERE/classpath.sh")
   "$JAVA" -Xmx3g -cp "$(native_path "$BUILD")$SEP$CP" previewchunks.Main "$@"
@@ -90,6 +126,8 @@ shift
 default_jars
 case $COMMAND in
   build) build_java ;;
+  plugin) build_plugin ;;
+  server) run_server ;;
   verify|report|packets) run_harness "$COMMAND" "$@" ;;
   bench) bench "$@" ;;
   *) die "unknown command $COMMAND" ;;

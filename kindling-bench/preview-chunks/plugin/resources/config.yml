@@ -1,0 +1,9 @@
+# Radius in chunks up to which a client gets previews. Set the client's render distance at least this high.
+radius: 32
+# Threads that generate previews (at the lowest priority).
+threads: 4
+# Previews sent per tick at most, and previews being generated per player at most.
+send-per-tick: 40
+max-pending: 256
+# Start previews for every player who joins (else only with /preview <radius>).
+auto-start: true

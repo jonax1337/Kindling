@@ -2,3 +2,5 @@
 java-build/
 results/
 logs/
+plugin/build/
+server/

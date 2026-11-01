@@ -1,0 +1,13 @@
+name: KindlingPreviewProbe
+version: "1"
+main: previewchunks.PreviewProbe
+api-version: "26.3"
+description: Sends preview chunks beyond the view distance (preview-chunks experiment, stage 2). Throwaway test servers only.
+commands:
+  preview:
+    description: Previews up to a radius, off, stats, or a hands-free straight flight.
+    usage: "/preview <radius> | on | off | stats | mark | tour [blocks per second] | tour stop"
+    permission: kindling.preview
+permissions:
+  kindling.preview:
+    default: true
