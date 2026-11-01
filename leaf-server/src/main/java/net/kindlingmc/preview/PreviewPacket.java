@@ -28,10 +28,14 @@ public record PreviewPacket(ClientboundLevelChunkWithLightPacket packet, int raw
     private static final MethodHandle CHUNK_DATA = chunkDataConstructor();
     private static final int LIGHT_ARRAY_BYTES = 2048;
 
-    /** Builds the packet of a finished preview; primes the chunk's client heightmaps, so the chunk belongs to the caller. */
+    /** Builds the packet of a finished preview with the sky light estimated from above; see {@link #of(ProtoChunk, SkyLight.Light)}. */
     public static PreviewPacket of(ProtoChunk chunk) {
+        return of(chunk, SkyLight.fromAbove(chunk.getSections()));
+    }
+
+    /** Builds the packet of a finished preview with the given light; primes the chunk's client heightmaps, so the chunk belongs to the caller. */
+    static PreviewPacket of(ProtoChunk chunk, SkyLight.Light light) {
         byte[] sections = sectionBytes(chunk.getSections());
-        SkyLight.Light light = SkyLight.fromAbove(chunk.getSections());
         ClientboundLightUpdatePacketData lightData = new ClientboundLightUpdatePacketData(light.sky().present(), light.block().present(),
             light.sky().empty(), light.block().empty(), light.sky().arrays(), light.block().arrays());
         ChunkPos pos = chunk.getPos();

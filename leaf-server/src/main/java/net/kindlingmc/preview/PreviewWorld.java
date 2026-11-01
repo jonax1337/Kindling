@@ -14,21 +14,26 @@ import net.minecraft.world.level.chunk.ProtoChunk;
 import org.dreeam.leaf.config.modules.network.PreviewChunks;
 
 /**
- * The previews of one world: its generator (none for worlds without one, such as the Nether) and the most recently
- * built preview packets, so that several players and a player flying back reuse them. Safe to use from any thread.
+ * The previews of one world: its generator (none for worlds without one, such as the Nether), the saved chunks it
+ * previews from where they exist, and the most recently built seed preview packets, so that several players and a
+ * player flying back reuse them. Safe to use from any thread; it never holds the world strongly.
  */
 final class PreviewWorld {
     private static final Map<ServerLevel, PreviewWorld> WORLDS = Collections.synchronizedMap(new WeakHashMap<>());
 
     private final Optional<PreviewGenerator> generator;
+    /** Present with the generator; holds the world weakly. */
+    private final Optional<SavedChunks> saved;
     /** Vanilla's vegetation, or where the world's generator does not allow it, the approximate trees. */
     private final Decoration decoration;
     private final long seed;
     private final int seaLevel;
     private final RecentPackets recent = new RecentPackets();
 
-    private PreviewWorld(final Optional<PreviewGenerator> generator, final Decoration decoration, final long seed, final int seaLevel) {
+    private PreviewWorld(final Optional<PreviewGenerator> generator, final Optional<SavedChunks> saved, final Decoration decoration,
+        final long seed, final int seaLevel) {
         this.generator = generator;
+        this.saved = saved;
         this.decoration = decoration;
         this.seed = seed;
         this.seaLevel = seaLevel;
@@ -41,7 +46,8 @@ final class PreviewWorld {
     private static PreviewWorld create(final ServerLevel level) {
         final Optional<PreviewGenerator> generator = PreviewGenerator.forLevel(level);
         final Decoration decoration = generator.isEmpty() ? Decoration.NONE : decoration(level);
-        return new PreviewWorld(generator, decoration, level.getSeed(), level.getSeaLevel());
+        final Optional<SavedChunks> saved = generator.map(previews -> new SavedChunks(level, previews.terrain()));
+        return new PreviewWorld(generator, saved, decoration, level.getSeed(), level.getSeaLevel());
     }
 
     /** Never keeps the level: this world is the value of a weak map keyed by it. */
@@ -61,20 +67,40 @@ final class PreviewWorld {
         return this.generator.isPresent();
     }
 
-    /** The preview of a chunk, from the recent packets or computed now. Call off the tick thread only when computing. */
+    /**
+     * The preview of a chunk: the recent seed packet, else the chunk as saved when it is saved, else computed from the
+     * seed now. A seed packet is cached only when the saved chunks lastingly have nothing to show for the chunk, so a
+     * chunk whose saved read was only postponed gets its saved preview on a later request. Call off the tick thread
+     * only when computing.
+     */
     PreviewPacket preview(final long chunkKey) {
         final Optional<PreviewPacket> known = this.recent.get(chunkKey);
         if (known.isPresent()) {
             return known.get();
         }
-        final PreviewGenerator.Generated generated = this.generator.orElseThrow().generateWithBiomes(ChunkPos.unpack(chunkKey));
+        final ChunkPos pos = ChunkPos.unpack(chunkKey);
+        final SavedOutcome saved = savedOutcome(pos);
+        return saved.packet().isPresent() ? saved.packet().get() : seedPreview(pos, chunkKey, saved.seedPreviewMayBeCached());
+    }
+
+    private SavedOutcome savedOutcome(final ChunkPos pos) {
+        if (!PreviewChunks.savedChunks) {
+            return SavedOutcome.NONE_LASTING;
+        }
+        return this.saved.map(chunks -> chunks.preview(pos)).orElse(SavedOutcome.NONE_LASTING);
+    }
+
+    private PreviewPacket seedPreview(final ChunkPos pos, final long chunkKey, final boolean cache) {
+        final PreviewGenerator.Generated generated = this.generator.orElseThrow().generateWithBiomes(pos);
         if (PreviewChunks.trees) {
             this.decoration.decorate(generated);
         }
         final ProtoChunk chunk = generated.chunk();
         PreviewSnow.freeze(chunk, this.seed, this.seaLevel);
         final PreviewPacket built = PreviewPacket.of(chunk);
-        this.recent.put(chunkKey, built);
+        if (cache) {
+            this.recent.put(chunkKey, built);
+        }
         return built;
     }
 

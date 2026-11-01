@@ -50,6 +50,10 @@ public final class PreviewGenerator {
         this.terrain = terrain;
     }
 
+    Terrain terrain() {
+        return this.terrain;
+    }
+
     /** Empty unless the level uses a NoiseBasedChunkGenerator and its dimension has sky light and no ceiling. */
     public static Optional<PreviewGenerator> forLevel(ServerLevel level) {
         DimensionType dimension = level.dimensionType();
