@@ -62,6 +62,7 @@ Paper 26.3 build 223 (the base Leaf builds on), plain Leaf `66f99f8e` and Kindli
 
 | | Feature | What you get | Measured |
 | --- | --- | --- | --- |
+| 🔭 | **Preview chunks** | Opt-in: vanilla clients, no mod, see up to 32 chunks while the server loads only its view distance. Beyond it they get previews computed from the world seed (terrain, trees, lakes, ice spikes) or read from the save, and a real chunk replaces its preview as they come close · [more](#preview-chunks) | 🏆 against a real view distance of 32: CPU −52 %, heap −69 %, tick time 82.4 → 39.4 ms; against a plain 10: same tick time, +19 % CPU · 📊 the top block matches in 87.9 % of the columns · [more](docs/measurements/preview-chunks.md) |
 | 🗺️ | **Built-in pregenerator** | `/pregen start <world> <radius>`, `pause`, `resume`, `status`; steps back when ticks get slow, resumes after a restart. No Chunky needed | 🧪 +59 % chunks per minute, −41 % CPU per chunk against its first version · [more](docs/measurements/pregeneration.md#pregeneration) |
 | 🧭 | **Directional chunk loading** | The chunks ahead of a moving player are loaded first | 🏆 with the two rows below: 0 % instead of 82 % of a flight over the void against plain Leaf · [more](docs/measurements/chunks.md#elytra-test-new-chunks-ahead-of-fast-players) |
 | ⚙️ | **Chunk workers sized for fast players** | Five eighths of the cores, at most five, never fewer than Paper (2 → 5 on 8 cores) | 🧪 0 % instead of 24 % void with eight fliers on 12 cores, against Paper's count · [more](docs/measurements/chunks.md#default-number-of-chunk-workers) |
@@ -304,6 +305,26 @@ Paper raises the main thread's Java priority and lowers its own workers', but Ho
 - The call is a restricted method of the Foreign Function & Memory API. The Paperclip jar's manifest carries `Enable-Native-Access: ALL-UNNAMED`, which also covers the server classes Paperclip loads, so `java -jar` prints no warning. Started any other way (for example `java -cp … io.papermc.paperclip.Main`), Java prints a "restricted method" warning the first time; `--enable-native-access=ALL-UNNAMED` silences it.
 
 </details>
+
+### Preview chunks
+
+```yaml
+network:
+  preview-chunks:
+    enabled: false          # on: previews out to `radius` for clients with a larger render distance
+    radius: 32
+    threads: 2              # for moving players; standing players share one more
+    saved-chunks: true      # explored land is previewed as saved
+    keep-real-chunks: true  # real chunks a player leaves stay as their preview
+    fill-gaps: true         # previews until the real chunk arrives, while moving
+    trees: true             # vanilla's surface features: trees, plants, lakes, rocks, ice spikes
+    travel-view-distance: 0 # opt-in: lower distances for fast travellers, previews show the rest
+```
+
+- Previews are not real chunks: they are never ticked or saved, and they get no block updates. A seed preview shows no structures (villages, temples), ores or caves, and some trees stand elsewhere than in the real chunk ([how faithful](docs/measurements/preview-chunks.md#how-faithful-seed-previews-are)).
+- Players see previews only with a render distance above the server's view distance. Overworld-like worlds only.
+- Plugins still see the usual chunk unload event for real chunks kept as previews.
+- `travel-view-distance` changes what the server does around a fast traveller (the chunks between the lowered and the usual distance are not loaded and do not tick), which is why it is off; the full list is in the setting's comment.
 
 ### Directional chunk loading
 
