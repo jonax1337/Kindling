@@ -39,18 +39,20 @@ import su.plo.matter.Globals;
 import su.plo.matter.WorldgenCryptoRandom;
 
 /**
- * Vanilla's own vegetation on a preview chunk: the VEGETAL_DECORATION step of ChunkGenerator.addVanillaDecorations,
- * with the same features in the same order, the same decoration and feature seeds (including Paper's configured feature
- * seeds and Leaf's secure seed) and the same biome check, through a {@link PreviewRegion} over the chunk. Inside the
- * chunk the trees, grass and flowers land where the real world has them, as far as the chunk alone decides that:
+ * Vanilla's own surface features on a preview chunk: the {@link #STEPS} of ChunkGenerator.addVanillaDecorations that
+ * shape the surface (lakes, rocks, icebergs, ice spikes, desert wells, then the vegetation), with the same features in
+ * the same order, the same decoration and feature seeds (including Paper's configured feature seeds and Leaf's secure
+ * seed) and the same biome check, through a {@link PreviewRegion} over the chunk. Underground features of these steps
+ * (lava lakes, geodes) run too; they are rare and hidden in the stone below the preview's band. Inside the chunk the
+ * features land where the real world has them, as far as the chunk alone decides that:
  * <ul>
  * <li>The blocks neighbouring chunks' features place in this chunk are missing (tree crowns and patches of grass near
  * the edges), and what this chunk's features place in its neighbours is not shown.
  * <li>The neighbours are {@link Surroundings} standing in for the real ones. Wherever a feature's random draws depend on
  * what it finds there, or on what neighbours placed in this chunk before it, the rest of that feature in the chunk
  * lands elsewhere than in the real world. In the real world that, too, depends on the order chunks were generated in.
- * <li>The earlier steps (lakes, rocks, icebergs, ores, structures), carvers and post-processing do not run, so what
- * they change on the surface, and the vegetation that depends on it, differs.
+ * <li>Structures (villages and the like), ores, springs, carvers and post-processing do not run, so what they change on
+ * the surface, and the vegetation that depends on it, differs.
  * <li>A feature that fails, for instance because it needs the server level, is left out of the rest of that chunk and
  * reported once; its blocks placed so far stay, and it runs (and fails) again on the next chunk. Known case:
  * pale_garden_vegetation, whose PaleMossDecorator asks the server level for its chunk source; that needs a change to
@@ -63,7 +65,13 @@ import su.plo.matter.WorldgenCryptoRandom;
  */
 final class PreviewVegetation {
     private static final Logger LOGGER = LogUtils.getLogger();
-    private static final List<GenerationStep.Decoration> STEPS = List.of(GenerationStep.Decoration.VEGETAL_DECORATION);
+    /**
+     * The steps whose features shape the surface, in vanilla's order: lakes, rocks and icebergs, ice spikes and desert
+     * wells, then the vegetation, which so avoids the lakes and rocks as in the real world. Each feature has a seed of
+     * its own, so the steps left out (underground structures, ores, springs) do not move what these place.
+     */
+    private static final List<GenerationStep.Decoration> STEPS = List.of(GenerationStep.Decoration.LAKES,
+        GenerationStep.Decoration.LOCAL_MODIFICATIONS, GenerationStep.Decoration.SURFACE_STRUCTURES, GenerationStep.Decoration.VEGETAL_DECORATION);
     private static final long NO_CONFIGURED_SEED = -1L;
 
     private final ChunkGenerator generator;

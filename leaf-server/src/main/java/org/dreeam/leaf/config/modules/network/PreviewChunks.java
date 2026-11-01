@@ -31,7 +31,8 @@ public class PreviewChunks extends ConfigModule {
         globalConfig.addCommentRegionBased(basePath(), """
             Shows players terrain up to `radius` chunks, beyond the view distance, without loading or saving those chunks:
             the server sends previews computed from the world seed, the terrain around the surface only (no structures,
-            ores or carved caves; with `trees`, vanilla's own vegetation placed by the world seed: trees, grass and
+            ores or carved caves; with `trees`, vanilla's own surface features placed by the world seed: lakes, rocks,
+            icebergs, ice spikes, desert wells, trees, grass and
             flowers, exact inside a chunk where the chunk alone decides it but missing what neighbouring chunks spill
             in, with approximate trees where that cannot be set up), and the real chunk replaces a preview when the
             player comes within the view distance. With `saved-chunks`, a chunk that is already saved is previewed as
