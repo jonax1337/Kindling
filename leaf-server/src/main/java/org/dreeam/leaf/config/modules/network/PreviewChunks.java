@@ -17,6 +17,7 @@ public class PreviewChunks extends ConfigModule {
     public static int maxPendingPerPlayer = 256;
     public static int sendPerTick = 40;
     public static boolean keepRealChunks = true;
+    public static boolean fillGaps = true;
     public static boolean trees = true;
     public static int cacheSize = 2048;
 
@@ -25,19 +26,23 @@ public class PreviewChunks extends ConfigModule {
         globalConfig.addCommentRegionBased(basePath(), """
             Shows players terrain up to `radius` chunks, beyond the view distance, without loading or saving those chunks:
             the server sends previews computed from the world seed, the terrain around the surface only (no structures,
-            ores or caves; with `trees`, stand-in trees of each biome's kinds and density, not vanilla's exact trees),
-            and the real chunk replaces a preview when the player comes within the view distance. Real chunks a player leaves stay on the client as their own preview while within `radius`
-            (`keep-real-chunks`); plugins still see the usual chunk unload event for them, and they get no block updates.
-            Players see the previews only with a render distance above the view distance. Overworld-like worlds only.
-            Costs CPU on `threads` background threads; the world itself, its saves and gameplay do not change.""",
+            ores or carved caves; with `trees`, stand-in trees of each biome's kinds and density, not vanilla's exact
+            trees), and the real chunk replaces a preview when the player comes within the view distance. With
+            `fill-gaps`, chunks within the view distance that the server has not loaded yet also get a preview until
+            the real one arrives, except the closest two chunks around the player. Real chunks a player leaves stay on
+            the client as their own preview while within `radius` (`keep-real-chunks`); plugins still see the usual
+            chunk unload event for them, and they get no block updates. Players see the previews beyond the view
+            distance only with a render distance above it. Overworld-like worlds only. Costs CPU on `threads`
+            background threads; the world itself, its saves and gameplay do not change.""",
             """
-            在视距之外向玩家发送根据种子计算的地形预览区块 (仅地表, 无树木和结构), 不加载也不保存这些区块.""");
+            在视距之外向玩家发送根据种子计算的地形预览区块 (仅地表附近, 近似的树木, 无结构), 不加载也不保存这些区块.""");
         enabled = globalConfig.getBoolean(basePath() + ".enabled", enabled);
         radius = Math.clamp(globalConfig.getInt(basePath() + ".radius", radius), 2, MAX_CLIENT_RADIUS);
         threads = Math.max(1, globalConfig.getInt(basePath() + ".threads", threads));
         maxPendingPerPlayer = Math.max(1, globalConfig.getInt(basePath() + ".max-pending-per-player", maxPendingPerPlayer));
         sendPerTick = Math.max(1, globalConfig.getInt(basePath() + ".send-per-tick", sendPerTick));
         keepRealChunks = globalConfig.getBoolean(basePath() + ".keep-real-chunks", keepRealChunks);
+        fillGaps = globalConfig.getBoolean(basePath() + ".fill-gaps", fillGaps);
         trees = globalConfig.getBoolean(basePath() + ".trees", trees);
         cacheSize = Math.max(0, globalConfig.getInt(basePath() + ".cache-size", cacheSize));
     }

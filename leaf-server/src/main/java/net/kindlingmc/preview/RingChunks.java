@@ -8,7 +8,7 @@ import java.util.function.LongPredicate;
 import net.kindlingmc.chunk.LookAheadDirection;
 
 /**
- * The chunks of a player's preview ring: beyond the send distance, within the preview radius (both as circles), in the
+ * The chunks of a player's preview ring: beyond an inner radius, within the preview radius (both as circles), in the
  * order of the player's chunk queues ({@link LookAheadDirection}: ahead of a moving player first, along any one
  * direction by distance). Reuses its list between calls; one instance per player, tick thread only.
  */
@@ -23,13 +23,13 @@ final class RingChunks {
      * The ring's chunks that {@code skip} does not reject, at most {@code limit}, first in order first.
      * The returned list is reused by the next call.
      */
-    LongArrayList select(final int centerX, final int centerZ, final int sendDistance, final int radius,
+    LongArrayList select(final int centerX, final int centerZ, final int innerRadius, final int radius,
                          final LookAheadDirection order, final LongPredicate skip, final int limit) {
         this.chunks.clear();
         this.centerX = centerX;
         this.centerZ = centerZ;
         this.order = order;
-        final int inner = sendDistance * sendDistance;
+        final int inner = innerRadius * innerRadius;
         final int outer = radius * radius;
         for (int dz = -radius; dz <= radius; dz++) {
             for (int dx = -radius; dx <= radius; dx++) {

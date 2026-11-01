@@ -10,6 +10,7 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import net.kindlingmc.chunk.LookAheadDirection;
 import net.minecraft.network.protocol.game.ClientboundForgetLevelChunkPacket;
+import net.minecraft.server.level.ChunkTrackingView;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.level.ChunkPos;
@@ -17,8 +18,9 @@ import org.dreeam.leaf.config.modules.network.PreviewChunks;
 import org.slf4j.Logger;
 
 /**
- * One player's previews in one world. The ring beyond the send distance gets previews computed in the background; real
- * chunks the server stops sending stay on the client as their own preview. The chunk loader keeps owning every chunk
+ * One player's previews in one world. The ring beyond the send distance gets previews computed in the background, and
+ * with {@code fill-gaps} so do chunks within it that the server has neither sent nor loaded yet; real chunks the
+ * server stops sending stay on the client as their own preview. The chunk loader keeps owning every chunk
  * it has sent: a chunk it sends replaces the preview on the client and leaves this ring's bookkeeping. While previews
  * are off (the default, or after a config reload) nothing is computed and nothing stays on the client.
  *
@@ -29,6 +31,11 @@ public final class PlayerPreviews {
     private static final Logger LOGGER = LogUtils.getLogger();
     private static final int SELECT_INTERVAL_TICKS = 10;
     private static final int UNKNOWN_VIEW_DISTANCE = -1;
+    /**
+     * With {@code fill-gaps}, chunks this close to the player never get a preview: the player could walk into a stand-in
+     * tree there, which the server does not have, and the loader sends these chunks first anyway.
+     */
+    private static final int REAL_ONLY_RADIUS = 2;
 
     /** A preview computed off the tick thread; empty when computing it failed. */
     private record Ready(long chunk, Optional<PreviewPacket> packet) {
@@ -50,6 +57,7 @@ public final class PlayerPreviews {
     /** Resolved on first use with previews on, so that a server with previews off never builds one. */
     private PreviewWorld world;
     private int radius;
+    private int sendDistance;
     private int ticksUntilSelect;
     private int centerX;
     private int centerZ;
@@ -80,6 +88,7 @@ public final class PlayerPreviews {
         }
         this.centerX = centerX;
         this.centerZ = centerZ;
+        this.sendDistance = sendDistance;
         this.radius = clientViewDistance == UNKNOWN_VIEW_DISTANCE ? PreviewChunks.radius : Math.min(PreviewChunks.radius, clientViewDistance);
         this.sendReady();
         if (--this.ticksUntilSelect > 0) {
@@ -87,7 +96,7 @@ public final class PlayerPreviews {
         }
         this.ticksUntilSelect = SELECT_INTERVAL_TICKS;
         this.forgetOutOfRange();
-        this.startNext(sendDistance, order);
+        this.startNext(order);
     }
 
     /**
@@ -157,9 +166,12 @@ public final class PlayerPreviews {
         }
     }
 
+    /** Checked again on arrival: the player may have come closer, or the server loaded the chunk, while it was computed. */
     private boolean isStillWanted(final long chunk) {
         return !this.sentByLoader.contains(chunk) && !this.onClient.contains(chunk)
-            && RingChunks.isWithin(chunk, this.centerX, this.centerZ, this.radius);
+            && RingChunks.isWithin(chunk, this.centerX, this.centerZ, this.radius)
+            && !RingChunks.isWithin(chunk, this.centerX, this.centerZ, this.innerRadius())
+            && !this.isAboutToBeSent(chunk);
     }
 
     /** Hands chunks the loader sent back to it, and tells the client to drop previews that left the radius. */
@@ -201,12 +213,12 @@ public final class PlayerPreviews {
         this.player.connection.send(new ClientboundForgetLevelChunkPacket(ChunkPos.unpack(chunk)));
     }
 
-    private void startNext(final int sendDistance, final LookAheadDirection order) {
+    private void startNext(final LookAheadDirection order) {
         final int room = PreviewChunks.maxPendingPerPlayer - this.claimed.size();
         if (room <= 0) {
             return;
         }
-        final LongArrayList next = this.ring.select(this.centerX, this.centerZ, sendDistance, this.radius, order, this::isTaken, room);
+        final LongArrayList next = this.ring.select(this.centerX, this.centerZ, this.innerRadius(), this.radius, order, this::isTaken, room);
         for (int i = 0; i < next.size(); i++) {
             final long chunk = next.getLong(i);
             this.claimed.add(chunk);
@@ -214,8 +226,25 @@ public final class PlayerPreviews {
         }
     }
 
+    /** Within it, previews are left to the loader: the send distance, or only the closest chunks when filling gaps. */
+    private int innerRadius() {
+        return PreviewChunks.fillGaps ? Math.min(REAL_ONLY_RADIUS, this.sendDistance) : this.sendDistance;
+    }
+
     private boolean isTaken(final long chunk) {
-        return this.sentByLoader.contains(chunk) || this.onClient.contains(chunk) || this.claimed.contains(chunk) || this.failed.contains(chunk);
+        return this.sentByLoader.contains(chunk) || this.onClient.contains(chunk) || this.claimed.contains(chunk) || this.failed.contains(chunk)
+            || this.isAboutToBeSent(chunk);
+    }
+
+    /**
+     * A chunk the loader sends (by its own distance test) that the server has loaded: the real one comes soon, a
+     * preview is wasted.
+     */
+    private boolean isAboutToBeSent(final long chunk) {
+        final int chunkX = CoordinateUtils.getChunkX(chunk);
+        final int chunkZ = CoordinateUtils.getChunkZ(chunk);
+        return ChunkTrackingView.isWithinDistance(this.centerX, this.centerZ, this.sendDistance, chunkX, chunkZ, true)
+            && this.level.getChunkSource().getChunkAtIfLoadedImmediately(chunkX, chunkZ) != null;
     }
 
     /** On a preview worker. Always reports back, so that the chunk never stays claimed, even when an error escapes. */

@@ -23,11 +23,15 @@ final class PreviewWorld {
     private final Optional<PreviewGenerator> generator;
     /** Built on first use, on a preview worker: deriving every biome's trees takes a moment. */
     private final Supplier<PreviewTrees> trees;
+    private final long seed;
+    private final int seaLevel;
     private final RecentPackets recent = new RecentPackets();
 
-    private PreviewWorld(final Optional<PreviewGenerator> generator, final Supplier<PreviewTrees> trees) {
+    private PreviewWorld(final Optional<PreviewGenerator> generator, final Supplier<PreviewTrees> trees, final long seed, final int seaLevel) {
         this.generator = generator;
         this.trees = trees;
+        this.seed = seed;
+        this.seaLevel = seaLevel;
     }
 
     static PreviewWorld of(final ServerLevel level) {
@@ -37,7 +41,7 @@ final class PreviewWorld {
     private static PreviewWorld create(final ServerLevel level) {
         final RegistryAccess registries = level.registryAccess();
         final long seed = level.getSeed();
-        return new PreviewWorld(PreviewGenerator.forLevel(level), Suppliers.memoize(() -> PreviewTrees.of(registries, seed)));
+        return new PreviewWorld(PreviewGenerator.forLevel(level), Suppliers.memoize(() -> PreviewTrees.of(registries, seed)), seed, level.getSeaLevel());
     }
 
     boolean available() {
@@ -54,6 +58,7 @@ final class PreviewWorld {
         if (PreviewChunks.trees) {
             this.trees.get().decorate(chunk);
         }
+        PreviewSnow.freeze(chunk, this.seed, this.seaLevel);
         final PreviewPacket built = PreviewPacket.of(chunk);
         this.recent.put(chunkKey, built);
         return built;
