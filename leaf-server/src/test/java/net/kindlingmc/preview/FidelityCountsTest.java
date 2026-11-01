@@ -8,8 +8,24 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 /** Counting, summing up chunks and the figures written to the bench result. */
 class FidelityCountsTest {
     private static final double DELTA = 1e-9;
+    private static final int EDGE = 0;
+    private static final int NEAR_EDGE = 2;
+    private static final int INTERIOR = 3;
 
     private final FidelityCounts counts = new FidelityCounts();
+
+    @Test
+    void onlyColumnsThreeOrMoreFromEveryEdgeCountAsInterior() {
+        this.counts.recordTopBlockEqual(INTERIOR, 15 - INTERIOR);
+        this.counts.recordTopBlockMismatch(TopBlockMismatch.TREE_MISSING, INTERIOR, INTERIOR);
+        this.counts.recordTopBlockMismatch(TopBlockMismatch.TREE_MISSING, NEAR_EDGE, INTERIOR);
+        this.counts.recordTopBlockMismatch(TopBlockMismatch.TREE_MISSING, INTERIOR, 15 - NEAR_EDGE);
+
+        Map<String, Object> interior = group(this.counts.toFigures(), "top_block_interior");
+
+        assertEquals(50.0, percentOf(interior, "equal"), DELTA);
+        assertEquals(50.0, percentOf(interior, "tree_missing"), DELTA);
+    }
 
     @Test
     void nothingCountedGivesZerosInsteadOfDividingByZero() {
@@ -41,10 +57,10 @@ class FidelityCountsTest {
         for (int column = 0; column < 4; column++) {
             this.counts.recordHeightDifference(0);
         }
-        this.counts.recordTopBlockEqual();
-        this.counts.recordTopBlockEqual();
-        this.counts.recordTopBlockMismatch(TopBlockMismatch.TREE_MISSING);
-        this.counts.recordTopBlockMismatch(TopBlockMismatch.SNOW_ICE);
+        this.counts.recordTopBlockEqual(EDGE, EDGE);
+        this.counts.recordTopBlockEqual(EDGE, EDGE);
+        this.counts.recordTopBlockMismatch(TopBlockMismatch.TREE_MISSING, EDGE, EDGE);
+        this.counts.recordTopBlockMismatch(TopBlockMismatch.SNOW_ICE, EDGE, EDGE);
 
         Map<String, Object> topBlock = group(this.counts.toFigures(), "top_block");
 
@@ -85,12 +101,12 @@ class FidelityCountsTest {
         FidelityCounts other = new FidelityCounts();
         other.recordChunk();
         other.recordHeightDifference(0);
-        other.recordTopBlockMismatch(TopBlockMismatch.PLANT);
+        other.recordTopBlockMismatch(TopBlockMismatch.PLANT, EDGE, EDGE);
         other.recordLightAboveSurface(15, 15);
         other.recordLightInBand(15, 10);
         this.counts.recordChunk();
         this.counts.recordHeightDifference(5);
-        this.counts.recordTopBlockEqual();
+        this.counts.recordTopBlockEqual(EDGE, EDGE);
         this.counts.recordLightAboveSurface(15, 3);
         this.counts.recordLightInBand(15, 15);
 

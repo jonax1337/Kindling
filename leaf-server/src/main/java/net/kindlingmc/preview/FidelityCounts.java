@@ -16,11 +16,20 @@ public final class FidelityCounts {
     private static final int LARGE_LIGHT_DIFFERENCE = 5;
     private static final double PERCENT = 100.0;
     private static final double FIGURE_ROUNDING = 100.0;
+    /**
+     * Columns at least this far from every edge of their chunk are its interior, out of reach of most tree crowns and
+     * patches that neighbouring chunks' features spill in; the top block is also counted for them alone.
+     */
+    private static final int EDGE_WIDTH = 3;
+    private static final int LAST_IN_CHUNK = 15;
 
     private long chunks;
     private final long[] heightColumns = new long[HeightBucket.values().length];
     private long topBlockEqualColumns;
     private final long[] mismatchColumns = new long[TopBlockMismatch.values().length];
+    private long interiorColumns;
+    private long interiorEqualColumns;
+    private final long[] interiorMismatchColumns = new long[TopBlockMismatch.values().length];
     private long aboveSurfaceColumns;
     private long aboveSurfaceEqualColumns;
     private long bandBlocks;
@@ -38,6 +47,9 @@ public final class FidelityCounts {
         addAll(this.heightColumns, other.heightColumns);
         this.topBlockEqualColumns += other.topBlockEqualColumns;
         addAll(this.mismatchColumns, other.mismatchColumns);
+        this.interiorColumns += other.interiorColumns;
+        this.interiorEqualColumns += other.interiorEqualColumns;
+        addAll(this.interiorMismatchColumns, other.interiorMismatchColumns);
         this.aboveSurfaceColumns += other.aboveSurfaceColumns;
         this.aboveSurfaceEqualColumns += other.aboveSurfaceEqualColumns;
         this.bandBlocks += other.bandBlocks;
@@ -61,12 +73,26 @@ public final class FidelityCounts {
         this.heightColumns[HeightBucket.of(previewMinusReal).ordinal()]++;
     }
 
-    void recordTopBlockEqual() {
+    /** @param x the column's x in the chunk, 0 to 15 @param z its z */
+    void recordTopBlockEqual(final int x, final int z) {
         this.topBlockEqualColumns++;
+        if (isInterior(x, z)) {
+            this.interiorColumns++;
+            this.interiorEqualColumns++;
+        }
     }
 
-    void recordTopBlockMismatch(final TopBlockMismatch mismatch) {
+    /** @param x the column's x in the chunk, 0 to 15 @param z its z */
+    void recordTopBlockMismatch(final TopBlockMismatch mismatch, final int x, final int z) {
         this.mismatchColumns[mismatch.ordinal()]++;
+        if (isInterior(x, z)) {
+            this.interiorColumns++;
+            this.interiorMismatchColumns[mismatch.ordinal()]++;
+        }
+    }
+
+    private static boolean isInterior(final int x, final int z) {
+        return Math.min(Math.min(x, LAST_IN_CHUNK - x), Math.min(z, LAST_IN_CHUNK - z)) >= EDGE_WIDTH;
     }
 
     /** The sky light of the block right above the real surface, in the real chunk and in the preview. */
@@ -108,12 +134,17 @@ public final class FidelityCounts {
         figures.put("chunks", this.chunks);
         figures.put("columns", columns);
         figures.put("height", shares(HeightBucket.values(), this.heightColumns, columns));
-        final Map<String, Object> topBlock = new LinkedHashMap<>();
-        topBlock.put("equal", share(this.topBlockEqualColumns, columns));
-        topBlock.putAll(shares(TopBlockMismatch.values(), this.mismatchColumns, columns));
-        figures.put("top_block", topBlock);
+        figures.put("top_block", topBlockFigures(this.topBlockEqualColumns, this.mismatchColumns, columns));
+        figures.put("top_block_interior", topBlockFigures(this.interiorEqualColumns, this.interiorMismatchColumns, this.interiorColumns));
         figures.put("light", lightFigures());
         return figures;
+    }
+
+    private static Map<String, Object> topBlockFigures(final long equal, final long[] mismatches, final long columns) {
+        final Map<String, Object> topBlock = new LinkedHashMap<>();
+        topBlock.put("equal", share(equal, columns));
+        topBlock.putAll(shares(TopBlockMismatch.values(), mismatches, columns));
+        return topBlock;
     }
 
     private Map<String, Object> lightFigures() {

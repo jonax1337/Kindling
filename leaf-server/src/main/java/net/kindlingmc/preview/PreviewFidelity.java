@@ -108,9 +108,9 @@ public final class PreviewFidelity {
             final BlockState realTop = topBlock(this.real, x, z);
             final BlockState previewTop = topBlock(this.preview, x, z);
             if (realTop.is(previewTop.getBlock())) {
-                this.counts.recordTopBlockEqual();
+                this.counts.recordTopBlockEqual(x, z);
             } else {
-                this.counts.recordTopBlockMismatch(TopBlockMismatch.of(realTop, previewTop));
+                this.counts.recordTopBlockMismatch(TopBlockMismatch.of(realTop, previewTop), x, z);
             }
         }
 
