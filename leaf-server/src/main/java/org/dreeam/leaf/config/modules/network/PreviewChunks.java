@@ -41,7 +41,9 @@ public class PreviewChunks extends ConfigModule {
             the client as their own preview while within `radius` (`keep-real-chunks`); plugins still see the usual
             chunk unload event for them, and they get no block updates. Players see the previews beyond the view
             distance only with a render distance above it. Overworld-like worlds only. Costs CPU on `threads`
-            background threads; the world itself, its saves and gameplay do not change.""",
+            background threads for players on the move and one more shared by all players standing still, including
+            just after joining or a teleport (their rings fill more slowly, the more of them stand the slower); the
+            world itself, its saves and gameplay do not change.""",
             """
             在视距之外向玩家发送根据种子计算的地形预览区块 (仅地表附近, 树木与植被按种子放置 (邻近区块溢出的部分缺失), 无结构), 不加载也不保存这些区块. 启用 `saved-chunks` 时, 已保存的区块改用存档中每列地表略下方以上的内容生成预览 (含其树木, 结构与建筑); 启用 Paper Anti-Xray 的世界仍用种子预览 (不检测基于数据包的反矿透插件).""");
         enabled = globalConfig.getBoolean(basePath() + ".enabled", enabled);

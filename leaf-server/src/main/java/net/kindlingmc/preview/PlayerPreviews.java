@@ -37,6 +37,8 @@ public final class PlayerPreviews {
      * tree there, which the server does not have, and the loader sends these chunks first anyway.
      */
     private static final int REAL_ONLY_RADIUS = 2;
+    /** The most previews a player standing still has pending; two selections of these keep the unhurried worker busy. */
+    private static final int UNHURRIED_PENDING = 32;
 
     /** A preview computed off the tick thread; empty when computing it failed. */
     private record Ready(long chunk, Optional<PreviewPacket> packet) {
@@ -202,7 +204,7 @@ public final class PlayerPreviews {
 
     /** Tells the client to drop every chunk of this ring; previews still being computed are dropped when they arrive. */
     private void forgetAll() {
-        if (this.onClient.isEmpty() && this.claimed.isEmpty() && this.failed.isEmpty()) {
+        if (this.onClient.isEmpty() && this.claimed.isEmpty() && this.failed.isEmpty() && this.ready.isEmpty()) {
             return;
         }
         for (final LongIterator chunks = this.onClient.iterator(); chunks.hasNext(); ) {
@@ -222,7 +224,7 @@ public final class PlayerPreviews {
     }
 
     private void startNext(final LookAheadDirection order) {
-        final int room = PreviewChunks.maxPendingPerPlayer - this.claimed.size();
+        final int room = this.maxPending() - this.claimed.size();
         if (room <= 0) {
             return;
         }
@@ -230,7 +232,27 @@ public final class PlayerPreviews {
         for (int i = 0; i < next.size(); i++) {
             final long chunk = next.getLong(i);
             this.claimed.add(chunk);
+            this.submit(chunk);
+        }
+    }
+
+    /**
+     * Few while standing still, so the unhurried worker's queue stays short and fair between players, and a player who
+     * starts moving finds nearly all its room free for the shared workers.
+     */
+    private int maxPending() {
+        return this.moving ? PreviewChunks.maxPendingPerPlayer : Math.min(UNHURRIED_PENDING, PreviewChunks.maxPendingPerPlayer);
+    }
+
+    /**
+     * A player standing still, which includes just after joining or a teleport, waits for the unhurried worker: its
+     * ring fills more slowly, but all standing players together cost at most one core.
+     */
+    private void submit(final long chunk) {
+        if (this.moving) {
             PreviewWorkers.execute(() -> this.compute(chunk));
+        } else {
+            PreviewWorkers.executeUnhurried(() -> this.compute(chunk));
         }
     }
 
