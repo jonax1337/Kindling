@@ -57,6 +57,7 @@ public final class WorkerDemand {
 
     private void sample() {
         final double averageWaiting = GenerationBacklog.takeWaitedNanos() / SAMPLE_INTERVAL_NANOS;
+        GenerationBacklog.recordSample(averageWaiting);
         if (!ChunkWorkerDemand.enabled || WorkerGovernor.enabled) {
             release();
             return;

@@ -84,7 +84,8 @@ final class PreviewWorld {
         if (saved.packet().isPresent()) {
             return counted(PreviewStats.Source.SAVED, startNanos, saved.packet().get());
         }
-        return counted(PreviewStats.Source.SEED, startNanos, seedPreview(pos, chunkKey, saved.seedPreviewMayBeCached()));
+        final PreviewPacket seed = PreviewWorkers.yieldingToGeneration(() -> seedPreview(pos, chunkKey, saved.seedPreviewMayBeCached()));
+        return counted(PreviewStats.Source.SEED, startNanos, seed);
     }
 
     /** Records that the preview came from {@code source} and took until now, and returns it. */

@@ -11,6 +11,7 @@ import java.util.concurrent.atomic.LongAdder;
 public final class GenerationBacklog {
 
     private static final LongAdder WAITED_NANOS = new LongAdder();
+    private static volatile double latestAverageWaiting;
 
     private GenerationBacklog() {
     }
@@ -28,5 +29,17 @@ public final class GenerationBacklog {
     /** The waiting time summed since the previous call. */
     static long takeWaitedNanos() {
         return WAITED_NANOS.sumThenReset();
+    }
+
+    /**
+     * The average number of generation steps that waited for a chunk worker in {@link WorkerDemand}'s latest sample
+     * (one per second, whether or not it scales the workers); 0 before the first. Readable from any thread.
+     */
+    public static double latestAverageWaiting() {
+        return latestAverageWaiting;
+    }
+
+    static void recordSample(final double averageWaiting) {
+        latestAverageWaiting = averageWaiting;
     }
 }
