@@ -33,6 +33,12 @@ Kindling makes the parts that hurt on a cheap VPS cheaper: players outrunning wo
 > [!WARNING]
 > Kindling is young and every build is a pre-release. Back up your worlds before switching, as with any server software.
 
+## Far view without a client mod
+
+<a href="docs/media/preview-chunks.mp4"><img alt="Two Minecraft views of the same elytra flight side by side. Left, previews off: the land ends 10 chunks away. Right, Kindling's preview chunks on: mountains and forests reach to the horizon." src="docs/media/preview-chunks.gif" width="800"></a>
+
+Same seed, same flight at 30 blocks a second, server view distance 10, client render distance 32. Right: `network.preview-chunks` (opt-in). Beyond the view distance the server sends previews computed from the world seed or read from the save; they are never loaded, saved or ticked, and the real chunk replaces each one up close. The top block matches the real chunk in 87.8 % of the columns, as often as two real generations of the chunk match each other. [Full video](docs/media/preview-chunks.mp4) · [measurements](docs/measurements/preview-chunks.md) · [settings](docs/reference/configuration.md#networkpreview-chunks)
+
 ## Against Paper and Leaf
 
 <picture>
