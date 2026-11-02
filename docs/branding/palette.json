@@ -1,16 +1,29 @@
 {
+  "mark": {
+    "forest": "#125231",
+    "leaf": "#6BCB35",
+    "ember": "#FF681E",
+    "gold": "#FFC52B",
+    "paper": "#FAF7EF",
+    "ink": "#102D20",
+    "night": "#0B1710",
+    "surface": "#11251A",
+    "muted": "#ADBEAC"
+  },
   "light": {
     "bg": "#FAF7EF",
-    "fg": "#19291F",
-    "ember": "#F56B27",
-    "muted": "#556457",
-    "line": "#DDDCCF"
+    "fg": "#102D20",
+    "ember": "#C5410B",
+    "muted": "#516553",
+    "line": "#D6DDCF"
   },
   "dark": {
-    "bg": "#101A14",
+    "bg": "#0B1710",
+    "surface": "#11251A",
     "fg": "#FAF7EF",
-    "ember": "#FF823F",
-    "muted": "#ACB9AA",
-    "line": "#2C3E30"
+    "ember": "#FF8B4C",
+    "leaf": "#86DC57",
+    "muted": "#ADBEAC",
+    "line": "#2C4433"
   }
 }

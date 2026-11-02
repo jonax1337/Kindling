@@ -75,7 +75,7 @@ export function SiteHeader({ solid }: { solid: boolean }) {
                 "relative inline-flex min-h-11 items-center text-sm font-semibold whitespace-nowrap no-underline transition-colors after:absolute after:inset-x-0 after:bottom-2 after:h-0.5 after:origin-left after:scale-x-0 after:bg-primary after:transition-transform after:duration-500 hover:text-foreground aria-[current=true]:text-foreground aria-[current=true]:after:scale-x-100",
                 solid || menuOpen
                   ? "text-muted-foreground"
-                  : "text-[#e3e9e0] [text-shadow:0_1px_8px_rgb(11_18_14/.8)]",
+                  : "text-[#e3e9e0] [text-shadow:0_1px_8px_rgb(11_23_16/.8)]",
               )}
             >
               {item.label}
@@ -87,7 +87,7 @@ export function SiteHeader({ solid }: { solid: boolean }) {
               "group inline-flex min-h-11 items-center gap-1 text-sm font-semibold whitespace-nowrap no-underline transition-colors hover:text-foreground",
               solid || menuOpen
                 ? "text-muted-foreground"
-                : "text-[#e3e9e0] [text-shadow:0_1px_8px_rgb(11_18_14/.8)]",
+                : "text-[#e3e9e0] [text-shadow:0_1px_8px_rgb(11_23_16/.8)]",
             )}
           >
             GitHub
@@ -98,7 +98,7 @@ export function SiteHeader({ solid }: { solid: boolean }) {
           </a>
           <a
             href={links.releases}
-            className="mt-2 inline-flex h-10 items-center rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground no-underline transition-colors hover:bg-[#ff9b60] lg:mt-0"
+            className="mt-2 inline-flex h-10 items-center rounded-lg bg-primary px-4 text-sm font-bold text-primary-foreground no-underline transition-colors hover:bg-[#ffa36e] lg:mt-0"
           >
             Download
           </a>

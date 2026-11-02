@@ -1,2 +1,2 @@
-export { default as logoHorizontalDark } from "@brand/holzschnitt/logo-horizontal-dark.svg";
-export { default as serverIcon } from "@brand/holzschnitt/server-icon.png";
+export { default as brandMark } from "@brand/pixel-leaf/icon-inverse.svg";
+export { default as logoHorizontalDark } from "@brand/pixel-leaf/logo-horizontal-dark.svg";

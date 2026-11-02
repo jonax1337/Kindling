@@ -2,21 +2,21 @@
 
 <h1>
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/branding/holzschnitt/banner-dark.svg">
-    <source media="(prefers-color-scheme: light)" srcset="docs/branding/holzschnitt/banner-light.svg">
-    <img alt="Kindling" src="docs/branding/holzschnitt/banner-light.svg" width="1280">
+    <source media="(prefers-color-scheme: dark)" srcset="docs/branding/pixel-leaf/banner-dark.svg">
+    <source media="(prefers-color-scheme: light)" srcset="docs/branding/pixel-leaf/banner-light.svg">
+    <img alt="Kindling" src="docs/branding/pixel-leaf/banner-light.svg" width="1280">
   </picture>
 </h1>
 
 **A [Leaf](https://github.com/Winds-Studio/Leaf) fork for small and mid-sized survival servers on shared hardware.**<br>
 Vanilla behaviour, the full vanilla world, and every change measured.
 
-[![Release](https://img.shields.io/github/v/release/jonax1337/Kindling?include_prereleases&label=release&style=for-the-badge&labelColor=19291f&color=f56b27)](https://github.com/jonax1337/Kindling/releases)
-[![Build](https://img.shields.io/github/actions/workflow/status/jonax1337/Kindling/build.yml?branch=ver%2F26.3&label=build&style=for-the-badge&labelColor=19291f)](https://github.com/jonax1337/Kindling/actions/workflows/build.yml)
-![Minecraft](https://img.shields.io/badge/Minecraft-26.3-f56b27?style=for-the-badge&labelColor=19291f)
-![Java](https://img.shields.io/badge/Java-25-556457?style=for-the-badge&labelColor=19291f)
-[![Based on Leaf](https://img.shields.io/badge/based%20on-Leaf-556457?style=for-the-badge&labelColor=19291f)](https://github.com/Winds-Studio/Leaf)
-[![License](https://img.shields.io/badge/license-MIT%20%2F%20GPL--3.0-556457?style=for-the-badge&labelColor=19291f)](LICENSE.md)
+[![Release](https://img.shields.io/github/v/release/jonax1337/Kindling?include_prereleases&label=release&style=for-the-badge&labelColor=102d20&color=ff681e)](https://github.com/jonax1337/Kindling/releases)
+[![Build](https://img.shields.io/github/actions/workflow/status/jonax1337/Kindling/build.yml?branch=ver%2F26.3&label=build&style=for-the-badge&labelColor=102d20)](https://github.com/jonax1337/Kindling/actions/workflows/build.yml)
+![Minecraft](https://img.shields.io/badge/Minecraft-26.3-ff681e?style=for-the-badge&labelColor=102d20)
+![Java](https://img.shields.io/badge/Java-25-556457?style=for-the-badge&labelColor=102d20)
+[![Based on Leaf](https://img.shields.io/badge/based%20on-Leaf-337b43?style=for-the-badge&labelColor=102d20)](https://github.com/Winds-Studio/Leaf)
+[![License](https://img.shields.io/badge/license-MIT%20%2F%20GPL--3.0-556457?style=for-the-badge&labelColor=102d20)](LICENSE.md)
 
 [Website](https://jonax1337.github.io/Kindling/) ·
 [Getting started](docs/getting-started.md) ·
