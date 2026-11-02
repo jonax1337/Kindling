@@ -14,8 +14,8 @@ import org.bukkit.GameMode;
  * {@code steady-seconds}, {@code client-view-distance}, {@code chunk-acks} and {@code hopper-guard-seconds}; its players
  * are always in creative mode. The {@link ScenarioType#SLEEPING sleeping} and {@link ScenarioType#VILLAGERS villagers}
  * runs use the same keys except {@code hopper-guard-seconds}, whose waits are fixed in their layouts. Every type reads
- * {@code move-event-listener}. The {@link ScenarioType#FIDELITY fidelity} run uses only {@code fidelity-chunks} and
- * {@code fidelity-radius}.
+ * {@code move-event-listener}. The {@link ScenarioType#FIDELITY fidelity} run uses only {@code fidelity-chunks},
+ * {@code fidelity-radius} and {@code fidelity-against}.
  *
  * @param type which load the run puts on the server
  * @param players fake players that join, spread on a circle around the world origin
@@ -43,13 +43,15 @@ import org.bukkit.GameMode;
  *        for every hopper transfer
  * @param fidelityChunks in a fidelity run, how many chunks are compared with their previews
  * @param fidelityRadius in a fidelity run, the chunks are drawn from the square of this many chunks around the origin
+ * @param fidelityAgainst in a fidelity run, what each chunk is compared with: its seed preview or a real twin generation
  * @throws IllegalArgumentException for an unknown type or game mode, a value that is not a number, too many plots per
  *         player or a negative wait
  */
 record Scenario(ScenarioType type, int players, int circleRadius, int warmupSeconds, int travelSeconds, double blocksPerTick,
                 int mobsPerPlayer, int settleSeconds, int steadySeconds, int idleSeconds, int clientViewDistance,
                 int plotsPerPlayer, int hopperGuardSeconds, GameMode gameMode, double chunkAcks, int warmupQuietSeconds,
-                int warmupMaxSeconds, boolean moveEventListener, int fidelityChunks, int fidelityRadius) {
+                int warmupMaxSeconds, boolean moveEventListener, int fidelityChunks, int fidelityRadius,
+                FidelityAgainst fidelityAgainst) {
 
     static final String FILE_NAME = "scenario.properties";
     private static final int DEFAULT_WARMUP_SECONDS = 30;
@@ -103,7 +105,8 @@ record Scenario(ScenarioType type, int players, int circleRadius, int warmupSeco
                 intOf(properties, "warmup-max-seconds", Math.max(DEFAULT_WARMUP_MAX_SECONDS, warmupSeconds)),
                 Boolean.parseBoolean(properties.getProperty("move-event-listener", "false").trim()),
                 intOf(properties, "fidelity-chunks", 400),
-                intOf(properties, "fidelity-radius", 1500));
+                intOf(properties, "fidelity-radius", 1500),
+                FidelityAgainst.named(properties.getProperty("fidelity-against", "preview")));
     }
 
     private static int intOf(Properties properties, String key, int fallback) {

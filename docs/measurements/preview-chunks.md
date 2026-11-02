@@ -128,28 +128,56 @@ Join full view 33.2 → 30.0 s * and heap after GC 1 146 → 995 MB *, but sampl
 ## How faithful seed previews are
 
 > [!NOTE]
-> 📊 **The top block matches in 87.9 % of the columns, the surface height in 88.9 %** · seed previews against the real, fully generated chunk · 400 random chunks (102 400 columns), bench host, 1 run (the comparison is deterministic: two runs of the same build differed by 0.02 points) · 2026-11-01
+> 📊 **The top block matches in 87.8 % of the columns, the surface height in 88.8 %, as often as two real generations of the chunk match each other** · seed previews against the real, fully generated chunk · 400 random chunks (102 400 columns), bench host, 1 run (the comparison is deterministic: two runs of the same build differed by 0.02 points) · 2026-11-02
 
-The bench scenario `FIDELITY` (`--scenario "type=fidelity"`, [README](../../kindling-bench/README.md)) loads 400 chunks drawn with a fixed seed from a square of ±1 500 chunks to full status, builds each one's seed preview the way the server sends it and compares the two column by column.
+The bench scenario `FIDELITY` (`--scenario "type=fidelity"`, [README](../../kindling-bench/README.md)) loads 400 chunks drawn with a fixed seed from a square of ±1 500 chunks, at least 8 chunks apart, to full status, waits until their light is settled (it was for all 400), builds each one's seed preview the way the server sends it and compares the two column by column. How close two real generations come is in [the next section](#how-far-two-real-generations-differ).
 
 | Top block (the block at `WORLD_SURFACE`) | All columns | Interior (3+ blocks from the chunk edge) | Edge |
 | --- | ---: | ---: | ---: |
-| equal | 87.9 % | 89.8 % | 86.6 % |
-| tree only in the real chunk | 4.3 % | 3.1 % | 5.1 % |
+| equal | 87.8 % | 89.7 % | 86.6 % |
+| tree only in the real chunk | 4.4 % | 3.1 % | 5.2 % |
 | tree only in the preview | 3.0 % | 3.3 % | 2.8 % |
-| plant (grass, flowers) | 3.0 % | 2.3 % | 3.5 % |
+| plant (grass, flowers) | 3.0 % | 2.3 % | 3.4 % |
 | structure or other | 1.5 % | 1.3 % | 1.7 % |
 | snow or ice | 0.2 % | 0.2 % | 0.2 % |
-| water | 0.1 % | 0.1 % | 0.1 % |
+| water | 0.2 % | 0.2 % | 0.1 % |
 
-Surface height (`MOTION_BLOCKING`): equal 88.9 %, off by 1–2 blocks 2.2 %, by 3–8 6.3 %, by more 2.6 % (mostly tree crowns). Sky light: the block above the surface equal in 95.2 % of the columns; in the band from 8 below to 4 above it, 3.1 % of the blocks differ by 2 or more.
+Surface height (`MOTION_BLOCKING`): equal 88.8 %, off by 1–2 blocks 2.2 %, by 3–8 6.3 %, by more 2.6 % (mostly tree crowns). Sky light: the block above the surface equal in 95.2 % of the columns; in the band from 8 below to 4 above it, 3.1 % of the blocks differ by 2 or more.
 
 <details>
 <summary><b>Caveats</b></summary>
 
-- Trees are the main difference. About a third of the missing trees are crowns that reach over the chunk border from a neighbour (5.1 % at the edge against 3.1 % inside); inside the chunk trees stand in other places about as often as they are missing, because vanilla decorates a chunk onto what earlier neighbours already placed there, which a preview built alone cannot know.
-- The light readiness check did not pass for any chunk, so every chunk was compared after the 600-tick limit (30 s after loading); the light is very likely final, but that is not confirmed.
-- How far two real generations of the same chunk differ in another generation order (the floor a preview can reach) is not measured yet: the first attempt ran out of memory in the twin world.
+- Trees are the main difference. About a third of the missing trees are crowns that reach over the chunk border from a neighbour (5.2 % at the edge against 3.1 % inside); inside the chunk trees stand in other places about as often as they are missing, because vanilla decorates a chunk onto what earlier neighbours already placed there, which a preview built alone cannot know.
+- Until the bench capped the chunks waiting to be compared at 16, the light readiness check never passed and every chunk was compared after the 600-tick limit; that run gave 87.9 % and the same light figures, so the earlier figures in this file (the surface features and tree crowns below) are comparable.
+
+</details>
+
+---
+
+## How far two real generations differ
+
+> [!NOTE]
+> 📊 **Two real generations of the same chunk, decorated in opposite orders, match in 87.9 % of the top blocks, the seed preview in 87.8 %** · the chunk decorated before all its neighbours (main world) against the same chunk decorated after all of them (a twin world of the same seed) · same 400 chunks, 1 run each; control in the same order: 99.4 % · 2026-11-02
+
+Vanilla decorates a chunk onto what its neighbours' decoration already placed (the `FEATURES` step needs its neighbours only at `TERRAIN`), so the order in which a server happens to generate chunks changes them. The bench mode `fidelity-against=twin` ([README](../../kindling-bench/README.md)) measures how much: it generates every sampled chunk a second time in a twin world, in the opposite order, and compares the two with the same column logic as a preview.
+
+| | Preview against real | Real, opposite order | Real, same order (control) |
+| --- | ---: | ---: | ---: |
+| Top block equal, all columns | 87.8 % | 87.9 % | 99.4 % |
+| Top block equal, interior | 89.7 % | 87.4 % | 99.9 % |
+| Top block equal, edge | 86.6 % | 88.1 % | 99.1 % |
+| Tree only on one side (missing + extra) | 7.4 % | 8.6 % | 0.3 % |
+| Surface height equal | 88.8 % | 86.3 % | 99.5 % |
+| Sky light above the surface equal | 95.2 % | 93.6 % | 99.8 % |
+
+The preview is as close to the real chunk as the real chunk is to itself in the other order, closer in the interior, in height and in light, and further at the edge, where it lacks the crowns its neighbours spill in.
+
+<details>
+<summary><b>Caveats</b></summary>
+
+- The opposite order is the extreme: the result bounds what the order alone changes, it is not the difference between two servers that generate in their usual, mixed order, which is likely smaller.
+- The control still differs in 0.6 % of the top blocks, almost all at the edge: only the sampled chunk's own place in the order is fixed, not the order among its neighbours.
+- That the interior differs more than the edge in the opposite order is not explained by spill alone; a likely cause is that the placements of a feature in a chunk share one random sequence, so a tree blocked at the border shifts every later tree of that feature in the chunk. Not checked.
 
 </details>
 
