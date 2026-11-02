@@ -8,7 +8,7 @@
   </picture>
 </h1>
 
-**A [Leaf](https://github.com/Winds-Studio/Leaf) fork for small and mid-sized survival servers on shared hardware.**<br>
+**A [Leaf](https://github.com/Winds-Studio/Leaf) fork for servers whose players explore: the terrain keeps up with elytras.**<br>
 Vanilla behaviour, the full vanilla world, and every change measured.
 
 [![Release](https://img.shields.io/github/v/release/jonax1337/Kindling?include_prereleases&label=release&style=for-the-badge&labelColor=102d20&color=ff681e)](https://github.com/jonax1337/Kindling/releases)
@@ -28,7 +28,7 @@ Vanilla behaviour, the full vanilla world, and every change measured.
 
 ---
 
-Kindling makes the parts that hurt on a cheap VPS cheaper: players outrunning world generation, pregeneration, loading chunks from disk, and memory. Every change has to win a reproducible load test ([`kindling-bench`](kindling-bench/README.md)). Changes that only win by altering gameplay are never defaults.
+Kindling puts the whole machine to work where Leaf and Paper fall behind: players outrunning world generation, pregeneration and loading chunks from disk. On new terrain it generates 2.5 to 3.6 times the chunks of Leaf and spends more CPU time to do it, on cores that would otherwise sit idle; without new terrain it ticks like Leaf or a little faster. It does not make a server fit on smaller hardware. Every change has to win a reproducible load test ([`kindling-bench`](kindling-bench/README.md)). Changes that only win by altering gameplay are never defaults.
 
 > [!WARNING]
 > Kindling is young and every build is a pre-release. Back up your worlds before switching, as with any server software.
