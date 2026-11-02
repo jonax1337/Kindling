@@ -145,11 +145,13 @@ final class PreviewVegetation {
         long decorationSeed = random.setDecorationSeed(this.world.seed(), origin.getX(), origin.getZ());
         Set<Holder<Biome>> biomes = preview.biomes().possibleBiomes();
         for (StepFeatures step : this.steps) {
+            long startNanos = System.nanoTime();
             BitSet features = step.featuresOf(biomes);
             for (int index = features.nextSetBit(0); index >= 0; index = features.nextSetBit(index + 1)) {
                 random.setFeatureSeed(step.populationSeed(index, decorationSeed, random, origin), index, step.index());
                 placeOrSkip(region, step.features().get(index), random, origin);
             }
+            PreviewStats.recordDecorationStep(step.index(), System.nanoTime() - startNanos);
         }
     }
 

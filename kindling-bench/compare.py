@@ -83,7 +83,9 @@ PREVIEW_FIGURES = [
     ("dropped", "dropped_on_arrival"),
     ("failed", "failed"),
     ("kept", "kept_on_client"),
-]
+] + [(f"step {step} {unit}", f"step_{step}{suffix}")
+     for step in ("lakes", "local_modifications", "surface_structures", "vegetal_decoration")
+     for unit, suffix in (("n", ""), ("ms", "_ms"))]
 # The counters of the server's previews, at the end of the flight and at the end of the run (since the server started).
 FIGURES += [(f"prev {moment} {label}", ("previews", key_moment, key))
             for moment, key_moment in (("flight", "flight_end"), ("run", "run_end")) for label, key in PREVIEW_FIGURES]

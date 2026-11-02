@@ -4,6 +4,8 @@ import java.io.IOException;
 import java.io.Reader;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
 import org.bukkit.GameMode;
@@ -44,6 +46,8 @@ import org.bukkit.GameMode;
  * @param fidelityChunks in a fidelity run, how many chunks are compared with their previews
  * @param fidelityRadius in a fidelity run, the chunks are drawn from the square of this many chunks around the origin
  * @param fidelityAgainst in a fidelity run, what each chunk is compared with: its seed preview or a real twin generation
+ * @param travelCommands console commands run in order when the flight starts, for example a pregenerator under test
+ *        ({@code travel-commands}, separated by {@code ;}); none by default
  * @throws IllegalArgumentException for an unknown type or game mode, a value that is not a number, too many plots per
  *         player or a negative wait
  */
@@ -51,7 +55,7 @@ record Scenario(ScenarioType type, int players, int circleRadius, int warmupSeco
                 int mobsPerPlayer, int settleSeconds, int steadySeconds, int idleSeconds, int clientViewDistance,
                 int plotsPerPlayer, int hopperGuardSeconds, GameMode gameMode, double chunkAcks, int warmupQuietSeconds,
                 int warmupMaxSeconds, boolean moveEventListener, int fidelityChunks, int fidelityRadius,
-                FidelityAgainst fidelityAgainst) {
+                FidelityAgainst fidelityAgainst, List<String> travelCommands) {
 
     static final String FILE_NAME = "scenario.properties";
     private static final int DEFAULT_WARMUP_SECONDS = 30;
@@ -106,7 +110,12 @@ record Scenario(ScenarioType type, int players, int circleRadius, int warmupSeco
                 Boolean.parseBoolean(properties.getProperty("move-event-listener", "false").trim()),
                 intOf(properties, "fidelity-chunks", 400),
                 intOf(properties, "fidelity-radius", 1500),
-                FidelityAgainst.named(properties.getProperty("fidelity-against", "preview")));
+                FidelityAgainst.named(properties.getProperty("fidelity-against", "preview")),
+                commandsOf(properties.getProperty("travel-commands", "")));
+    }
+
+    private static List<String> commandsOf(String value) {
+        return Arrays.stream(value.split(";")).map(String::trim).filter(command -> !command.isEmpty()).toList();
     }
 
     private static int intOf(Properties properties, String key, int fallback) {

@@ -1,5 +1,7 @@
 package net.kindlingmc.preview;
 
+import java.util.Map;
+import net.minecraft.world.level.levelgen.GenerationStep;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -63,7 +65,8 @@ class PreviewStatsTest {
     @Test
     void theSummaryNamesEveryTotal() {
         final String summary = new PreviewStats.Snapshot(new PreviewStats.Computed(3, 2_000_000), new PreviewStats.Computed(4, 5_000_000),
-            new PreviewStats.Computed(5, 0), 6, 7, 3 << 20, 8, 9, 10).toString();
+            new PreviewStats.Computed(5, 0), 6, 7, 3 << 20, 8, 9, 10,
+            Map.of(GenerationStep.Decoration.LAKES, new PreviewStats.Computed(11, 12_000_000))).toString();
 
         assertTrue(summary.contains("saved 3 in 2 ms"), summary);
         assertTrue(summary.contains("seed 4 in 5 ms"), summary);
@@ -73,6 +76,25 @@ class PreviewStatsTest {
         assertTrue(summary.contains("dropped on arrival 8"), summary);
         assertTrue(summary.contains("failed 9"), summary);
         assertTrue(summary.contains("kept on the client 10"), summary);
+        assertTrue(summary.contains("decoration steps lakes 11 in 12 ms"), summary);
+    }
+
+    @Test
+    void everyDecorationStepHasItsOwnTotals() {
+        final PreviewStats.Computed lakesBefore = step(this.before, GenerationStep.Decoration.LAKES);
+        final PreviewStats.Computed vegetationBefore = step(this.before, GenerationStep.Decoration.VEGETAL_DECORATION);
+        PreviewStats.recordDecorationStep(GenerationStep.Decoration.LAKES.ordinal(), 300);
+        PreviewStats.recordDecorationStep(GenerationStep.Decoration.LAKES.ordinal(), 200);
+        PreviewStats.recordDecorationStep(GenerationStep.Decoration.VEGETAL_DECORATION.ordinal(), 7);
+
+        final PreviewStats.Snapshot after = PreviewStats.snapshot();
+
+        assertEquals(new PreviewStats.Computed(2, 500), minus(step(after, GenerationStep.Decoration.LAKES), lakesBefore));
+        assertEquals(new PreviewStats.Computed(1, 7), minus(step(after, GenerationStep.Decoration.VEGETAL_DECORATION), vegetationBefore));
+    }
+
+    private static PreviewStats.Computed step(final PreviewStats.Snapshot snapshot, final GenerationStep.Decoration step) {
+        return snapshot.decorationSteps().getOrDefault(step, new PreviewStats.Computed(0, 0));
     }
 
     @Test

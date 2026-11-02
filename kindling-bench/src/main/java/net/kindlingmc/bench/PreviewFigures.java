@@ -42,6 +42,7 @@ final class PreviewFigures {
         figures.put("dropped_on_arrival", totals.droppedOnArrival());
         figures.put("failed", totals.failed());
         figures.put("kept_on_client", totals.keptOnClient());
+        totals.decorationSteps().forEach((step, computed) -> putComputed(figures, "step_" + step.getName(), computed));
         return figures;
     }
 

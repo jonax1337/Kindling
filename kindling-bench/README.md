@@ -115,6 +115,8 @@ The result file holds many figures. `compare.py` leaves out the rows no run has.
 | `previews.*`: `saved_read_timeouts` | Saved chunk reads that did not finish in 250 ms, so the seed preview was used |
 | `previews.*`: `sent`, `sent_raw_mb` | Previews sent to players (once per player) and their uncompressed size in MiB |
 | `previews.*`: `dropped_on_arrival`, `failed`, `kept_on_client` | Previews computed but no longer wanted when they arrived (the player came closer, or the server loaded the chunk meanwhile), previews that could not be computed, and real chunks the client was told to keep as their own preview |
+| `previews.*`: `step_<name>`, `step_<name>_ms` | Per vanilla decoration step that ran on seed previews (`lakes`, `local_modifications`, `surface_structures`, `vegetal_decoration`): the previews it ran on and the worker time it took there, a part of `computed_seed_ms`. Only steps that ran appear |
+| `travel_commands` | The console commands of the scenario key `travel-commands`, run in order when the flight starts (for example `chunky radius 3000;chunky start` or `pregen start world 3000`), so a pregenerator runs during the measured phase |
 | `gc_pause_millis` | Pause time over the whole run. The older `gc_count` and `gc_millis` add up every collector bean, including the overlapping cycles of ZGC and Shenandoah |
 | `java_version` | The Java runtime the server ran on (`Runtime.version()`), so runs on different JDK builds, early-access builds in particular, are not mixed up |
 
