@@ -1,4 +1,4 @@
-# Kindling logo concepts — 2 November 2026
+# Kindling logo concepts
 
 14 concept images created with the built-in image generation tool: five Minecraft-inspired, five modern, and four additional Leaf × Flame concepts. These are raster identity explorations on an ivory background; they are not production vector masters or transparent icon exports. The existing brand assets and website references have not been replaced.
 
