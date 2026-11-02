@@ -117,6 +117,9 @@ def main(labels: list[str]) -> None:
     width = max(len(label) for label in labels) + 2
     width = max([width] + [len(cell) + 2 for _, cells in rows + counters for cell in cells])
     print(f"{'':{NAME_WIDTH}}" + "".join(f"{label:>{width}}" for label in labels))
+    against = fidelity_against(results, labels)
+    if any(against):
+        print_row("fid against", [value or "" for value in against], width)
     for name, cells in rows:
         print_row(name, cells, width)
     if counters:
@@ -124,7 +127,18 @@ def main(labels: list[str]) -> None:
     for name, cells in counters:
         print_row(name, cells, width)
     warn_unsettled(results)
+    if len({value for value in against if value}) > 1:
+        print("\nWARNING: the fidelity runs compare with different things (fid against); their figures do not compare")
     print(f"\n{LEGEND}")
+
+
+def fidelity_against(results: dict, labels: list[str]) -> list[str | None]:
+    """What each label's fidelity runs compared with (preview, twin, ...), joined if its runs differ."""
+    values = []
+    for label in labels:
+        kinds = sorted({run["fidelity"]["against"] for run in results[label] if "against" in run.get("fidelity", {})})
+        values.append("/".join(kinds) or None)
+    return values
 
 
 def print_row(name: str, cells: list[str], width: int) -> None:

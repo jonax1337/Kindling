@@ -35,5 +35,6 @@ paper-server
 
 # Kindling - benchmark runs and server jars under test
 /kindling-bench/runs/
+/kindling-bench/__pycache__/
 /kindling-bench/jars/
 /kindling-bench/worlds/

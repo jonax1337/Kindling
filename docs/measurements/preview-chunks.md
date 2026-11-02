@@ -157,13 +157,13 @@ Surface height (`MOTION_BLOCKING`): equal 88.8 %, off by 1–2 blocks 2.2 %, by 
 ## How far two real generations differ
 
 > [!NOTE]
-> 📊 **Two real generations of the same chunk, decorated in opposite orders, match in 87.9 % of the top blocks, the seed preview in 87.8 %** · the chunk decorated before all its neighbours (main world) against the same chunk decorated after all of them (a twin world of the same seed) · same 400 chunks, 1 run each; control in the same order: 99.4 % · 2026-11-02
+> 📊 **Two real generations of the same chunk, decorated in opposite orders, match in 87.8 % of the top blocks, as often as the seed preview matches it (87.8 %)** · the chunk decorated before all its neighbours (main world) against the same chunk decorated after all of them (a twin world of the same seed) · same 400 chunks, 1 run each; control in the same order: 99.4 % · 2026-11-02
 
 Vanilla decorates a chunk onto what its neighbours' decoration already placed (the `FEATURES` step needs its neighbours only at `TERRAIN`), so the order in which a server happens to generate chunks changes them. The bench mode `fidelity-against=twin` ([README](../../kindling-bench/README.md)) measures how much: it generates every sampled chunk a second time in a twin world, in the opposite order, and compares the two with the same column logic as a preview.
 
 | | Preview against real | Real, opposite order | Real, same order (control) |
 | --- | ---: | ---: | ---: |
-| Top block equal, all columns | 87.8 % | 87.9 % | 99.4 % |
+| Top block equal, all columns | 87.8 % | 87.8 % | 99.4 % |
 | Top block equal, interior | 89.7 % | 87.4 % | 99.9 % |
 | Top block equal, edge | 86.6 % | 88.1 % | 99.1 % |
 | Tree only on one side (missing + extra) | 7.4 % | 8.6 % | 0.3 % |
