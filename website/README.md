@@ -9,7 +9,7 @@ Node.js 24 and pnpm 11 are required.
 ```sh
 cd website
 pnpm install
-pnpm dev        # http://127.0.0.1:5174/Kindling/
+pnpm dev        # http://127.0.0.1:25999/Kindling/
 pnpm check      # Biome, TypeScript and the production build
 pnpm preview    # serves dist/ the way GitHub Pages will
 ```
@@ -33,7 +33,7 @@ The site is served under `/Kindling/` (`base` in `vite.config.ts`). The canonica
 | `src/lib/links.ts` | every outbound link in one place |
 | `src/styles/app.css` | Tailwind theme: Kindling's dark brand colours mapped onto shadcn's tokens |
 
-Logos and fonts are imported from the brand kit in [docs/branding](../docs/branding/README.md) (`@brand` alias), not copied. The build adds `favicon.png` and `social-preview.png` from the kit under fixed names.
+Logos are imported from the pixel-leaf brand kit in [docs/branding](../docs/branding/README.md) through the `@brand` alias. The site uses a local WOFF2 subset of the kit's Manrope font for headings and body text; the pixel wordmark is outlined in the SVG. The build adds `favicon.svg`, `favicon.png`, `apple-touch-icon.png` and `social-preview.png` from the kit under fixed names.
 
 ## Motion and accessibility
 

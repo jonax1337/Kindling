@@ -48,7 +48,7 @@ export function Vanilla() {
             alt="An illustrated voxel woodland, with a stone bridge leading to a warmly lit survival cabin."
             className="absolute -top-[8%] h-[116%] w-full max-w-none object-cover object-[50%_40%]"
           />
-          <div className="absolute inset-0 bg-[linear-gradient(0deg,rgb(11_18_14/.95),rgb(11_18_14/.4)_50%,rgb(11_18_14/.15)),linear-gradient(90deg,rgb(11_18_14/.75),transparent_60%)]" />
+          <div className="absolute inset-0 bg-[linear-gradient(0deg,rgb(11_23_16/.95),rgb(11_23_16/.4)_50%,rgb(11_23_16/.15)),linear-gradient(90deg,rgb(11_23_16/.75),transparent_60%)]" />
         </div>
         <div className="wrap py-24 md:py-32">
           <h2

@@ -10,4 +10,5 @@ export const links = {
   roadmap: `${DOCS}/ROADMAP.md`,
   license: `${REPOSITORY}/blob/ver/26.3/LICENSE.md`,
   leaf: "https://github.com/Winds-Studio/Leaf",
+  brand: `${DOCS}/branding/README.md`,
 } as const;
