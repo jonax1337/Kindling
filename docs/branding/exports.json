@@ -105,7 +105,7 @@
     "file": "pixel-leaf/server-icon.png",
     "width": 64,
     "height": 64,
-    "transparent": false
+    "transparent": true
   },
   {
     "file": "pixel-leaf/icon-32-light.png",

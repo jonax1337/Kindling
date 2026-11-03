@@ -22,7 +22,7 @@ The current masters and exports live in `pixel-leaf/`. `light` means intended fo
 | README banner | `banner-light`, `banner-dark` | 1600 × 500 | Solid |
 | Social preview | `social-preview-light`, `social-preview-dark` | 1280 × 640 | Solid |
 | Browser / app icon | `app-icon` | 192 × 192 | Solid |
-| Minecraft server icon | `server-icon.png` | 64 × 64 | Solid |
+| Minecraft server icon | `server-icon.png` | 64 × 64 | Transparent, including the vein |
 | Small symbol | `icon-32-light.png`, `icon-32-dark.png` | 32 × 32 | Transparent |
 | Apple touch icon | `apple-touch-icon.png` | 180 × 180 | Solid |
 
