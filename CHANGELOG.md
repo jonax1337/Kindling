@@ -2,6 +2,22 @@
 
 Releases, newest first. Every build is a pre-release; the jars are on the [Releases](https://github.com/jonax1337/Kindling/releases) page. Build 26.3-6 was skipped and does not exist.
 
+## Unreleased
+
+Previews beyond the view distance for vanilla clients, Leaf's latest upstream, and a comparison with Paper, Purpur and Leaf.
+
+### Added
+
+- Preview chunks beyond the view distance, `network.preview-chunks` (off by default, patch `0346`): vanilla clients see 32 chunks at the tick time of a view distance of 10 for 19 % more CPU time ([details](docs/measurements/preview-chunks.md)).
+
+### Changed
+
+- Leaf upstream `af631147`: Paper and Purpur updates, and sleeping hoppers fire `PrepareHopperTransferEvent` (Leaf pull request #980). Kindling's sleeping hopper patches now build on it.
+
+### Measured
+
+- Paper, Purpur, Leaf release 26.3-15 and Kindling at view distance 10 and 32: 2.6 to 4.3 times the new chunks per second of Leaf, the same tick time as Leaf without new terrain, and 44 % more CPU time ([details](docs/measurements/vs-leaf.md)).
+
 ## 26.3-16 - 2026-10-31
 
 Chunk workers that follow the demand for new terrain, and a full comparison with Paper and plain Leaf.
