@@ -45,6 +45,43 @@ The first version without the two changes below (B, build `3748e9f9`) cost more:
 
 </details>
 
+## Previews in the comparison with other forks
+
+**Slower.** CPU time +13 % with 5 elytras, +31 % with 8 players exploring and +23 to +50 % without new terrain; new chunks per second 153 → 133 with the elytras and 168 → 140 exploring; join until the full view 20.1 → 24.5 s and 27.6 → 33.1 s. Tick time in the bases and among villagers the same.
+Previews to 32 chunks against the same jar with previews off, 3 runs each, in the [comparison with Paper, Purpur and Leaf](vs-leaf.md#paper-purpur-leaf-and-kindling).
+
+The fake players ask for a render distance of 32, so every player gets its ring of previews, also in the bases and villager halls where nobody moves. That ring costs worker time but no tick time there. While players explore, the previews share the cores with the chunk workers and slow the real chunks a little; the time over void of the elytras rises from 4.3 to 9.5 % (not marked, p = 0.13).
+
+<details>
+<summary>Method and all numbers</summary>
+
+The jar and the host of the [comparison](vs-leaf.md#paper-purpur-leaf-and-kindling), with the overlay `preview-chunks-on` against previews off, both at view distance 10, run in the same rounds. `*` = marked by `compare.py`; times in milliseconds unless a unit is given.
+
+| Scenario | Figure | Previews off | Previews to 32 |
+| --- | --- | ---: | ---: |
+| Elytra | New chunks per second | 153.2 | 132.5 \* |
+| | Time over void | 4.3 % | 9.5 % |
+| | Flight tick time avg / p95 | 22.0 / 37.0 | 20.5 \* / 37.2 |
+| | Join until the full view | 20.1 s | 24.5 s \* |
+| | CPU time | 877 s | 990 s \* |
+| Mixed | New chunks per second | 167.7 | 139.9 \* |
+| | Standing tick time | 34.6 | 37.0 \* |
+| | Join until the full view | 27.6 s | 33.1 s \* |
+| | CPU time | 1 110 s | 1 449 s \* |
+| | Heap after GC | 1 125 MB | 1 153 MB \* |
+| Loaded | Flight tick time avg | 25.0 | 26.3 \* |
+| | CPU time | 284 s | 390 s \* |
+| Bases | Tick time avg / p95 | 11.0 / 17.4 | 10.9 / 15.8 |
+| | CPU time | 271 s | 408 s \* |
+| | Heap after GC | 465 MB | 496 MB \* |
+| Villagers | Tick time avg / p95 | 8.6 / 10.7 | 8.4 / 10.2 |
+| | CPU time | 194 s | 239 s \* |
+| | Heap after GC | 385 MB | 414 MB \* |
+
+Of the seed previews' worker time, the surface features take 2.0 to 4.2 % per scenario (1.8 to 5.0 % per run; `LAKES`, `LOCAL_MODIFICATIONS`, `SURFACE_STRUCTURES`) and the vegetation 5 to 10 %; the rest is terrain, surface rules and light.
+
+</details>
+
 ## Previews yield to new terrain
 
 **Faster.** Run CPU time 1 784 → 1 664 s (−7 %), real-chunk lead 3.7 → 4.6 chunks.
@@ -165,7 +202,7 @@ The preview is as close to the real chunk as the real chunk is to itself in the 
 **Correct.** Wrong snow and ice 0.47 → 0.18 % of the columns, top block equal 87.6 → 87.9 %, surface height equal 88.7 → 88.9 %.
 Lakes, rocks, icebergs, ice spikes and desert wells in seed previews, against previews with vegetation only, the same 400 chunks, 1 run each.
 
-Seed previews run vanilla's `LAKES`, `LOCAL_MODIFICATIONS` and `SURFACE_STRUCTURES` steps before the vegetation, with vanilla's seeds per feature. Underground features of these steps (lava lakes, geodes) run too and are hidden in the stone below the preview's band. The extra cost per preview is not measured.
+Seed previews run vanilla's `LAKES`, `LOCAL_MODIFICATIONS` and `SURFACE_STRUCTURES` steps before the vegetation, with vanilla's seeds per feature. Underground features of these steps (lava lakes, geodes) run too and are hidden in the stone below the preview's band. They take 2.0 to 4.2 % of the seed previews' worker time ([measured](#previews-in-the-comparison-with-other-forks)).
 
 ## Tree crowns from neighbouring previews
 

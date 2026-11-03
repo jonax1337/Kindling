@@ -10,8 +10,7 @@ Every item follows the same rules: vanilla behaviour by default, three runs per 
 
 | Item | Why it is open |
 | --- | --- |
-| The pregenerated world against Leaf | Kindling ticks 5 % slower than plain Leaf there (31.7 → 33.3 ms) at the same CPU time; its main thread waits twice as long for a CPU (149 → 311 ms) and it sends 5 % more chunk packets. The mixed flight also ticked slower with worker demand in all three rounds (33.4 against 30.9 ms, not marked). With Paper's two workers fixed it ticked like Leaf, so the likely rest is the time five workers run after each burst. Not established. ([worker demand](measurements/host.md#worker-demand)) |
-| CPU time in the bases | +13 % against plain Leaf (276 → 313 s). With Paper's two workers fixed it was Leaf's. Likely the spawn area generated with every worker at the start. Not established. |
+| CPU time in the bases | +10 % against Leaf release 26.3-15 (246 → 271 s, [comparison](measurements/vs-leaf.md#paper-purpur-leaf-and-kindling)). With Paper's two workers fixed it was Leaf's in an earlier series. Likely the spawn area generated with every worker at the start. Not established. |
 | Skipping discarded density branches | 7 to 10 % of the chunk workers' CPU evaluates range-choice branches that are thrown away ([profile](measurements/pregeneration.md#where-the-time-goes-in-the-chunk-workers)). Compiled density takes the cell-corner part; the noodle cave and ore vein choices run per block on interpolated inputs and need their own fix. Prerequisite: the worldgen vanilla diff with one worker thread (below). |
 | Empty sections of the generation ring | 82 % of the overworld sections in memory hold only air, and their fixed overhead is 20 to 22 % of the live heap ([census](measurements/memory-jvm.md#the-ring-of-partly-generated-chunks)). A shared empty section for chunks below `BIOMES`, materialised on the first write, would take most of it back. `ChunkLoadTask` also parses the whole chunk NBT for a `STRUCTURE_STARTS` target; to be looked at afterwards. |
 | A criterion for the pregenerator's wait throttle | A share of the last minute fires at baseline on a VPS and at 0.10 halves pregeneration. Candidates: the absolute wait per tick, a higher limit such as 0.20, or throttling only while the machine is busy. |
@@ -21,12 +20,11 @@ Every item follows the same rules: vanilla behaviour by default, three runs per 
 
 | Item | Why it is open |
 | --- | --- |
-| Pregenerator against Chunky | The pregenerator was only measured against its own first version. Chunky on plain Leaf would be the fair baseline. |
-| Elytra test against current Leaf | Last run against an older Leaf on the Windows machine, two runs. |
-| Cost of the surface features in previews | Lakes, rocks, icebergs and ice spikes made seed previews more faithful ([fidelity](measurements/preview-chunks.md#surface-features-in-previews)); the extra worker time per preview is not measured. |
+| Pregenerator against Chunky | On Kindling, Chunky generates 206.7 chunks per second and `/pregen` 191.4 ([comparison](measurements/vs-leaf.md#paper-purpur-leaf-and-kindling)). Chunky keeps 50 chunks in flight from the start; `/pregen` starts at 1 and adds one per second. An A/B with a faster ramp would show whether `/pregen` can match it. |
+| Tick time after an elytra flight | After the flight Kindling ticks at 26.2 ms where Leaf ticks at 1.2 ms ([comparison](measurements/vs-leaf.md#paper-purpur-leaf-and-kindling)). A profile of that phase would show which work keeps the main thread busy. |
 | Structures in seed previews | Villages and temples are missing from seed previews of land nobody has explored, the largest visible gap in play. Placing them needs the structure starts of the surrounding chunks. |
 | "0 % void" with five lines | The directional loading figures follow one line straight ahead of each player. |
-| Standing among mobs on a pregenerated world | In the Leaf comparison, plain Leaf was still generating while the players stood. |
+| Standing among mobs on a pregenerated world | In the comparison with other forks, Paper, Purpur and Leaf were still generating while the players stood. |
 | What offsets the Lithium gain in the bases | The Lithium ports alone measured −7 %, but the current build runs the bases at the earlier release's tick time. The hopper cooldown after a failed transfer is the likely candidate; one A/B would settle it. |
 | The cost of each vanilla restoration | Measured only together: at most about 1 ms standing among 1 200 mobs. One A/B per restoration would show which one costs what. |
 | Memory return and a rejoin | The tick spike when players come back after the heap shrank. The bench needs a rejoin mode. |

@@ -38,7 +38,7 @@ The docs follow [Diátaxis](https://diataxis.fr/) and the rules in [docs/STYLE.m
 - **No emoji anywhere, no dates** outside the changelog's release headings. Name a baseline by what it is (plain Leaf at a commit, the same build with the setting off, the release before the change) and give the number of runs.
 - **Result first**, using the result words of `docs/STYLE.md`; method and raw numbers folded in `<details>`.
 - **Keep it true to the code.** A new or changed setting updates `docs/reference/configuration.md`; a new or changed command updates `docs/reference/commands.md`.
-- **Charts come from data.** `docs/media/kindling-vs-leaf-*.svg` is drawn by `kindling-bench/chart.py`; when that comparison is measured again, draw the chart again instead of editing the SVG.
+- **Charts come from data.** `docs/media/all-forks-*.svg` is drawn by `kindling-bench/forks_chart.py`; when that comparison is measured again, draw the charts again instead of editing the SVG.
 
 Check with `node .claude/hooks/docs-lint.mjs` (emoji, dates, broken links and anchors). In Claude Code it runs as a hook after every edit of a doc.
 

@@ -52,7 +52,8 @@ Other marks and rows:
 - Rows that no run has are left out, so mixed and bases runs use the same script.
 - In a bases run, a counter row marked `!` differs between runs. That means behaviour changed.
 - A warning says that a bases run built before world generation settled (`settled: false`).
-- `chart.py` draws Kindling against plain Leaf from four labels (mixed and bases runs of both) as an SVG pair for light and dark backgrounds: `python -I kindling-bench/chart.py <leaf-mixed> <kindling-mixed> <leaf-bases> <kindling-bases> docs/media/kindling-vs-leaf`.
+- `chart.py` draws Kindling against plain Leaf from four labels (mixed and bases runs of both) as an SVG pair for light and dark backgrounds: `python -I kindling-bench/chart.py <leaf-mixed> <kindling-mixed> <leaf-bases> <kindling-bases> <out>`.
+- `forks_chart.py` draws the comparison with Paper, Purpur and Leaf from a folder of merged `af-<view distance>-<scenario>-<server>.json` files: the README tiles and the dot plot of the measurements page, each for light and dark backgrounds: `python -I kindling-bench/forks_chart.py <folder> docs/media/all-forks`. It stops if a tile's lead is not marked by the rule of `compare.py`.
 
 ## What a run does
 
@@ -93,6 +94,7 @@ Then the plugin writes `bench-result.json` and stops the server. The script adds
 | `pregen.sh <kindling.jar> <prefix>` | The built-in pregenerator alone and during an elytra flight |
 | `compare.py <label> ...` | Puts finished runs side by side. Not a run |
 | `chart.py` | Draws the Kindling-against-Leaf chart from finished runs |
+| `forks_chart.py` | Draws the tiles and the dot plot of the comparison with Paper, Purpur and Leaf |
 
 `runs/`, `jars/` and `worlds/` are not checked in.
 

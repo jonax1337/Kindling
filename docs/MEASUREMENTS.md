@@ -20,16 +20,17 @@ Some rounds before release 26.3-14 ran while two stray processes kept about two 
 
 The time over void was first measured on one line straight ahead of each player; the bench now also follows four more lines and the player's own chunk. Figures from the single line say so on their page.
 
-## Kindling against Paper and Leaf
+## Kindling against Paper, Purpur and Leaf
 
-[vs-leaf.md](measurements/vs-leaf.md): Paper build 223, plain Leaf `66f99f8e` and Kindling with their own defaults, 3 runs each.
+[vs-leaf.md](measurements/vs-leaf.md): Paper build 237, Purpur build 2655, Leaf release 26.3-15 and Kindling with their own defaults, 3 runs each.
 
 | Change | Result |
 | --- | --- |
-| [New terrain](measurements/vs-leaf.md#paper-plain-leaf-and-kindling) | **Faster.** 2.5 to 3.6 times the new chunks per second of Leaf; mixed flight over void 82 % → 0 %; join until the full view 50.1 → 27.2 s; flight tick time p95 130 → 60 ms |
-| [Ticking without new terrain](measurements/vs-leaf.md#paper-plain-leaf-and-kindling) | **Faster.** Bases 11.8 → 10.8 ms, 1 200 standing mobs 39.1 → 34.6 ms; villagers **Same** (8.5 → 8.4 ms) |
-| [Pregenerated world](measurements/host.md#worker-demand) | **Slower.** Flight tick time 31.7 → 33.3 ms (+5 %) at Leaf's CPU time |
-| [CPU time](measurements/vs-leaf.md#paper-plain-leaf-and-kindling) | **Slower.** 8 to 83 % more, most of it in the chunk workers; bases +13 % |
+| [New terrain](measurements/vs-leaf.md#paper-purpur-leaf-and-kindling) | **Faster.** 2.6 to 4.3 times the new chunks per second of Leaf; elytra flight over void 92 % → 4 %; flight tick time p95 151 → 37 ms; join until the full view 49.9 → 27.6 s |
+| [Pregeneration](measurements/vs-leaf.md#paper-purpur-leaf-and-kindling) | **Trade-off.** Chunky 97.9 → 206.7 chunks per second, for tick time 3.7 → 5.2 ms and 8 % more CPU time per chunk |
+| [Ticking without new terrain](measurements/vs-leaf.md#paper-purpur-leaf-and-kindling) | **Same** as Leaf in the bases, among villagers and over a pregenerated world; Kindling 14 to 40 % faster than Paper and Purpur |
+| [View distance 32](measurements/vs-leaf.md#paper-purpur-leaf-and-kindling) | **Trade-off.** Time over void 69 % → 0.4 % and flight p95 125 → 73 ms, but flight tick time avg 36.0 → 52.8 ms and twice the heap |
+| [CPU time](measurements/vs-leaf.md#paper-purpur-leaf-and-kindling) | **Slower.** +44 % exploring, +82 % with elytras, +10 % in the bases, none over a pregenerated world |
 | [Async pathfinding and mob spawning](measurements/vs-leaf.md#async-pathfinding-and-mob-spawning-opt-in) | **Faster**, opt-in. 1 200 standing mobs 34.9 → 31.8 ms with them on; not vanilla, so off by default |
 | [Leaf's options](measurements/vs-leaf.md#leafs-options-one-by-one) | **Indicative.** No option is both faster and vanilla; [ten not adopted](measurements/vs-leaf.md#not-adopted-although-leaf-offers-them) |
 
@@ -55,6 +56,7 @@ The time over void was first measured on one line straight ahead of each player;
 | Change | Result |
 | --- | --- |
 | [Previews to 32 chunks](measurements/preview-chunks.md#previews-to-32-chunks) | **Trade-off**, opt-in. 32 chunks at the tick time of view distance 10 (39.9 → 39.4 ms, not marked) for +19 % CPU; against a real view distance of 32: CPU −52 %, heap −69 %, tick time 82.4 → 39.4 ms |
+| [Previews in the comparison with other forks](measurements/preview-chunks.md#previews-in-the-comparison-with-other-forks) | **Slower.** CPU +13 to +50 %, chunks per second −13 to −17 % while exploring; tick time in the bases and among villagers the same |
 | [Previews yield to new terrain](measurements/preview-chunks.md#previews-yield-to-new-terrain) | **Faster.** Run CPU 1 784 → 1 664 s, real-chunk lead 3.7 → 4.6 chunks, against the build before |
 | [One unhurried worker for standing players](measurements/preview-chunks.md#one-unhurried-worker-for-standing-players) | **Faster.** Steady tick time 50.2 → 39.4 ms, steady CPU −34 %, against the build before |
 | [Travel view distance](measurements/preview-chunks.md#travel-view-distance) | **Trade-off**, opt-in. Flight tick time 31.2 → 24.5 ms; real-chunk lead in the weakest direction 5.0 → 3.7; CPU not lower |
