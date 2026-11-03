@@ -28,7 +28,7 @@ Vanilla behaviour, the full vanilla world, and every change measured.
 
 ---
 
-Kindling puts the whole machine to work where Leaf and Paper fall behind: players outrunning world generation, pregeneration and loading chunks from disk. On new terrain it generates 2.6 to 4.3 times the chunks of Leaf and spends more CPU time to do it, on cores that would otherwise sit idle; without new terrain it ticks like Leaf. It does not make a server fit on smaller hardware. Every change has to win a reproducible load test ([`kindling-bench`](kindling-bench/README.md)). Changes that only win by altering gameplay are never defaults.
+Kindling puts the whole machine to work where Leaf and Paper fall behind: players outrunning world generation, pregeneration and loading chunks from disk. On new terrain it generates 2.5 to 4.3 times the chunks of Leaf and spends more CPU time to do it, on cores that would otherwise sit idle; without new terrain it ticks like Leaf. It does not make a server fit on smaller hardware. Every change has to win a reproducible load test ([`kindling-bench`](kindling-bench/README.md)). Changes that only win by altering gameplay are never defaults.
 
 > [!WARNING]
 > Kindling is young and every build is a pre-release. Back up your worlds before switching, as with any server software.
@@ -43,27 +43,27 @@ Same seed, same flight at 30 blocks a second, server view distance 10, client re
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/media/all-forks-tiles-dark.svg">
-  <img alt="Six tiles comparing Kindling with Paper, Purpur and Leaf: 3.3 times the chunks per second with 5 elytras flying; 4 % of the flight over void where the others show 92 %; 4 times lower tick spikes in flight; 2.1 times faster pregeneration with Chunky; like Leaf without new terrain and 14 to 40 % ahead of Paper and Purpur; the cost, 44 % more CPU time and 1.9 times the heap at view distance 32." src="docs/media/all-forks-tiles-light.svg" width="760">
+  <img alt="Six tiles comparing Kindling with Paper, Purpur and Leaf: 3.3 times the chunks per second with 5 elytras flying; 4 % of the flight over void where the others show 92 %; 4 times lower tick spikes in flight; 2.1 times faster pregeneration with Chunky; like Leaf without new terrain and 14 to 40 % ahead of Paper and Purpur; the cost, 44 % more CPU time and 1.6 times the heap at view distance 32." src="docs/media/all-forks-tiles-light.svg" width="760">
 </picture>
 
 | Scenario | Paper | Purpur | Leaf | Kindling |
 | --- | ---: | ---: | ---: | ---: |
-| New chunks per second, 5 elytras / 8 players exploring | 46 / 70 | 45 / 68 | 45 / 65 | **153 / 168** |
+| New chunks per second, 5 elytras / 8 players exploring | 46 / 70 | 45 / 68 | 45 / 65 | **153 / 162** |
 | Time over ungenerated void, 5 elytras / 8 players | 92 / 82 % | 92 / 82 % | 92 / 82 % | **4 / 0 %** |
-| New chunks per second at view distance 32, 5 elytras / 8 players | 34 / 61 | 35 / 60 | 35 / 57 | **150 / 169** |
-| Join until the full view, 8 players | 49.8 s | 50.3 s | 49.9 s | **27.6 s** |
+| New chunks per second at view distance 32, 5 elytras / 8 players | 34 / 61 | 35 / 60 | 35 / 57 | **150 / 173** |
+| Join until the full view, 8 players | 49.8 s | 50.3 s | 49.9 s | **28.5 s** |
 | Tick time while flying with elytras, p95 / average | 151 / 38.1 ms | 154 / 38.8 ms | 151 / 37.2 ms | **37 / 22.0 ms** |
-| Pregeneration with Chunky, chunks per second | 99 | 94 | 98 | **207** |
-| Tick time among 1 200 standing mobs | 47.3 ms | 51.5 ms | 36.2 ms | **34.6 ms** |
+| Pregeneration with Chunky, chunks per second | 99 | 94 | 98 | **211** |
+| Tick time among 1 200 standing mobs | 47.3 ms | 51.5 ms | 36.2 ms | **33.2 ms** |
 | Tick time in survival bases | 13.3 ms | 13.3 ms | 11.9 ms | 11.0 ms |
 | Tick time among working villagers | 12.3 ms | 14.4 ms | 8.4 ms | 8.6 ms |
 | Tick time flying over a pregenerated world | 29.1 ms | 30.4 ms | 25.2 ms | 25.0 ms |
-| Tick time while exploring at view distance 32 | 41.9 ms | 41.8 ms | **36.0 ms** | 52.8 ms |
-| CPU time, bases / exploring | 245 / 804 s | 249 / 820 s | **246 / 769 s** | 271 / 1 110 s |
+| Tick time while exploring at view distance 32 | 41.9 ms | 41.8 ms | **36.0 ms** | 50.9 ms |
+| CPU time, bases / exploring | 245 / 804 s | 249 / 820 s | **246 / 769 s** | 271 / 1 108 s |
 
-Paper build 237, Purpur build 2655, Leaf release 26.3-15 and Kindling with preview chunks off, each with its own defaults; view distance 10 unless named; 3 runs each on a 4-core, 8-thread i7-7700 under Linux. Bold marks the better of Leaf and Kindling where `compare.py` marks the difference.
+Paper build 237, Purpur build 2655, Leaf release 26.3-15 and Kindling with preview chunks off, each with its own defaults; view distance 10 unless named; 3 runs each on a 4-core, 8-thread i7-7700 under Linux. Kindling's rows with 8 exploring players and its pregeneration come from the build with [shared data for uniform sections](docs/measurements/memory-jvm.md#shared-data-for-uniform-sections), the other Kindling rows from the build before. Bold marks the better of Leaf and Kindling where `compare.py` marks the difference.
 
-Where players reach new terrain, Kindling generates 2.6 to 4.3 times the chunks of Leaf and the players spend 0 to 4 % of the flight over void instead of 69 to 92 %; Paper, Purpur and Leaf generate at about the same rate. Without new terrain Kindling ticks like Leaf and 14 to 40 % faster than Paper and Purpur. The price is CPU time, 44 % more than Leaf while exploring, on cores the other forks leave idle. At view distance 32 Kindling gives 8 exploring players the whole view, which none of them reaches on the other forks; there its average tick time is higher than Leaf's and it holds twice the heap. [Method and all numbers](docs/measurements/vs-leaf.md).
+Where players reach new terrain, Kindling generates 2.5 to 4.3 times the chunks of Leaf and the players spend 0 to 4 % of the flight over void instead of 69 to 92 %; Paper, Purpur and Leaf generate at about the same rate. Without new terrain Kindling ticks like Leaf and 14 to 40 % faster than Paper and Purpur. The price is CPU time, 44 % more than Leaf while exploring, on cores the other forks leave idle. At view distance 32 Kindling gives 8 exploring players the whole view, which none of them reaches on the other forks; there its average tick time is higher than Leaf's and it holds 1.6 times the heap. At view distance 10 its heap after GC is below Leaf's (967 against 1 117 MB). [Method and all numbers](docs/measurements/vs-leaf.md).
 
 ## Features
 

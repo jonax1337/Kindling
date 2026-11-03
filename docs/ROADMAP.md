@@ -12,7 +12,7 @@ Every item follows the same rules: vanilla behaviour by default, three runs per 
 | --- | --- |
 | CPU time in the bases | +10 % against Leaf release 26.3-15 (246 → 271 s, [comparison](measurements/vs-leaf.md#paper-purpur-leaf-and-kindling)). With Paper's two workers fixed it was Leaf's in an earlier series. Likely the spawn area generated with every worker at the start. Not established. |
 | Skipping discarded density branches | 7 to 10 % of the chunk workers' CPU evaluates range-choice branches that are thrown away ([profile](measurements/pregeneration.md#where-the-time-goes-in-the-chunk-workers)). Compiled density takes the cell-corner part; the noodle cave and ore vein choices run per block on interpolated inputs and need their own fix. Prerequisite: the worldgen vanilla diff with one worker thread (below). |
-| Empty sections of the generation ring | 82 % of the overworld sections in memory hold only air, and their fixed overhead is 20 to 22 % of the live heap ([census](measurements/memory-jvm.md#the-ring-of-partly-generated-chunks)). A shared empty section for chunks below `BIOMES`, materialised on the first write, would take most of it back. `ChunkLoadTask` also parses the whole chunk NBT for a `STRUCTURE_STARTS` target; to be looked at afterwards. |
+| Empty sections of the generation ring | 82 % of the overworld sections in memory hold only air, and their fixed overhead is 20 to 22 % of the live heap ([census](measurements/memory-jvm.md#the-ring-of-partly-generated-chunks)). Single-value palettes and uniform light arrays are [shared already](measurements/memory-jvm.md#shared-data-for-uniform-sections); a shared empty section for chunks below `BIOMES`, materialised on the first write, would take back the sections and lists that remain. `ChunkLoadTask` also parses the whole chunk NBT for a `STRUCTURE_STARTS` target; to be looked at afterwards. |
 | A criterion for the pregenerator's wait throttle | A share of the last minute fires at baseline on a VPS and at 0.10 halves pregeneration. Candidates: the absolute wait per tick, a higher limit such as 0.20, or throttling only while the machine is busy. |
 | A documented "fast" profile | Async pathfinding and mob spawning make 1 200 standing mobs 9 % faster, but are not vanilla. Whether a profile with them belongs in the docs and the doctor. |
 
@@ -20,7 +20,7 @@ Every item follows the same rules: vanilla behaviour by default, three runs per 
 
 | Item | Why it is open |
 | --- | --- |
-| Pregenerator against Chunky | On Kindling, Chunky generates 206.7 chunks per second and `/pregen` 191.4 ([comparison](measurements/vs-leaf.md#paper-purpur-leaf-and-kindling)). Chunky keeps 50 chunks in flight from the start; `/pregen` starts at 1 and adds one per second. An A/B with a faster ramp would show whether `/pregen` can match it. |
+| Pregenerator against Chunky | In the same rounds on Kindling, Chunky generated 206.7 chunks per second and `/pregen` 191.4 ([comparison](measurements/vs-leaf.md#paper-purpur-leaf-and-kindling)). Chunky keeps 50 chunks in flight from the start; `/pregen` starts at 1 and adds one per second. An A/B with a faster ramp would show whether `/pregen` can match it. |
 | Tick time after an elytra flight | After the flight Kindling ticks at 26.2 ms where Leaf ticks at 1.2 ms ([comparison](measurements/vs-leaf.md#paper-purpur-leaf-and-kindling)). A profile of that phase would show which work keeps the main thread busy. |
 | Structures in seed previews | Villages and temples are missing from seed previews of land nobody has explored, the largest visible gap in play. Placing them needs the structure starts of the surrounding chunks. |
 | "0 % void" with five lines | The directional loading figures follow one line straight ahead of each player. |
@@ -62,6 +62,7 @@ Recorded so they are not proposed again without new facts.
 | Client-paced chunk sending | Fast clients got their view no sooner, slow clients took twice as long to join. ([measurements](measurements/chunks.md#client-paced-chunk-sending)) |
 | `Vec3`, `AABB`, `ChunkPos` as value classes | −27 % main-thread allocation but no tick time gain; needs JDK 28 with `--enable-preview`, which alone costs 7.6 % in the bases; breaks plugins that use their identity. Worth measuring again once value classes leave preview. |
 | Lithium's nitwit job-search shortcut | Skipped calls to the level's random, so not vanilla-identical. |
+| Reading the build height once per ore vein | `OreFeature` asked for the build height per block (1.85 % of the workers' CPU in a profile); reading it once per vein measured no gain in CPU time or chunk rate, 3 runs each. |
 
 ### Decided against
 

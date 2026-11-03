@@ -126,6 +126,68 @@ The saving is less than the 82 MB of the histogram because the end-of-run heap h
 
 </details>
 
+### Shared data for uniform sections
+
+**Faster.** At view distance 32: CPU time −6.0 %, standing tick time 66.5 → 62.9 ms, new chunks per second +6.2 %, heap after collection 3 552 → 3 046 MB, GC pauses 15.2 → 8.9 s. At view distance 10: heap after collection −14 %, GC pauses −21 %, the same tick time and CPU time. Pregeneration: GC pauses −10 %, the same chunk rate.
+Against release 26.3-18 with the 6 GB heap and flags of [the fork comparison](vs-leaf.md#paper-purpur-leaf-and-kindling), 3 interleaved runs each.
+
+Most sections hold a single block, mostly air, and many light arrays are all dark or all bright. Two patches stop allocating that uniform data once per section:
+
+- **Palettes** (patch `0348`, `net.kindlingmc.chunk.SingleValueData`): a block or biome container with a single value points to one shared, read-only data object per value (holder, palette and zero-bit storage) instead of its own. The first write of a second value gives the section its own data, as vanilla's resize does. Containers with Anti-Xray presets keep their own data.
+- **Light** (patch `0347`, `net.kindlingmc.light.SharedLightArrays`): Starlight's nibble arrays that are all 0 or all 15 share one read-only array per value until their light changes.
+
+What is saved and sent stays the same: a shared container writes the same single value its own data would. The gain grows with the view distance, because the heap holds more of these sections and G1 falls back to full collections when it runs short. A 6 GB heap stays tight at view distance 32: 2 to 4 full collections per run remain, the longest 1.4 to 1.6 s.
+
+<details>
+<summary>Method and all numbers</summary>
+
+`kindling-bench` on the bench host, `-XX:ActiveProcessorCount=8 -XX:+UseCompactObjectHeaders -Xms6G -Xmx6G -Xlog:gc*`, `--cpus 8`. Mixed: 8 creative players flying 90 s outward, then 150 mobs each and 90 s standing, render distance 32 asked for, server view distance 10 or 32. Pregeneration: one player, Chunky with radius 3 000 for 240 s, view distance 10. Release 26.3-18 against the same sources with both patches, three rounds in alternating order (labels `fin-*`). Full collections are the `Pause Full` lines of `gc.log` without the bench's own `System.gc()`. Cells: mean ±half range, p of Welch's t-test, `*` by [the rule](../MEASUREMENTS.md).
+
+| Figure | 26.3-18 | Shared data | p |
+| --- | ---: | ---: | ---: |
+| **View distance 32** | | | |
+| CPU time | 2 616 ±47 s | 2 458 ±2 s | 0.034 \* |
+| Standing tick time avg | 66.5 ±1.0 ms | 62.9 ±1.0 ms | 0.015 \* |
+| Standing CPU time | 760.6 ±10.3 s | 717.2 ±4.7 s | 0.009 \* |
+| Flight tick time avg | 50.8 ±1.8 ms | 50.9 ±0.6 ms | 0.91 |
+| New chunks per second | 163.1 ±4.8 | 173.2 ±2.7 | 0.048 \* |
+| Samples with a lead of 2 chunks or less | 4.8 ±1.2 % | 1.4 ±0.4 % | 0.030 \* |
+| Heap after collection | 3 552 ±132 MB | 3 046 ±36 MB | 0.019 \* |
+| GC pauses, whole run | 15 235 ±382 ms | 8 866 ±1 499 ms | 0.014 \* |
+| Full collections per run | 8, 5, 5 | 3, 2, 4 | |
+| Their pauses per run | 13.8, 7.9, 8.1 s | 3.9, 2.3, 4.9 s | |
+| Longest pause per run | 2 222, 2 009, 2 136 ms | 1 618, 1 383, 1 396 ms | |
+| Peak RSS | 7 009 MB | 6 997 MB | 0.63 |
+| **View distance 10** | | | |
+| Heap after collection | 1 127 ±1 MB | 967 ±6 MB | < 0.001 \* |
+| GC pauses, whole run | 2 850 ±34 ms | 2 247 ±108 ms | 0.007 \* |
+| Peak RSS | 6 924 ±42 MB | 6 691 ±33 MB | 0.003 \* |
+| Flight / standing tick time avg | 33.6 / 33.4 ms | 32.5 / 33.2 ms | 0.51 / 0.63 |
+| New chunks per second | 164.4 ±6.0 | 162.0 ±8.8 | 0.74 |
+| CPU time | 1 104 ±7 s | 1 108 ±13 s | 0.67 |
+| Full collections per run | 0, 0, 0 | 0, 0, 0 | |
+| **Pregeneration** | | | |
+| New chunks per second (per run) | 188.7, 208.7, 210.9 | 209.9, 211.0, 212.6 | 0.36 |
+| GC pauses, whole run | 1 576 ±5 ms | 1 419 ±58 ms | 0.049 \* |
+| Heap after collection | 526 ±22 MB | 480 ±17 MB | 0.055 |
+| Tick time avg | 5.1 ms | 5.0 ms | 0.75 |
+| CPU time | 1 500.6 ±5.3 s | 1 496.0 ±4.5 s | 0.32 |
+| CPU time of the 5 s standing phase | 27.65 ±0.02 s | 28.27 ±0.17 s | 0.025 \* |
+
+Each patch alone, from earlier series with 3 runs each: the light arrays against the release took 24 MB off the heap after collection at view distance 10 and 116 MB at 32, nothing else marked. The palette data against a build with the light patch (and an ore change that was dropped later) took 129 MB and 540 MB, and 4.7 % of the CPU time at view distance 32.
+
+</details>
+
+<details>
+<summary>Caveats</summary>
+
+- **The marked pregeneration row is 0.6 s of CPU time** in the 5 s the player stands after Chunky ran; the whole run's CPU time is the same. A second series (6 runs each against the build without the palette patch) did not mark it (p = 0.12).
+- **An earlier version slowed some pregenerations.** It checked for shared data in `createOrReuseData`, which the generation's write path inlines. With it, 4 of 10 pregenerations ran at 173 to 197 chunks per second, and their CPU profiles showed the density graph and the material rules compiled without their usual inlining. The check now sits in `read`, the only caller that can meet shared data: 9 pregenerations since, at 206.7 to 212.6. The JIT shape varies on its own as well; the release ran one of its three pregenerations here at 188.7.
+- **World data.** Pregenerated worlds of a build with the palette patch and one without differ in 36.5 to 36.8 % of the chunks, two worlds of the same build in 37.0 to 37.5 % (feature placement depends on the order of the chunk workers); light differs in 2.0 to 2.2 % of the chunks in every pair. That is no difference beyond the floor, not a block-exact proof.
+- Not measured: a server with Anti-Xray presets (smaller gain), and light sections that switch often between uniform and mixed (each switch allocates an array again).
+
+</details>
+
 ## AOT cache and native memory
 
 **Indicative.** AOT cache: billiards starts in 9.5 to 10.7 s instead of 16.9 to 26.9 s, smp in 19.2 s instead of 23 to 27 s.
