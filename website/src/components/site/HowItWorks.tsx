@@ -47,7 +47,7 @@ const GROUPS: StepGroup[] = [
         mode: "directional",
         label: "Kindling",
         title: "Ahead first.",
-        body: "Directional loading weights each chunk by its angle to the flight path, each player's generation queue stays short enough to keep re-sorting toward it, and on eight threads five chunk workers do the work where Paper starts two. Eight fliers on a four-core i7-7700 spent 82 % of their flight over the void on Leaf, Paper and Purpur and none on Kindling, which generated 2.6 times the chunks per second of Leaf, with a tick time p95 of 51 instead of 127 ms. It costs CPU time: about 44 % more than Leaf, for 2.6 times the chunks.",
+        body: "Directional loading weights each chunk by its angle to the flight path, each player's generation queue stays short enough to keep re-sorting toward it, and on eight threads five chunk workers do the work where Paper starts two. Eight fliers on a four-core i7-7700 spent 82 % of their flight over the void on Leaf, Paper and Purpur and none on Kindling, which generated 2.5 times the chunks per second of Leaf, with a tick time p95 of 49 instead of 127 ms. It costs CPU time: about 44 % more than Leaf, for 2.5 times the chunks.",
       },
       {
         mode: "tiles",

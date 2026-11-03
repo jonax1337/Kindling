@@ -26,10 +26,10 @@ The time over void was first measured on one line straight ahead of each player;
 
 | Change | Result |
 | --- | --- |
-| [New terrain](measurements/vs-leaf.md#paper-purpur-leaf-and-kindling) | **Faster.** 2.6 to 4.3 times the new chunks per second of Leaf; elytra flight over void 92 % → 4 %; flight tick time p95 151 → 37 ms; join until the full view 49.9 → 27.6 s |
-| [Pregeneration](measurements/vs-leaf.md#paper-purpur-leaf-and-kindling) | **Trade-off.** Chunky 97.9 → 206.7 chunks per second, for tick time 3.7 → 5.2 ms and 8 % more CPU time per chunk |
+| [New terrain](measurements/vs-leaf.md#paper-purpur-leaf-and-kindling) | **Faster.** 2.5 to 4.3 times the new chunks per second of Leaf; elytra flight over void 92 % → 4 %; flight tick time p95 151 → 37 ms; join until the full view 49.9 → 28.5 s |
+| [Pregeneration](measurements/vs-leaf.md#paper-purpur-leaf-and-kindling) | **Trade-off.** Chunky 97.9 → 211.2 chunks per second, for tick time 3.7 → 5.0 ms and 6 % more CPU time per chunk |
 | [Ticking without new terrain](measurements/vs-leaf.md#paper-purpur-leaf-and-kindling) | **Same** as Leaf in the bases, among villagers and over a pregenerated world; Kindling 14 to 40 % faster than Paper and Purpur |
-| [View distance 32](measurements/vs-leaf.md#paper-purpur-leaf-and-kindling) | **Trade-off.** Time over void 69 % → 0.4 % and flight p95 125 → 73 ms, but flight tick time avg 36.0 → 52.8 ms and twice the heap |
+| [View distance 32](measurements/vs-leaf.md#paper-purpur-leaf-and-kindling) | **Trade-off.** Time over void 69 % → 0.2 % and flight p95 125 → 72 ms, but flight tick time avg 36.0 → 50.9 ms and 1.6 times the heap |
 | [CPU time](measurements/vs-leaf.md#paper-purpur-leaf-and-kindling) | **Slower.** +44 % exploring, +82 % with elytras, +10 % in the bases, none over a pregenerated world |
 | [Async pathfinding and mob spawning](measurements/vs-leaf.md#async-pathfinding-and-mob-spawning-opt-in) | **Faster**, opt-in. 1 200 standing mobs 34.9 → 31.8 ms with them on; not vanilla, so off by default |
 | [Leaf's options](measurements/vs-leaf.md#leafs-options-one-by-one) | **Indicative.** No option is both faster and vanilla; [ten not adopted](measurements/vs-leaf.md#not-adopted-although-leaf-offers-them) |
@@ -130,6 +130,7 @@ The time over void was first measured on one line straight ahead of each player;
 | [3 GB heap instead of 2 GB](measurements/memory-jvm.md#jvm-and-heap) | **Faster.** Full collections 5–6 → 2 per run, CPU −3.8 %, 1 GB more memory |
 | [G1 flags for a 2 GB heap](measurements/memory-jvm.md#jvm-and-heap) | **Trade-off.** Full collections 6–7 → 0 per run, GC pauses 8.4 → 5.4 s; CPU +5 % and standing tick time 35.8 → 37.3 ms |
 | [Lazy ticking-list map](measurements/memory-jvm.md#the-lazy-ticking-list-map) | **Faster.** Live heap −57 MB |
+| [Shared data for uniform sections](measurements/memory-jvm.md#shared-data-for-uniform-sections) | **Faster.** View distance 32: CPU −6 %, standing tick time 66.5 → 62.9 ms, GC pauses −42 %; view distance 10: heap −14 % |
 | [Partly generated chunks in memory](measurements/memory-jvm.md#the-ring-of-partly-generated-chunks) | **Indicative.** A fifth of the live heap is chunk sections, 82 % of them only air |
 | [Idle memory](measurements/memory-jvm.md#idle-memory) | **Faster**, opt-in. Resident memory with nobody online 2 492 → 1 032 MiB |
 | [AOT cache](measurements/memory-jvm.md#aot-cache-and-native-memory) | **Indicative.** Start 9.5 to 10.7 s instead of 16.9 to 26.9 s |

@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="860" height="452" viewBox="0 0 860 452" role="img" aria-labelledby="title desc" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif">
 <title id="title">Kindling against Paper, Purpur and Leaf</title>
-<desc id="desc">3.3× the chunks per second (Kindling 153 · others 44.9 to 45.8); 4 % of the flight over void (Kindling 4.3 % · others 92.2 % to 92.4 %); 4× lower tick spikes in flight (Kindling 37.0 ms · others 151 ms to 154 ms); 2.1× faster pregeneration (Kindling 207 · others 94.2 to 98.6); Like Leaf without new terrain (14 to 40 % ahead of Paper and Purpur); +44 % CPU and 1.9× the heap (1 110 s against Leaf&#x27;s 769 s while exploring)</desc>
+<desc id="desc">3.3× the chunks per second (Kindling 153 · others 44.9 to 45.8); 4 % of the flight over void (Kindling 4.3 % · others 92.2 % to 92.4 %); 4× lower tick spikes in flight (Kindling 37.0 ms · others 151 ms to 154 ms); 2.1× faster pregeneration (Kindling 211 · others 94.2 to 98.6); Like Leaf without new terrain (14 to 40 % ahead of Paper and Purpur); +44 % CPU and 1.6× the heap (1 108 s against Leaf&#x27;s 769 s while exploring)</desc>
 <rect width="860" height="452" rx="12" fill="#101A14"/>
 <text x="24.0" y="38.0" fill="#FAF7EF" font-size="20" font-weight="700" text-anchor="start">Kindling against Paper, Purpur and Leaf</text>
 <text x="24.0" y="62.0" fill="#ACB9AA" font-size="13" font-weight="400" text-anchor="start">Same machine, each with its own defaults, view distance 10; means of 3 runs.</text>
@@ -27,7 +27,7 @@
 <text x="44.0" y="308.0" fill="#E2601F" font-size="32" font-weight="800" text-anchor="start">2.1×</text>
 <text x="44.0" y="334.0" fill="#FAF7EF" font-size="14" font-weight="600" text-anchor="start">faster pregeneration</text>
 <text x="44.0" y="354.0" fill="#ACB9AA" font-size="12" font-weight="400" text-anchor="start">Chunky on every fork</text>
-<text x="44.0" y="386.0" fill="#ACB9AA" font-size="11" font-weight="400" text-anchor="start">Kindling 207 · others 94.2 to 98.6</text>
+<text x="44.0" y="386.0" fill="#ACB9AA" font-size="11" font-weight="400" text-anchor="start">Kindling 211 · others 94.2 to 98.6</text>
 <rect x="300.0" y="258" width="260.0" height="150" rx="10" fill="#18251C"/>
 <rect x="300.0" y="258" width="4" height="150" rx="2" fill="#4E9E62"/>
 <text x="320.0" y="308.0" fill="#4E9E62" font-size="32" font-weight="800" text-anchor="start">Like Leaf</text>
@@ -37,8 +37,8 @@
 <rect x="576.0" y="258" width="260.0" height="150" rx="10" fill="#18251C"/>
 <rect x="576.0" y="258" width="4" height="150" rx="2" fill="#ACB9AA"/>
 <text x="596.0" y="308.0" fill="#ACB9AA" font-size="32" font-weight="800" text-anchor="start">+44 % CPU</text>
-<text x="596.0" y="334.0" fill="#FAF7EF" font-size="14" font-weight="600" text-anchor="start">and 1.9× the heap</text>
+<text x="596.0" y="334.0" fill="#FAF7EF" font-size="14" font-weight="600" text-anchor="start">and 1.6× the heap</text>
 <text x="596.0" y="354.0" fill="#ACB9AA" font-size="12" font-weight="400" text-anchor="start">heap at view distance 32</text>
-<text x="596.0" y="386.0" fill="#ACB9AA" font-size="11" font-weight="400" text-anchor="start">1 110 s against Leaf&#x27;s 769 s while exploring</text>
+<text x="596.0" y="386.0" fill="#ACB9AA" font-size="11" font-weight="400" text-anchor="start">1 108 s against Leaf&#x27;s 769 s while exploring</text>
 <text x="24.0" y="434.0" fill="#ACB9AA" font-size="12" font-weight="400" text-anchor="start">Orange: Kindling ahead of every fork · green: even with Leaf · gray: what it costs.</text>
 </svg>

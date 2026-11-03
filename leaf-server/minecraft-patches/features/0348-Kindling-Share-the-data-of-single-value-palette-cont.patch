@@ -1,0 +1,77 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Tue, 3 Nov 2026 09:34:05 +0100
+Subject: [PATCH] Kindling: Share the data of single-value palette containers
+
+
+diff --git a/net/minecraft/world/level/chunk/PalettedContainer.java b/net/minecraft/world/level/chunk/PalettedContainer.java
+index ca997efff60e33e44779766730c88ab731654fe9..bf874c13e585cdeb06a9cb5794b5184b95f3c0a5 100644
+--- a/net/minecraft/world/level/chunk/PalettedContainer.java
++++ b/net/minecraft/world/level/chunk/PalettedContainer.java
+@@ -137,7 +137,7 @@ public class PalettedContainer<T> implements PaletteResize<T>, PalettedContainer
+     private PalettedContainer(final PalettedContainer<T> source, final T @Nullable [] presetValues) { // Paper - Anti-Xray - Add preset values
+         this.presetValues = presetValues; // Paper - Anti-Xray - Add preset values
+         this.strategy = source.strategy;
+-        this.data = source.data.copy();
++        this.data = source.strategy.kindling$singleValueData.isShared(source.data) ? source.data : source.data.copy(); // Kindling - Share the data of single-value palette containers: copies keep it
+     }
+ 
+     @Deprecated @io.papermc.paper.annotation.DoNotUse // Paper - Anti-Xray
+@@ -149,10 +149,24 @@ public class PalettedContainer<T> implements PaletteResize<T>, PalettedContainer
+         this.presetValues = presetValues;
+         // Paper end - Anti-Xray
+         this.strategy = strategy;
++        // Kindling start - Share the data of single-value palette containers
++        if (presetValues == null) {
++            this.data = strategy.kindling$singleValueData.of(strategy, strategy.getConfigurationForBitCount(0), initialValue);
++            return;
++        }
++        // Kindling end - Share the data of single-value palette containers
+         this.data = this.createOrReuseData(null, 0);
+         this.data.palette.idFor(initialValue, this);
+     }
+ 
++    // Kindling start - Share the data of single-value palette containers
++    private PalettedContainer(final Strategy<T> strategy, final PalettedContainer.Data<T> sharedData) {
++        this.presetValues = null;
++        this.strategy = strategy;
++        this.data = sharedData;
++    }
++    // Kindling end - Share the data of single-value palette containers
++
+     private PalettedContainer.Data<T> createOrReuseData(final PalettedContainer.@Nullable Data<T> oldData, final int targetBits) {
+         Configuration dataConfiguration = this.strategy.getConfigurationForBitCount(targetBits);
+         if (oldData != null && dataConfiguration.equals(oldData.configuration())) {
+@@ -272,7 +286,7 @@ public class PalettedContainer<T> implements PaletteResize<T>, PalettedContainer
+ 
+         try {
+             int newBits = buffer.readByte();
+-            PalettedContainer.Data<T> newData = this.createOrReuseData(this.data, newBits);
++            PalettedContainer.Data<T> newData = this.createOrReuseData(this.strategy.kindling$singleValueData.isShared(this.data) ? null : this.data, newBits); // Kindling - Share the data of single-value palette containers: never read into shared data
+             newData.palette.read(buffer, this.strategy.globalMap());
+             buffer.readFixedSizeLongArray(newData.storage.getRaw());
+             this.data = newData;
+@@ -316,6 +330,11 @@ public class PalettedContainer<T> implements PaletteResize<T>, PalettedContainer
+             return DataResult.error(() -> "Invalid bit count, calculated " + bitsOnDisc + ", but container declared " + discData.bitsPerEntry());
+         }
+ 
++        // Kindling start - Share the data of single-value palette containers
++        if (storedConfiguration.bitsInMemory() == 0 && presetValues == null && paletteEntries.size() == 1) {
++            return DataResult.success(new PalettedContainer<>(strategy, strategy.kindling$singleValueData.of(strategy, storedConfiguration, paletteEntries.getFirst())));
++        }
++        // Kindling end - Share the data of single-value palette containers
+         BitStorage storage;
+         Palette<T> palette;
+         if (storedConfiguration.bitsInMemory() == 0) {
+diff --git a/net/minecraft/world/level/chunk/Strategy.java b/net/minecraft/world/level/chunk/Strategy.java
+index 38e4abe3307c020ec7e2385a559ff4708b09c899..d915785f71e1cb66ecc2bd403676231241305e13 100644
+--- a/net/minecraft/world/level/chunk/Strategy.java
++++ b/net/minecraft/world/level/chunk/Strategy.java
+@@ -21,6 +21,7 @@ public abstract class Strategy<T> {
+     protected final int globalPaletteBitsInMemory;
+     private final int bitsPerAxis;
+     private final int entryCount;
++    public final net.kindlingmc.chunk.SingleValueData<T> kindling$singleValueData = new net.kindlingmc.chunk.SingleValueData<>(); // Kindling - Share the data of single-value palette containers
+ 
+     private Strategy(final IdMap<T> globalMap, final int bitsPerAxis) {
+         this.globalMap = globalMap;

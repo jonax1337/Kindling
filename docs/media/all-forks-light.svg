@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="860" height="716" viewBox="0 0 860 716" role="img" aria-labelledby="title desc" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif">
 <title id="title">All forks compared</title>
-<desc id="desc">Chunks per second, 5 elytras: Paper 45.8, Purpur 45.3, Leaf 44.9, Kindling 153; Time over ungenerated void, 5 elytras: Paper 92.4 %, Purpur 92.3 %, Leaf 92.2 %, Kindling 4.3 %; Tick time while flying, p95: Paper 151 ms, Purpur 154 ms, Leaf 151 ms, Kindling 37.0 ms; Chunks per second, 8 players exploring: Paper 69.7, Purpur 68.4, Leaf 64.9, Kindling 168; Chunks per second, view distance 32: Paper 34.2, Purpur 34.7, Leaf 34.9, Kindling 150; Pregeneration, chunks per second: Paper 98.6, Purpur 94.2, Leaf 97.9, Kindling 207; Tick time in survival bases: Paper 13.3 ms, Purpur 13.3 ms, Leaf 11.9 ms, Kindling 11.0 ms; Tick time among working villagers: Paper 12.3 ms, Purpur 14.4 ms, Leaf 8.4 ms, Kindling 8.6 ms; Flying over a pregenerated world: Paper 29.1 ms, Purpur 30.4 ms, Leaf 25.2 ms, Kindling 25.0 ms; Tick time, 8 players at view distance 32: Paper 41.9 ms, Purpur 41.8 ms, Leaf 36.0 ms, Kindling 52.8 ms; CPU time, 8 players exploring: Paper 804 s, Purpur 820 s, Leaf 769 s, Kindling 1 110 s; Heap after GC, view distance 32: Paper 2 035 MB, Purpur 2 063 MB, Leaf 1 954 MB, Kindling 3 729 MB</desc>
+<desc id="desc">Chunks per second, 5 elytras: Paper 45.8, Purpur 45.3, Leaf 44.9, Kindling 153; Time over ungenerated void, 5 elytras: Paper 92.4 %, Purpur 92.3 %, Leaf 92.2 %, Kindling 4.3 %; Tick time while flying, p95: Paper 151 ms, Purpur 154 ms, Leaf 151 ms, Kindling 37.0 ms; Chunks per second, 8 players exploring: Paper 69.7, Purpur 68.4, Leaf 64.9, Kindling 162; Chunks per second, view distance 32: Paper 34.2, Purpur 34.7, Leaf 34.9, Kindling 150; Pregeneration, chunks per second: Paper 98.6, Purpur 94.2, Leaf 97.9, Kindling 211; Tick time in survival bases: Paper 13.3 ms, Purpur 13.3 ms, Leaf 11.9 ms, Kindling 11.0 ms; Tick time among working villagers: Paper 12.3 ms, Purpur 14.4 ms, Leaf 8.4 ms, Kindling 8.6 ms; Flying over a pregenerated world: Paper 29.1 ms, Purpur 30.4 ms, Leaf 25.2 ms, Kindling 25.0 ms; Tick time, 8 players at view distance 32: Paper 41.9 ms, Purpur 41.8 ms, Leaf 36.0 ms, Kindling 50.9 ms; CPU time, 8 players exploring: Paper 804 s, Purpur 820 s, Leaf 769 s, Kindling 1 108 s; Heap after GC, view distance 32: Paper 2 035 MB, Purpur 2 063 MB, Leaf 1 954 MB, Kindling 3 046 MB</desc>
 <rect width="860" height="716" rx="12" fill="#FAF7EF"/>
 <text x="24.0" y="38.0" fill="#19291F" font-size="20" font-weight="700" text-anchor="start">All forks compared</text>
 <text x="24.0" y="62.0" fill="#556457" font-size="13" font-weight="400" text-anchor="start">Means of 3 runs per fork on the same machine; each line runs from zero to the highest value.</text>
@@ -47,12 +47,12 @@
 <text x="24.0" y="266.0" fill="#19291F" font-size="13" font-weight="600" text-anchor="start">Chunks per second, 8 players exploring</text>
 <text x="278.0" y="266.0" fill="#556457" font-size="13" font-weight="400" text-anchor="end">↑</text>
 <line x1="290" y1="262" x2="590" y2="262" stroke="#DDDCCF" stroke-width="2"/>
-<line x1="401.6" y1="262" x2="409.9" y2="262" stroke="#556457" stroke-width="4" stroke-linecap="round" opacity="0.5"/>
-<circle cx="409.9" cy="262" r="5.5" fill="#A3A89C" stroke="#FAF7EF" stroke-width="1.5"/>
-<circle cx="407.6" cy="262" r="5.5" fill="#9D86B8" stroke="#FAF7EF" stroke-width="1.5"/>
-<circle cx="401.6" cy="262" r="5.5" fill="#3F8A52" stroke="#FAF7EF" stroke-width="1.5"/>
+<line x1="405.5" y1="262" x2="414.1" y2="262" stroke="#556457" stroke-width="4" stroke-linecap="round" opacity="0.5"/>
+<circle cx="414.1" cy="262" r="5.5" fill="#A3A89C" stroke="#FAF7EF" stroke-width="1.5"/>
+<circle cx="411.7" cy="262" r="5.5" fill="#9D86B8" stroke="#FAF7EF" stroke-width="1.5"/>
+<circle cx="405.5" cy="262" r="5.5" fill="#3F8A52" stroke="#FAF7EF" stroke-width="1.5"/>
 <circle cx="578.5" cy="262" r="7" fill="#E0561A" stroke="#FAF7EF" stroke-width="1.5"/>
-<text x="610.0" y="266.0" fill="#E0561A" font-size="13" font-weight="700" text-anchor="start">168</text>
+<text x="610.0" y="266.0" fill="#E0561A" font-size="13" font-weight="700" text-anchor="start">162</text>
 <text x="682.0" y="266.0" fill="#556457" font-size="12" font-weight="400" text-anchor="start">others 64.9 to 69.7</text>
 <text x="24.0" y="300.0" fill="#19291F" font-size="13" font-weight="600" text-anchor="start">Chunks per second, view distance 32</text>
 <text x="278.0" y="300.0" fill="#556457" font-size="13" font-weight="400" text-anchor="end">↑</text>
@@ -67,12 +67,12 @@
 <text x="24.0" y="334.0" fill="#19291F" font-size="13" font-weight="600" text-anchor="start">Pregeneration, chunks per second</text>
 <text x="278.0" y="334.0" fill="#556457" font-size="13" font-weight="400" text-anchor="end">↑</text>
 <line x1="290" y1="330" x2="590" y2="330" stroke="#DDDCCF" stroke-width="2"/>
-<line x1="421.5" y1="330" x2="427.5" y2="330" stroke="#556457" stroke-width="4" stroke-linecap="round" opacity="0.5"/>
-<circle cx="427.5" cy="330" r="5.5" fill="#A3A89C" stroke="#FAF7EF" stroke-width="1.5"/>
-<circle cx="421.5" cy="330" r="5.5" fill="#9D86B8" stroke="#FAF7EF" stroke-width="1.5"/>
-<circle cx="426.6" cy="330" r="5.5" fill="#3F8A52" stroke="#FAF7EF" stroke-width="1.5"/>
+<line x1="418.7" y1="330" x2="424.6" y2="330" stroke="#556457" stroke-width="4" stroke-linecap="round" opacity="0.5"/>
+<circle cx="424.6" cy="330" r="5.5" fill="#A3A89C" stroke="#FAF7EF" stroke-width="1.5"/>
+<circle cx="418.7" cy="330" r="5.5" fill="#9D86B8" stroke="#FAF7EF" stroke-width="1.5"/>
+<circle cx="423.7" cy="330" r="5.5" fill="#3F8A52" stroke="#FAF7EF" stroke-width="1.5"/>
 <circle cx="578.5" cy="330" r="7" fill="#E0561A" stroke="#FAF7EF" stroke-width="1.5"/>
-<text x="610.0" y="334.0" fill="#E0561A" font-size="13" font-weight="700" text-anchor="start">207</text>
+<text x="610.0" y="334.0" fill="#E0561A" font-size="13" font-weight="700" text-anchor="start">211</text>
 <text x="682.0" y="334.0" fill="#556457" font-size="12" font-weight="400" text-anchor="start">others 94.2 to 98.6</text>
 <text x="24.0" y="382.0" fill="#556457" font-size="12" font-weight="700" text-anchor="start">WITHOUT NEW TERRAIN</text>
 <line x1="24" y1="390" x2="836" y2="390" stroke="#DDDCCF"/>
@@ -111,32 +111,32 @@
 <text x="24.0" y="566.0" fill="#19291F" font-size="13" font-weight="600" text-anchor="start">Tick time, 8 players at view distance 32</text>
 <text x="278.0" y="566.0" fill="#556457" font-size="13" font-weight="400" text-anchor="end">↓</text>
 <line x1="290" y1="562" x2="590" y2="562" stroke="#DDDCCF" stroke-width="2"/>
-<line x1="486.5" y1="562" x2="518.5" y2="562" stroke="#556457" stroke-width="4" stroke-linecap="round" opacity="0.5"/>
-<circle cx="518.5" cy="562" r="5.5" fill="#A3A89C" stroke="#FAF7EF" stroke-width="1.5"/>
-<circle cx="518.1" cy="562" r="5.5" fill="#9D86B8" stroke="#FAF7EF" stroke-width="1.5"/>
-<circle cx="486.5" cy="562" r="5.5" fill="#3F8A52" stroke="#FAF7EF" stroke-width="1.5"/>
+<line x1="494.0" y1="562" x2="527.2" y2="562" stroke="#556457" stroke-width="4" stroke-linecap="round" opacity="0.5"/>
+<circle cx="527.2" cy="562" r="5.5" fill="#A3A89C" stroke="#FAF7EF" stroke-width="1.5"/>
+<circle cx="526.7" cy="562" r="5.5" fill="#9D86B8" stroke="#FAF7EF" stroke-width="1.5"/>
+<circle cx="494.0" cy="562" r="5.5" fill="#3F8A52" stroke="#FAF7EF" stroke-width="1.5"/>
 <circle cx="578.5" cy="562" r="7" fill="#E0561A" stroke="#FAF7EF" stroke-width="1.5"/>
-<text x="610.0" y="566.0" fill="#2464C2" font-size="13" font-weight="700" text-anchor="start">52.8 ms</text>
+<text x="610.0" y="566.0" fill="#2464C2" font-size="13" font-weight="700" text-anchor="start">50.9 ms</text>
 <text x="682.0" y="566.0" fill="#556457" font-size="12" font-weight="400" text-anchor="start">others 36.0 ms to 41.9 ms</text>
 <text x="24.0" y="600.0" fill="#19291F" font-size="13" font-weight="600" text-anchor="start">CPU time, 8 players exploring</text>
 <text x="278.0" y="600.0" fill="#556457" font-size="13" font-weight="400" text-anchor="end">↓</text>
 <line x1="290" y1="596" x2="590" y2="596" stroke="#DDDCCF" stroke-width="2"/>
-<line x1="489.8" y1="596" x2="503.3" y2="596" stroke="#556457" stroke-width="4" stroke-linecap="round" opacity="0.5"/>
-<circle cx="498.9" cy="596" r="5.5" fill="#A3A89C" stroke="#FAF7EF" stroke-width="1.5"/>
-<circle cx="503.3" cy="596" r="5.5" fill="#9D86B8" stroke="#FAF7EF" stroke-width="1.5"/>
-<circle cx="489.8" cy="596" r="5.5" fill="#3F8A52" stroke="#FAF7EF" stroke-width="1.5"/>
+<line x1="490.2" y1="596" x2="503.7" y2="596" stroke="#556457" stroke-width="4" stroke-linecap="round" opacity="0.5"/>
+<circle cx="499.3" cy="596" r="5.5" fill="#A3A89C" stroke="#FAF7EF" stroke-width="1.5"/>
+<circle cx="503.7" cy="596" r="5.5" fill="#9D86B8" stroke="#FAF7EF" stroke-width="1.5"/>
+<circle cx="490.2" cy="596" r="5.5" fill="#3F8A52" stroke="#FAF7EF" stroke-width="1.5"/>
 <circle cx="578.5" cy="596" r="7" fill="#E0561A" stroke="#FAF7EF" stroke-width="1.5"/>
-<text x="610.0" y="600.0" fill="#2464C2" font-size="13" font-weight="700" text-anchor="start">1 110 s</text>
+<text x="610.0" y="600.0" fill="#2464C2" font-size="13" font-weight="700" text-anchor="start">1 108 s</text>
 <text x="682.0" y="600.0" fill="#556457" font-size="12" font-weight="400" text-anchor="start">others 769 s to 820 s</text>
 <text x="24.0" y="634.0" fill="#19291F" font-size="13" font-weight="600" text-anchor="start">Heap after GC, view distance 32</text>
 <text x="278.0" y="634.0" fill="#556457" font-size="13" font-weight="400" text-anchor="end">↓</text>
 <line x1="290" y1="630" x2="590" y2="630" stroke="#DDDCCF" stroke-width="2"/>
-<line x1="441.1" y1="630" x2="449.6" y2="630" stroke="#556457" stroke-width="4" stroke-linecap="round" opacity="0.5"/>
-<circle cx="447.4" cy="630" r="5.5" fill="#A3A89C" stroke="#FAF7EF" stroke-width="1.5"/>
-<circle cx="449.6" cy="630" r="5.5" fill="#9D86B8" stroke="#FAF7EF" stroke-width="1.5"/>
-<circle cx="441.1" cy="630" r="5.5" fill="#3F8A52" stroke="#FAF7EF" stroke-width="1.5"/>
+<line x1="475.0" y1="630" x2="485.4" y2="630" stroke="#556457" stroke-width="4" stroke-linecap="round" opacity="0.5"/>
+<circle cx="482.7" cy="630" r="5.5" fill="#A3A89C" stroke="#FAF7EF" stroke-width="1.5"/>
+<circle cx="485.4" cy="630" r="5.5" fill="#9D86B8" stroke="#FAF7EF" stroke-width="1.5"/>
+<circle cx="475.0" cy="630" r="5.5" fill="#3F8A52" stroke="#FAF7EF" stroke-width="1.5"/>
 <circle cx="578.5" cy="630" r="7" fill="#E0561A" stroke="#FAF7EF" stroke-width="1.5"/>
-<text x="610.0" y="634.0" fill="#2464C2" font-size="13" font-weight="700" text-anchor="start">3 729 MB</text>
+<text x="610.0" y="634.0" fill="#2464C2" font-size="13" font-weight="700" text-anchor="start">3 046 MB</text>
 <text x="682.0" y="634.0" fill="#556457" font-size="12" font-weight="400" text-anchor="start">others 1 954 MB to 2 063 MB</text>
 <text x="24.0" y="694.0" fill="#556457" font-size="12" font-weight="400" text-anchor="start">↑ higher is better, ↓ lower is better. Kindling&#x27;s number: orange ahead of every other fork, blue behind the best one, gray no significant difference.</text>
 </svg>

@@ -2,6 +2,22 @@
 
 Releases, newest first. Every build is a pre-release; the jars are on the [Releases](https://github.com/jonax1337/Kindling/releases) page. Build 26.3-6 was skipped and does not exist.
 
+## Unreleased
+
+### Performance
+
+- Uniform chunk data is shared instead of allocated per section (patches `0347` and `0348`): single-value block and biome palettes and all-dark or all-bright light arrays point to one read-only copy. At view distance 32 CPU time −6 %, standing tick time 66.5 → 62.9 ms and GC pauses −42 %; at view distance 10 the heap −14 % at the same tick time, against release 26.3-18 ([details](docs/measurements/memory-jvm.md#shared-data-for-uniform-sections)).
+
+### Measured
+
+- The comparison with Paper, Purpur and Leaf carries Kindling's new runs with 8 exploring players and in pregeneration: still 44 % more CPU time than Leaf while exploring, heap after GC at view distance 32 1.9 → 1.6 times Leaf's ([details](docs/measurements/vs-leaf.md)).
+
+## 26.3-21 - 2026-11-03
+
+### Added
+
+- Fresh servers start with a Kindling MOTD and a transparent server icon; an existing properties file or icon is never changed ([configuration](docs/reference/configuration.md#fresh-server-branding)).
+
 ## 26.3-18 - 2026-11-03
 
 Previews beyond the view distance for vanilla clients, Leaf's latest upstream, and a comparison with Paper, Purpur and Leaf.
