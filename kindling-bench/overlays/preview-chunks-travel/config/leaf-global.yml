@@ -1,0 +1,4 @@
+network:
+  preview-chunks:
+    enabled: true
+    travel-view-distance: 5

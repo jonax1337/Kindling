@@ -1,6 +1,6 @@
 # Configuration
 
-All of Kindling's settings live under `performance:` in `config/leaf-global.yml`. Every other key there is Leaf's and works as in Leaf. Changes take effect after a restart unless a setting says otherwise.
+All of Kindling's settings live under `performance:` in `config/leaf-global.yml`, except [`network.preview-chunks`](#networkpreview-chunks). Every other key there is Leaf's and works as in Leaf. Changes take effect after a restart unless a setting says otherwise.
 
 Why each default was chosen, and what it measured: [MEASUREMENTS.md](../MEASUREMENTS.md).
 
@@ -19,6 +19,7 @@ Why each default was chosen, and what it measured: [MEASUREMENTS.md](../MEASUREM
 | [`worker-governor`](#worker-governor) | off | Linux |
 | [`idle-memory`](#idle-memory) | off | all (native trim glibc Linux only) |
 | [`biome-zoom-shortcut`](#biome-zoom-shortcut) | off | all |
+| [`network.preview-chunks`](#networkpreview-chunks) | off | all |
 
 Paper's `chunk-system.worker-threads` in `config/paper-global.yml` keeps its meaning. At `-1` (the default) Kindling picks five eighths of the processors, at most five and never fewer than Paper would (5 on 8 cores).
 
@@ -232,6 +233,49 @@ performance:
 | `enabled` | `false` | Where the eight cells the biome zoom chooses from lie in one chunk column and hold one identical biome, returns that biome without the zoom's distance math. |
 
 It only reads, and returns what the zoom would pick. Otherwise the exact zoom runs.
+
+## network.preview-chunks
+
+The one Kindling setting under `network:` rather than `performance:`.
+
+```yaml
+network:
+  preview-chunks:
+    enabled: false
+    radius: 32
+    threads: 2
+    max-pending-per-player: 256
+    send-per-tick: 40
+    keep-real-chunks: true
+    fill-gaps: true
+    trees: true
+    saved-chunks: true
+    cache-size: 2048
+    travel-view-distance: 0
+    travel-speed: 15.0
+```
+
+| Key | Default | Values | Effect |
+| --- | --- | --- | --- |
+| `enabled` | `false` | boolean | Players with a render distance above the view distance see previews out to `radius`, without the server loading or saving those chunks. |
+| `radius` | `32` | 2 to 32 | How far previews reach, in chunks. |
+| `threads` | `2` | 1 or more | Background threads computing previews for moving players. Players standing still share one more thread. |
+| `max-pending-per-player` | `256` | 1 or more | Previews queued per player at most. |
+| `send-per-tick` | `40` | 1 or more | Previews sent per player and tick at most. |
+| `keep-real-chunks` | `true` | boolean | Real chunks a player leaves stay on the client as their own preview while within `radius`. |
+| `fill-gaps` | `true` | boolean | Chunks within the view distance that are not loaded yet get a preview until the real one arrives, while the player moves, except the two chunks around the player. |
+| `trees` | `true` | boolean | Seed previews get vanilla's surface features: lakes, rocks, icebergs, ice spikes, desert wells, trees, grass and flowers. |
+| `saved-chunks` | `true` | boolean | A chunk that is already saved is previewed as saved: its trees, structures and builds, from a little below its surface up. |
+| `cache-size` | `2048` | 0 or more | Seed preview packets kept for reuse across players. |
+| `travel-view-distance` | `0` (off) | 0, or 3 to 32 | A player moving faster than `travel-speed` for two seconds gets at most this view and simulation distance until it has been slower for five seconds; previews show the rest. |
+| `travel-speed` | `15.0` | 1 or more | Horizontal blocks a second that count as travelling. |
+
+- Previews are not real chunks. They are never ticked or saved, and they get no block updates.
+- A seed preview shows no structures (villages, temples), ores or caves, and some trees stand elsewhere than in the real chunk ([how faithful](../measurements/preview-chunks.md#how-faithful-seed-previews-are)).
+- Saved previews leave out chests, signs, banners and item frames. They are read at the lowest I/O priority through the chunk system's read path. Changes show after the next save. Worlds with Paper's Anti-Xray keep the seed previews; packet-based anti-xray plugins are not detected.
+- Plugins still see the usual chunk unload event for real chunks kept as previews.
+- Overworld-like worlds only.
+- `travel-view-distance` changes what the server does around a fast traveller, which is why it is off by default. Chunks between the lowered and the usual distance are not loaded, so their mobs and blocks do not tick, nothing spawns there and the player does not see their entities. Chunks the player only flies past are never generated. A player faster than the chunks within the lowered distance are generated reaches chunks that are only previews. Plugins asking for the player's view, simulation or send distance get the lowered one.
 
 ## Leaf settings Kindling changes
 

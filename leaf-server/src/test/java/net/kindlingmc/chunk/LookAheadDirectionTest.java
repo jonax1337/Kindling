@@ -3,6 +3,7 @@ package net.kindlingmc.chunk;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class LookAheadDirectionTest {
@@ -148,6 +149,68 @@ class LookAheadDirectionTest {
 
         assertTrue(this.direction.priority(0, -5) < this.direction.priority(0, 5));
         assertEquals(this.direction.priority(5, 0), this.direction.priority(-5, 0), 1e-9);
+    }
+
+    @Test
+    void withoutAnySampleThePlayerIsNotMoving() {
+        assertFalse(this.direction.isMoving(0));
+    }
+
+    @Test
+    void theFirstPositionAloneIsNoMovement() {
+        this.update(0, 0, 0);
+
+        assertFalse(this.direction.isMoving(1));
+    }
+
+    @Test
+    void aFlightIsMovingUntilTheLastCrossingIsStale() {
+        this.fly(1, 5);
+        final long lastCrossing = 5 * 5;
+
+        assertTrue(this.direction.isMoving(lastCrossing));
+        assertTrue(this.direction.isMoving(lastCrossing + LookAheadDirection.STALE_TICKS));
+        assertFalse(this.direction.isMoving(lastCrossing + LookAheadDirection.STALE_TICKS + 1));
+    }
+
+    @Test
+    void aFlightIsMovingEvenWithoutLookAheadTicks() {
+        this.direction.update(0, 0, 0, VIEW_DISTANCE, 0);
+        this.direction.update(1, 0, 5, VIEW_DISTANCE, 0);
+
+        assertTrue(this.direction.isMoving(5));
+    }
+
+    @Test
+    void standingStillEndsTheMovement() {
+        this.update(0, 0, 0);
+        this.update(1, 0, 5);
+
+        this.update(1, 0, 20);
+
+        assertFalse(this.direction.isMoving(20));
+    }
+
+    @Test
+    void aTeleportEndsTheMovementUntilTheNextCrossing() {
+        this.update(0, 0, 0);
+        this.update(1, 0, 5);
+
+        this.update(500, 500, 10);
+        assertFalse(this.direction.isMoving(10));
+
+        this.update(501, 500, 20);
+        assertTrue(this.direction.isMoving(20));
+    }
+
+    @Test
+    void hoveringOnAChunkBorderKeepsTheMovement() {
+        this.update(0, 0, 0);
+        this.update(1, 0, 5);
+
+        this.update(0, 0, 6);
+
+        assertTrue(this.direction.isMoving(6));
     }
 
     /** Six chunk crossings along x, one chunk and the given number of ticks apart. */

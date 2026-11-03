@@ -25,6 +25,12 @@ final class RunResult {
         figures.put(name, value);
     }
 
+    /** Sets {@code name} inside the object {@code group}, which the first call creates. */
+    @SuppressWarnings("unchecked")
+    void putUnder(String group, String name, Object value) {
+        ((Map<String, Object>) figures.computeIfAbsent(group, key -> new LinkedHashMap<String, Object>())).put(name, value);
+    }
+
     void putAll(Map<String, ?> more) {
         figures.putAll(more);
     }

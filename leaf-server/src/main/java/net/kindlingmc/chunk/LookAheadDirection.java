@@ -21,6 +21,8 @@ public final class LookAheadDirection {
     // unit vector of the direction of travel, scaled by how strongly it bends the order (both 0: plain distance)
     private double directionX;
     private double directionZ;
+    // whether the last sample showed the player crossing chunks, independent of how strongly that bends the order
+    private boolean moving;
     private boolean hasReference;
     private int referenceX;
     private int referenceZ;
@@ -53,6 +55,7 @@ public final class LookAheadDirection {
     private void restartAt(final int chunkX, final int chunkZ, final long tick) {
         this.directionX = 0.0;
         this.directionZ = 0.0;
+        this.moving = false;
         this.hasReference = true;
         this.referenceX = chunkX;
         this.referenceZ = chunkZ;
@@ -61,7 +64,8 @@ public final class LookAheadDirection {
 
     private void pointTo(final int movedX, final int movedZ, final double moved, final long elapsed,
                          final int loadViewDistance, final int lookAheadTicks) {
-        if (moved == 0.0) {
+        this.moving = moved != 0.0;
+        if (!this.moving) {
             this.directionX = 0.0;
             this.directionZ = 0.0;
             return;
@@ -70,6 +74,15 @@ public final class LookAheadDirection {
         final double weight = Math.min(MAX_WEIGHT, ahead / Math.max(1, loadViewDistance));
         this.directionX = movedX / moved * weight;
         this.directionZ = movedZ / moved * weight;
+    }
+
+    /**
+     * Whether the player is on the move at {@code tick}: its last two chunk crossings showed a direction of travel, and
+     * the later of them is at most {@link #STALE_TICKS} ago. Independent of {@code lookAheadTicks}: a player moves
+     * even where the order stays plain distance.
+     */
+    public boolean isMoving(final long tick) {
+        return this.moving && tick - this.referenceTick <= STALE_TICKS;
     }
 
     /**

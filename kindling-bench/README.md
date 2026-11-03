@@ -52,7 +52,8 @@ Other marks and rows:
 - Rows that no run has are left out, so mixed and bases runs use the same script.
 - In a bases run, a counter row marked `!` differs between runs. That means behaviour changed.
 - A warning says that a bases run built before world generation settled (`settled: false`).
-- `chart.py` draws Kindling against plain Leaf from four labels (mixed and bases runs of both) as an SVG pair for light and dark backgrounds: `python -I kindling-bench/chart.py <leaf-mixed> <kindling-mixed> <leaf-bases> <kindling-bases> docs/media/kindling-vs-leaf`.
+- `chart.py` draws Kindling against plain Leaf from four labels (mixed and bases runs of both) as an SVG pair for light and dark backgrounds: `python -I kindling-bench/chart.py <leaf-mixed> <kindling-mixed> <leaf-bases> <kindling-bases> <out>`.
+- `forks_chart.py` draws the comparison with Paper, Purpur and Leaf from a folder of merged `af-<view distance>-<scenario>-<server>.json` files: the README tiles and the dot plot of the measurements page, each for light and dark backgrounds: `python -I kindling-bench/forks_chart.py <folder> docs/media/all-forks`. It stops if a tile's lead is not marked by the rule of `compare.py`.
 
 ## What a run does
 
@@ -80,6 +81,7 @@ Then the plugin writes `bench-result.json` and stops the server. The script adds
 | `--overlay <folder>` | Copies files over the server folder before the start, for example `overlays/leaf-safe/config/leaf-global.yml`. Leaf fills in missing keys, so an overlay needs only the keys it changes. May be given more than once; later folders overwrite earlier ones |
 | `--world <folder>` | Copies a world in as `world` before the start |
 | `--scenario "players=4,travel-seconds=30"` | Overrides single scenario keys. An overlay may also ship `plugins/KindlingBench/scenario.properties`; its keys are written first, so the command line wins when both set a key |
+| `--view-distance N` | The `view-distance` in `server.properties` (default 10). The simulation distance stays 8. An overlay with its own `server.properties` (such as `vd-8`) overwrites it |
 | `--cpus N` | Pins the server to the first N logical cores as a stand-in for a smaller machine. Pair it with `-XX:ActiveProcessorCount=N` in `--jvm`. On Linux the server starts under `taskset`; elsewhere the affinity is set after the start |
 
 ### Scripts
@@ -92,6 +94,7 @@ Then the plugin writes `bench-result.json` and stops the server. The script adds
 | `pregen.sh <kindling.jar> <prefix>` | The built-in pregenerator alone and during an elytra flight |
 | `compare.py <label> ...` | Puts finished runs side by side. Not a run |
 | `chart.py` | Draws the Kindling-against-Leaf chart from finished runs |
+| `forks_chart.py` | Draws the tiles and the dot plot of the comparison with Paper, Purpur and Leaf |
 
 `runs/`, `jars/` and `worlds/` are not checked in.
 
@@ -106,8 +109,16 @@ The result file holds many figures. `compare.py` leaves out the rows no run has.
 | `chunk_packets_warmup`, `chunk_packets_travel`, `chunk_batches_travel` | Chunk packets the fake players received during the warm-up and the flight, summed over the players, and the chunk batches of the flight (0 while the server does not send chunks in batches) |
 | `travel`, `steady`, `bases`: `wall_seconds`, `gc_count`, `gc_pause_millis` | Wall time of the phase and the garbage collection pauses in it. Only stop-the-world pauses count. ZGC and Shenandoah report their concurrent cycles as collectors of their own ("... Cycles"); those are left out. G1's "Concurrent GC" bean counts the remark and cleanup pauses and is included |
 | `travel`, `steady`, `bases`: `main_alloc_mb`, `all_alloc_mb` | Heap MiB the server main thread and all threads together allocated during the phase, as HotSpot counts them (`com.sun.management.ThreadMXBean`). The total for all threads is the JVM's own approximation. Left out where the JVM does not count |
+| `travel`, `steady`, `bases`: `process_cpu_ms` | CPU time all threads of the JVM used during the phase (`com.sun.management.OperatingSystemMXBean#getProcessCpuTime`, user plus system; works on Windows and Linux). Includes the chunk workers, the preview workers and the garbage collector, which `main_run_ms` does not. Left out where the JVM does not tell |
 | `travel`, `steady`, `bases`: `main_run_ms`, `main_wait_ms` | Linux only: how long the server main thread ran and how long it waited in the run queue for a CPU (`/proc/self/task/<tid>/schedstat`). A high wait means the machine is too busy, not that the server is slow |
 | `travel`, `steady`, `bases`: `cpu_steal_pct`, `cpu_idle_pct` | Linux only: the share of CPU time of the whole machine that the hypervisor stole or that was idle during the phase (`/proc/stat`) |
+| `previews` | Only on a server with Kindling's preview chunks (left out on plain Leaf or Paper): the server-wide counters of the previews since the server started, as `flight_end` (right after the flight; not in `type=bases` runs) and `run_end` (end of the run). All counters are zero while `network.preview-chunks.enabled` is off. Fields below |
+| `previews.*`: `computed_saved`, `computed_seed`, `computed_seed_cached` | Previews computed from a saved chunk, from the world seed, and answered from the cache of seed packets. Each has a `..._ms` field with the worker time they took, from the request to the finished packet (the time of a saved read that timed out or found nothing is part of the seed preview that follows) |
+| `previews.*`: `saved_read_timeouts` | Saved chunk reads that did not finish in 250 ms, so the seed preview was used |
+| `previews.*`: `sent`, `sent_raw_mb` | Previews sent to players (once per player) and their uncompressed size in MiB |
+| `previews.*`: `dropped_on_arrival`, `failed`, `kept_on_client` | Previews computed but no longer wanted when they arrived (the player came closer, or the server loaded the chunk meanwhile), previews that could not be computed, and real chunks the client was told to keep as their own preview |
+| `previews.*`: `step_<name>`, `step_<name>_ms` | Per vanilla decoration step that ran on seed previews (`lakes`, `local_modifications`, `surface_structures`, `vegetal_decoration`): the previews it ran on and the worker time it took there, a part of `computed_seed_ms`. Only steps that ran appear |
+| `travel_commands` | The console commands of the scenario key `travel-commands`, run in order when the flight starts (for example `chunky radius 3000;chunky start` or `pregen start world 3000`), so a pregenerator runs during the measured phase |
 | `gc_pause_millis` | Pause time over the whole run. The older `gc_count` and `gc_millis` add up every collector bean, including the overlapping cycles of ZGC and Shenandoah |
 | `java_version` | The Java runtime the server ran on (`Runtime.version()`), so runs on different JDK builds, early-access builds in particular, are not mixed up |
 
@@ -233,6 +244,26 @@ SCENARIO="type=villagers,players=2,plots-per-player=4,warmup-seconds=60,steady-s
     bash kindling-bench/matrix.sh <server.jar> villagers villagers-active
 ```
 
+## The fidelity scenario
+
+`--scenario "type=fidelity"` measures how faithful the seed previews of Kindling's preview chunks are to the real chunks, so that the largest error is fixed first. It needs a Kindling server with previews (the class `net.kindlingmc.preview.PreviewFidelity`), runs without fake players and does not measure any time. After the start it draws `fidelity-chunks` (400) chunks at random from the square of `fidelity-radius` (1500) chunks around the origin, always the same ones for the same two keys, and loads each with its neighbours to full status through a plugin ticket, two chunks per tick and at most 16 waiting to be compared at a time. No two sampled chunks are closer than 8 chunks, so that one's load never generates or decorates another's neighbourhood first (a square too small for that many gives fewer chunks). Once the light engine is idle and 40 ticks have passed, it builds the seed preview of the chunk the way the server sends it (generated, decorated when `trees` is on, snow frozen), compares it with the real chunk column by column, and writes the totals as `fidelity` into `bench-result.json`; then it stops the server. The overworld only; the saved-chunk preview is never compared.
+
+| Key | Default | Meaning |
+| --- | --- | --- |
+| `fidelity-chunks` | 400 | Chunks compared (at most the chunks in the square) |
+| `fidelity-radius` | 1500 | Half side of the square, in chunks; the run stops without a result if the world border is closer than this plus 4 chunks |
+| `fidelity-against` | `preview` | What each chunk is compared with: `preview` (its seed preview), `twin` (a second real generation in the opposite order, see below) or `twin_same_order` (its control, in the same order) |
+
+The result holds, as a count of columns and a percentage of all columns (`chunks × 256`) each:
+
+- **`height`**: the `MOTION_BLOCKING` height of the preview against the real chunk's (leaves and water count, grass does not): `equal`, `off_by_1_to_2`, `off_by_3_to_8`, `off_by_more`.
+- **`top_block`**: the top block of the column (at the `WORLD_SURFACE` height), which is what a player sees on top (grass, flowers and snow layers included), compared as a block, not a state: `equal`, or one reason, the first that fits: `tree_missing` (the real top is a log or leaves, the preview's is not), `tree_extra` (the reverse), `snow_ice` (either side is snow or ice), `water` (exactly one side is water or waterlogged), `plant` (either side is a block that is neither air nor fluid and does not block motion), `structure_or_other`. Two different kinds of tree count as `structure_or_other`.
+- **`light`**: the sky light of the preview ([`SkyLight`](../leaf-server/src/main/java/net/kindlingmc/preview/SkyLight.java)) against the real light engine's: `above_surface_equal_percent` for the first free block above the real surface, and for the band from 8 blocks below to 4 above that block `band_mean_abs_difference` and the percentage of band blocks that differ by 2 or more and by 5 or more. `light_unsettled_chunks` counts chunks compared before their light was settled or correct (should be 0; the result is then not trustworthy for light).
+
+**`fidelity-against=twin`** measures the noise floor of the previews instead: how much two real generations of the same chunk differ. At the start it creates a second overworld, `fidelity_twin`, with the main world's seed and generator, and stops without a result if it is not the same (different seed, generator or noise settings, or a different surface height or biome at six sampled columns; also if `misc.secure-seed` is on, whose feature seed depends on the world's index). Vanilla decorates a chunk onto what its neighbours' decoration already placed, and in 26.3 the `FEATURES` step of a chunk needs its neighbours at `TERRAIN` only and writes up to one chunk around itself, so the chunk whose decoration runs first wins the blocks on the border between two chunks. The main world therefore brings the sampled chunk alone to `FEATURES` first (its neighbours are at `TERRAIN` at most then), so it is decorated before all of its neighbours; the twin brings the eight neighbours to `FEATURES` first, so it is decorated after all of them. Both are held there by a ticket until the full load. The result is the difference between these two extreme orders, an upper bound of what the order alone changes, not an average over the orders a server happens to use. `twin_same_order` is its control: the twin decorates the sampled chunk first as well, so the two worlds should match except where generation is not deterministic. The two real chunks are compared with the same column logic as a preview: the main world's chunk plays the real chunk and the twin's the preview, so a height difference is twin minus main and `tree_missing` is a tree only the main world has. The light is each world's own sky light, compared the same way, and a chunk counts in `light_unsettled_chunks` if either world's light was not settled. The twin is checked for its seed, generator and terrain only: per-world settings in `paper-world.yml` that change decoration must be the defaults in both worlds. Run it in a fresh server folder (as `run_bench.py` does): chunks that already exist on disk are loaded, not generated in the intended order. The twin world's folder is left in the server folder, like the run's other data. The result carries `"against": "twin"` (or `"preview"`) under `fidelity`.
+
+`preview_trees` records whether `network.preview-chunks.trees` was on. Compare two builds or settings with `compare.py`, which prints the figures as `fid …` rows.
+
 ## Variants
 
 A variant is a name. Its JVM arguments come from the `jvm` table in `matrix.sh`; without an entry it runs with `-Xms3G -Xmx3G` and G1. If a folder `overlays/<name>` exists, it is copied over the server before the start.
@@ -249,6 +280,7 @@ A variant is a name. Its JVM arguments come from the `jvm` table in `matrix.sh`;
 | Used by `elytra.sh` and `pregen.sh` | `workers-5`, `workers-7`, `vd-8` (view distance 8), `pregen-w5` (automatic pregeneration, 5 workers) |
 | Worker priority and the pregenerator's main-thread wait throttle (A/B, Linux only) | `worker-priority-off`, `worker-priority-on` (chunk and I/O workers at nice 10) for flights. `pregen-w5-prio-off`, `pregen-w5-prio-on`, `pregen-w5-wait`, `pregen-w5-prio-on-wait`: like `pregen-w5` with `worker-priority` off or on and `max-main-thread-wait` 0 (off) or 0.10. Plain `pregen-w5` runs with the default `max-main-thread-wait: 0` |
 | Hoppers with a move event listener (A/B, for sleeping hoppers) | `parity-sleeping-listener-on` (`performance.sleeping-block-entity: true`) and `parity-sleeping-listener-off` (`false`), each with `move-event-listener=true`. `parity/run.sh <jar> sleeping` runs both with the bases contraptions in their CI size and checks each against `bases-ci.json` |
+| Preview chunks | `preview-chunks-on` (`network.preview-chunks.enabled: true`, everything else at its default); the runs report the counters in `previews`. Compare against a run of the same jar without the overlay, or against plain Leaf |
 | Functional check of the pregenerator's disk guard | `pregen-disk-guard` (like `pregen-w5` with `min-free-disk-gb: 100000000`): the run must stop by itself at the first tick and `pregeneration.properties` must stay at `next=0` |
 
 Results land in `runs/<prefix>-<variant>.json` (a list of runs).

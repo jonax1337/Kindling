@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
+import net.kindlingmc.preview.PreviewStats;
 import net.kindlingmc.stress.StressTest;
 import net.minecraft.server.MinecraftServer;
 import org.bukkit.Bukkit;
@@ -12,23 +13,26 @@ import org.bukkit.command.CommandSender;
 import org.bukkit.permissions.Permission;
 import org.bukkit.permissions.PermissionDefault;
 
-/** {@code /kindling doctor | stress ...}: the top-level command of Kindling's own tools. */
+/** {@code /kindling doctor | previews | stress ...}: the top-level command of Kindling's own tools. */
 public final class KindlingCommand extends Command {
 
     public static final String LABEL = "kindling";
     private static final String DOCTOR = "doctor";
+    private static final String PREVIEWS = "previews";
     private static final String STRESS = "stress";
     private static final String DOCTOR_PERMISSION = "kindling.command.doctor";
+    private static final String PREVIEWS_PERMISSION = "kindling.command.previews";
     private static final String STRESS_PERMISSION = "kindling.command.stress";
-    private static final String USAGE = "/kindling doctor | " + StressTest.USAGE.substring("/kindling ".length());
+    private static final String USAGE = "/kindling doctor | previews | " + StressTest.USAGE.substring("/kindling ".length());
 
     public KindlingCommand() {
         super(LABEL);
         this.description = "Kindling's tools";
         this.usageMessage = USAGE;
         // Bukkit lets a sender with either permission use the command; each tool checks its own below.
-        this.setPermission(DOCTOR_PERMISSION + ";" + STRESS_PERMISSION);
+        this.setPermission(DOCTOR_PERMISSION + ";" + PREVIEWS_PERMISSION + ";" + STRESS_PERMISSION);
         Bukkit.getServer().getPluginManager().addPermission(new Permission(DOCTOR_PERMISSION, PermissionDefault.OP));
+        Bukkit.getServer().getPluginManager().addPermission(new Permission(PREVIEWS_PERMISSION, PermissionDefault.OP));
         Bukkit.getServer().getPluginManager().addPermission(new Permission(STRESS_PERMISSION, PermissionDefault.OP));
         StressTest.install(MinecraftServer.getServer());
     }
@@ -41,6 +45,8 @@ public final class KindlingCommand extends Command {
         final String tool = args.length == 0 ? "" : args[0].toLowerCase(Locale.ROOT);
         if (tool.equals(DOCTOR) && sender.hasPermission(DOCTOR_PERMISSION)) {
             sender.sendPlainMessage(String.join("\n", DoctorReport.lines(Doctor.examineThisServer())));
+        } else if (tool.equals(PREVIEWS) && sender.hasPermission(PREVIEWS_PERMISSION)) {
+            sender.sendPlainMessage("Previews since the server started: " + PreviewStats.snapshot());
         } else if (tool.equals(STRESS) && sender.hasPermission(STRESS_PERMISSION)) {
             sender.sendPlainMessage(StressTest.order(sender, Arrays.copyOfRange(args, 1, args.length)));
         } else {
@@ -64,6 +70,9 @@ public final class KindlingCommand extends Command {
         final List<String> tools = new ArrayList<>();
         if (sender.hasPermission(DOCTOR_PERMISSION)) {
             tools.add(DOCTOR);
+        }
+        if (sender.hasPermission(PREVIEWS_PERMISSION)) {
+            tools.add(PREVIEWS);
         }
         if (sender.hasPermission(STRESS_PERMISSION)) {
             tools.add(STRESS);

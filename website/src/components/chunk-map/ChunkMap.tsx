@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { useMediaQuery } from "@/hooks/use-media-query";
-import { ChunkSimulation, type LoadingMode } from "./chunk-simulation";
+import { ChunkSimulation, type LoadingMode, type MapReadout } from "./chunk-simulation";
 import { drawSimulation } from "./draw-chunk-map";
 
 const MAX_PIXEL_RATIO = 2;
@@ -16,6 +16,14 @@ const DESCRIPTIONS: Record<LoadingMode, string> = {
     "A player flies east; chunks ahead load first, so terrain is there before the player arrives.",
   tiles:
     "The pregenerator fills the map tile by tile around a standing player, whose own chunks come first.",
+  previews:
+    "A player flies east; real chunks load inside the view distance, and cheap previews fill a much larger ring around it.",
+  saved:
+    "A player flies east; previews beyond the view distance come from the seed, except along an earlier flight, where they come exactly from the save files.",
+  "gap-fill":
+    "A player flies east; chunks the server has not finished yet inside the view distance show as previews until the real chunk arrives, so no void appears.",
+  travel:
+    "A player alternates between flying fast and slowly; the real view distance shrinks while the player is fast, previews show the rest, and it grows back when the player slows down.",
 };
 
 function fitToElement(canvas: HTMLCanvasElement) {
@@ -33,19 +41,18 @@ function stillMoment(mode: LoadingMode): ChunkSimulation {
 }
 
 /**
- * Runs the chunk loading model while the map is on screen and reports, a few times a second, the share of chunks
- * still missing ahead of the player.
+ * Runs the chunk loading model while the map is on screen and reports its readouts a few times a second.
  */
 export function ChunkMap({
   mode,
-  onMissingAhead,
+  onReadout,
 }: {
   mode: LoadingMode;
-  onMissingAhead?: (share: number) => void;
+  onReadout?: (readout: MapReadout) => void;
 }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const reportRef = useRef(onMissingAhead);
-  reportRef.current = onMissingAhead;
+  const reportRef = useRef(onReadout);
+  reportRef.current = onReadout;
   const reducedMotion = useMediaQuery("(prefers-reduced-motion: reduce)");
 
   useEffect(() => {
@@ -60,7 +67,7 @@ export function ChunkMap({
       sinceReport += seconds;
       if (sinceReport < REPORT_EVERY_SECONDS) return;
       sinceReport = 0;
-      reportRef.current?.(simulation.missingAhead());
+      reportRef.current?.(simulation.readout());
     };
     const draw = (now: number) => {
       frame = 0;

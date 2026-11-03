@@ -87,6 +87,13 @@ final class BenchRun {
         return 2 * Math.PI * index / scenario.players();
     }
 
+    private void runTravelCommands() {
+        for (String command : scenario.travelCommands()) {
+            Bukkit.dispatchCommand(Bukkit.getConsoleSender(), command);
+        }
+        result.put("travel_commands", scenario.travelCommands());
+    }
+
     private void travel() {
         viewArrival.stop();
         result.putAll(warmup.summary());
@@ -95,12 +102,14 @@ final class BenchRun {
         lead = new ChunkLead(players.getFirst().getSendViewDistance());
         Bukkit.getPluginManager().registerEvents(lead, plugin);
         phase.start();
+        runTravelCommands();
         BukkitTask flight = Bukkit.getScheduler().runTaskTimer(plugin, this::flyOneTick, 1, 1);
         later(scenario.travelSeconds(), () -> {
             flight.cancel();
             HandlerList.unregisterAll(lead);
             result.put("chunk_lead", lead.summary());
             result.put("travel", phase.stop());
+            PreviewFigures.record(result, "flight_end");
             putChunkTraffic();
             result.put("flown_blocks_avg", averageFlownBlocks());
             land();
@@ -180,6 +189,7 @@ final class BenchRun {
         players.forEach(Player::kick);
         later(scenario.idleSeconds(), () -> {
             result.put("idle", idleFigures());
+            PreviewFigures.record(result, "run_end");
             result.writeAndStop(plugin);
         });
     }

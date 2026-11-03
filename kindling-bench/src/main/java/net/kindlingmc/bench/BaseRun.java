@@ -149,6 +149,7 @@ final class BaseRun {
         result.put("entities", ServerState.entities());
         result.put("entity_types", ServerState.entityTypes());
         result.putAll(ServerState.memoryUnderLoad());
+        PreviewFigures.record(result, "run_end");
         result.writeAndStop(plugin);
     }
 
