@@ -2,7 +2,7 @@
 
 Releases, newest first. Every build is a pre-release; the jars are on the [Releases](https://github.com/jonax1337/Kindling/releases) page. Build 26.3-6 was skipped and does not exist.
 
-## Unreleased
+## 26.3-18 - 2026-11-03
 
 Previews beyond the view distance for vanilla clients, Leaf's latest upstream, and a comparison with Paper, Purpur and Leaf.
 
