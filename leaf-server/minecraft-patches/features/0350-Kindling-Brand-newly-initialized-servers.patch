@@ -1,0 +1,19 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Tue, 3 Nov 2026 10:38:58 +0100
+Subject: [PATCH] Kindling: Brand newly initialized servers
+
+Co-Authored-By: Claude Code <noreply@anthropic.com>
+
+diff --git a/net/minecraft/server/dedicated/DedicatedServerSettings.java b/net/minecraft/server/dedicated/DedicatedServerSettings.java
+index 842b81a94c538b30c42d1eb101919669f17fe989..559b68c1f5e6e4841efee17df1089f6a85682e29 100644
+--- a/net/minecraft/server/dedicated/DedicatedServerSettings.java
++++ b/net/minecraft/server/dedicated/DedicatedServerSettings.java
+@@ -10,6 +10,7 @@ public class DedicatedServerSettings {
+     // CraftBukkit start
+     public DedicatedServerSettings(joptsimple.OptionSet options) {
+         this.source = ((java.io.File) options.valueOf("config")).toPath();
++        net.kindlingmc.branding.FirstStartDefaults.initialize(this.source, Path.of("server-icon.png")); // Kindling - brand fresh servers without replacing existing settings
+         this.properties = DedicatedServerProperties.fromFile(this.source, options);
+         // CraftBukkit end
+     }

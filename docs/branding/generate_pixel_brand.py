@@ -174,9 +174,9 @@ def build():
     c = Canvas(4096,4096)
     c.mark(256,256,112)
     exports.append(c.save("icon-4k"))
-    c = Canvas(64,64,COLORS["night"])
+    c = Canvas(64,64)
     c.mark(0,0,2,dark=True)
-    exports.append(c.save("server-icon",transparent=False,vector=False))
+    exports.append(c.save("server-icon",vector=False))
     for theme in ("light","dark"):
         c = Canvas(32,32)
         c.mark(0,0,1,dark=theme == "dark")

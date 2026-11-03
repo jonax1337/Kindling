@@ -1,8 +1,14 @@
 # Configuration
 
-All of Kindling's settings live under `performance:` in `config/leaf-global.yml`, except [`network.preview-chunks`](#networkpreview-chunks). Every other key there is Leaf's and works as in Leaf. Changes take effect after a restart unless a setting says otherwise.
+Kindling's performance settings live under `performance:` in `config/leaf-global.yml`, except [`network.preview-chunks`](#networkpreview-chunks). Every other key there is Leaf's and works as in Leaf. Changes take effect after a restart unless a setting says otherwise.
 
-Why each default was chosen, and what it measured: [MEASUREMENTS.md](../MEASUREMENTS.md).
+Why each performance default was chosen, and what it measured: [MEASUREMENTS.md](../MEASUREMENTS.md).
+
+## Fresh-server branding
+
+When the selected properties file does not exist, Kindling initializes its `motd` to `§6Kindling§r §8|§r §aA Minecraft Server` and copies the bundled [server icon](../branding/pixel-leaf/server-icon.png) to `server-icon.png` in the working directory. The MOTD displays a gold Kindling name, a dark gray separator and green server text. The normal settings loader fills in the remaining properties. This also applies to `--initSettings` and a custom `--config` path.
+
+An existing properties file, including an empty one, disables this initialization. An existing icon is never replaced. Switching from Leaf does not change the MOTD or install an icon. Edit `motd` in the properties file or replace or remove `server-icon.png` as usual; restarting does not restore the branding while the properties file exists. Initialization failures are logged and do not prevent the normal settings loader from running.
 
 ## Overview
 
