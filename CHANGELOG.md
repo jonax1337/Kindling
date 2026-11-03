@@ -2,7 +2,9 @@
 
 Releases, newest first. Every build is a pre-release; the jars are on the [Releases](https://github.com/jonax1337/Kindling/releases) page. Build 26.3-6 was skipped and does not exist.
 
-## Unreleased
+## 26.3-24 - 2026-11-03
+
+Uniform chunk data shared instead of allocated per section, and the comparison with other forks carries the new runs.
 
 ### Performance
 
@@ -13,6 +15,8 @@ Releases, newest first. Every build is a pre-release; the jars are on the [Relea
 - The comparison with Paper, Purpur and Leaf carries Kindling's new runs with 8 exploring players and in pregeneration: still 44 % more CPU time than Leaf while exploring, heap after GC at view distance 32 1.9 → 1.6 times Leaf's ([details](docs/measurements/vs-leaf.md)).
 
 ## 26.3-21 - 2026-11-03
+
+Branding for fresh servers.
 
 ### Added
 
