@@ -10,7 +10,6 @@ Every item follows the same rules: vanilla behaviour by default, three runs per 
 
 | Item | Why it is open |
 | --- | --- |
-| CPU time in the bases | +10 % against Leaf release 26.3-15 (246 → 271 s, [comparison](measurements/vs-leaf.md#paper-purpur-leaf-and-kindling)). With Paper's two workers fixed it was Leaf's in an earlier series. Likely the spawn area generated with every worker at the start. Not established. |
 | Skipping discarded density branches | 7 to 10 % of the chunk workers' CPU evaluates range-choice branches that are thrown away ([profile](measurements/pregeneration.md#where-the-time-goes-in-the-chunk-workers)). Compiled density takes the cell-corner part; the noodle cave and ore vein choices run per block on interpolated inputs and need their own fix. Prerequisite: the worldgen vanilla diff with one worker thread (below). |
 | Empty sections of the generation ring | 82 % of the overworld sections in memory hold only air, and their fixed overhead is 20 to 22 % of the live heap ([census](measurements/memory-jvm.md#the-ring-of-partly-generated-chunks)). Single-value palettes and uniform light arrays are [shared already](measurements/memory-jvm.md#shared-data-for-uniform-sections); a shared empty section for chunks below `BIOMES`, materialised on the first write, would take back the sections and lists that remain. `ChunkLoadTask` also parses the whole chunk NBT for a `STRUCTURE_STARTS` target; to be looked at afterwards. |
 | A criterion for the pregenerator's wait throttle | A share of the last minute fires at baseline on a VPS and at 0.10 halves pregeneration. Candidates: the absolute wait per tick, a higher limit such as 0.20, or throttling only while the machine is busy. |
@@ -21,7 +20,6 @@ Every item follows the same rules: vanilla behaviour by default, three runs per 
 | Item | Why it is open |
 | --- | --- |
 | Pregenerator against Chunky | In the same rounds on Kindling, Chunky generated 206.7 chunks per second and `/pregen` 191.4 ([comparison](measurements/vs-leaf.md#paper-purpur-leaf-and-kindling)). Chunky keeps 50 chunks in flight from the start; `/pregen` starts at 1 and adds one per second. An A/B with a faster ramp would show whether `/pregen` can match it. |
-| Tick time after an elytra flight | After the flight Kindling ticks at 26.2 ms where Leaf ticks at 1.2 ms ([comparison](measurements/vs-leaf.md#paper-purpur-leaf-and-kindling)). A profile of that phase would show which work keeps the main thread busy. |
 | Structures in seed previews | Villages and temples are missing from seed previews of land nobody has explored, the largest visible gap in play. Placing them needs the structure starts of the surrounding chunks. |
 | "0 % void" with five lines | The directional loading figures follow one line straight ahead of each player. |
 | Standing among mobs on a pregenerated world | In the comparison with other forks, Paper, Purpur and Leaf were still generating while the players stood. |

@@ -11,9 +11,9 @@ How Kindling compares with Paper, Purpur and plain Leaf under the same load, wha
 - **Same** without new terrain: survival bases, working villagers and a flight over a pregenerated world show no marked difference to Leaf; Kindling ticks them 14 to 40 % faster than Paper and Purpur.
 - **Faster** standing among 1 200 mobs after exploring: 36.2 → 33.2 ms.
 - **Faster** in memory at view distance 10: heap after GC 1 117 → 967 MB with 8 players exploring.
-- **Slower** in CPU time: +44 % exploring and +82 % flying with elytras at view distance 10, +67 to +99 % at view distance 32; +10 % in the bases and among villagers, none over a pregenerated world.
+- **Slower** in CPU time: +44 % exploring and +82 % flying with elytras at view distance 10, +67 to +99 % at view distance 32. In the bases and among villagers the whole run takes 10 % more, all of it in the warm-up, which generates the start area 9 s sooner: half in the chunk workers, half in JIT compilation. The measured phase itself shows no marked difference to Leaf. None over a pregenerated world.
 - **Trade-off** at view distance 32 with 8 players exploring: flight tick time p95 125.2 → 71.9 ms, but the average 36.0 → 50.9 ms and standing afterwards 23.4 → 62.9 ms, with 1.6 times the heap. Kindling gives every player the whole view, which none reaches on the other forks.
-- **Slower** after an elytra flight: tick time 1.2 → 26.2 ms in the phase after the flight.
+- **Same** in the seconds after a flight, where both servers hold the same world: over a pregenerated world 18.0 against 19.6 ms. After the elytra flight over new terrain the figures do not compare (1.2 → 26.2 ms): Leaf's players stand among 446 loaded chunks and 44 entities, Kindling's among 2 886 and 1 073.
 
 Against Paper 26.3 build 237, Purpur 26.3 build 2655 and Leaf release 26.3-15, each with its own defaults, 3 runs each, on the bench host. Kindling's runs with 8 exploring players and its pregeneration come from the build with shared section data ([method](#paper-purpur-leaf-and-kindling)).
 
@@ -29,7 +29,8 @@ Kindling here is the build with preview chunks off (they are opt-in; their cost 
 | **Elytra** (5 players, 1.7 blocks/tick, new world) | New chunks per second | 45.8 | 45.3 | 44.9 | **153.2** \* |
 | | Time over void | 92.4 % | 92.3 % | 92.2 % | **4.3 %** \* |
 | | Flight tick time avg / p95 | 38.1 / 150.8 | 38.8 / 154.4 | 37.2 / 151.0 | **22.0 / 37.0** \* |
-| | Tick time after landing | 1.1 | 1.1 | **1.2** | 26.2 \* |
+| | Tick time after landing (5 s, see below) | 1.1 | 1.1 | 1.2 | 26.2 \* |
+| | Entities after landing | 41 | 43 | 44 | 1 073 \* |
 | | Join until the full view | 36.5 s | 36.5 s | 36.6 s | **20.1 s** \* |
 | | CPU time | 486 s | 483 s | **482 s** | 877 s \* |
 | **Mixed** (8 players fly outward, then stand among 1 200 mobs) | New chunks per second | 69.7 | 68.4 | 64.9 | **162.0** \* |
@@ -54,9 +55,11 @@ Kindling here is the build with preview chunks off (they are opt-in; their cost 
 | | Tick time after the flight | 22.8 | 23.0 | 18.0 | 19.6 |
 | | CPU time | 288 s | 296 s | 285 s | 284 s |
 | **Bases** (8 players among 32 survival bases) | Tick time avg / p95 | 13.3 / 19.0 | 13.3 / 18.9 | 11.9 / 16.4 | 11.0 / 17.4 |
-| | CPU time | 245 s | 249 s | **246 s** | 271 s \* |
+| | CPU time, measured phase | 51.6 s | 52.3 s | 49.5 s | 49.8 s |
+| | CPU time, whole run | 245 s | 249 s | **246 s** | 271 s \* |
 | **Villagers** (12 halls, villagers working) | Tick time avg / p95 | 12.3 / 16.1 | 14.4 / 16.6 | 8.4 / 10.7 | 8.6 / 10.7 |
-| | CPU time | 183 s | 198 s | **176 s** | 194 s \* |
+| | CPU time, measured phase | 25.2 s | 30.3 s | 19.7 s | 20.9 s |
+| | CPU time, whole run | 183 s | 198 s | **176 s** | 194 s \* |
 | **Pregeneration** (Chunky, radius 3 000, 240 s) | New chunks per second | 98.6 | 94.2 | 97.9 | **211.2** \* |
 | | Tick time avg | 4.3 | 4.3 | **3.7** | 5.0 \* |
 | | CPU time | 727 s | 714 s | **728 s** | 1 496 s \* |
@@ -66,10 +69,11 @@ Kindling here is the build with preview chunks off (they are opt-in; their cost 
 - **Where players reach new terrain, Kindling is in another class.** Paper, Purpur and Leaf generate at about the same rate (34 to 70 chunks per second; Paper and Purpur slightly ahead of Leaf while exploring) and leave 69 to 92 % of the flight over void. Kindling keeps up with 5 elytras and 8 explorers at view distance 10 and 32.
 - **The flight's tick spikes fall** (p95 151 → 37 ms with elytras) even though Kindling generates 3.4 times the chunks.
 - **Without new terrain Kindling ticks like Leaf**, with identical counters in the bases and the villager halls.
-- **Pregeneration doubles** on cores that sit idle on the other forks: the machine is 67 % idle during Leaf's pregeneration and 30 % during Kindling's. Per chunk Kindling spends 6 % more CPU time (41.2 → 38.8 chunks per CPU second of the pregeneration, marked). In the rounds of the build before, Kindling's own `/pregen` reached 191.4 chunks per second at 38.3 chunks per CPU second, Chunky 206.7 at 38.0.
+- **Pregeneration doubles** on cores that sit idle on the other forks: the machine is 67 % idle during Leaf's pregeneration and 30 % during Kindling's. Per chunk Kindling spends 6 % more CPU time (41.2 → 38.8 chunks per CPU second of the pregeneration, marked). In the campaign rounds of `93dc05f3`, Kindling's own `/pregen` reached 191.4 chunks per second at 38.3 chunks per CPU second, Chunky 206.7 at 38.0.
 - **CPU time is the price**, and it grows with the extra chunks: +44 % exploring, +82 % with elytras, +67 to +99 % at view distance 32, +106 % in pregeneration.
 - **At view distance 32 Kindling gives 8 explorers the whole view** (74.2 s after joining); on the other forks none of them gets it during the run, and 69 % of the flight is over void. With it the average tick time rises: the exploring flight ticks at 50.9 instead of 36.0 ms and standing afterwards at 62.9 instead of 23.4 ms, with 1.6 times the heap, while the p95 falls from 125.2 to 71.9 ms. With 5 elytras at view distance 32 the full view arrives on Kindling after 68 s and on the other forks after about 120 s, in two of three runs on Leaf and Paper. A server with a view distance of 32 and many explorers needs the cores for it; preview chunks give the far view at the cost of view distance 10 ([preview chunks](preview-chunks.md#previews-to-32-chunks)).
-- **After an elytra flight** Kindling's tick time stays at 26.2 ms in the phase after the flight, against 1.2 ms on Leaf, where most of the view was never generated. Which work keeps the main thread busy there is not profiled yet ([roadmap](../ROADMAP.md)).
+- **The extra CPU time in the bases and among villagers comes before the measurement.** In the 90 s measured among the bases Kindling uses 49.8 CPU seconds and Leaf 49.5 (p = 0.82); among the villagers 20.9 and 19.7 (p = 0.16). The rest of the run takes about 25 and 16 CPU seconds more, for the same 1 925 and 875 loaded chunks, and the run ends 10 and 4 s sooner. Over a pregenerated world, where nothing is generated, the whole run costs the same (285 against 284 s). A per-thread split of the bases, 3 more runs each, puts all of it in the warm-up: 115.8 → 149.0 CPU seconds (marked) while the start area is generated, in 51 instead of 60 s. The chunk workers spend 54.5 → 70.6 s (marked) for the same chunks, as five workers share the four cores, and JIT compilation 41.2 → 56.7 s (marked). The start before the first join (53.4 against 55.7 s) and the measured phase (50.2 against 49.6 s) show no marked difference. A server pays this once, while it generates new terrain.
+- **The tick time after the elytra flight** measures 5 s directly after landing, without mobs. Leaf's players land where 92 % of the flight was never generated: 446 loaded chunks and 44 entities, so the server has almost nothing to tick. Kindling's players land in a generated world with 2 886 chunks and 1 073 entities. Over a pregenerated world, where both servers hold the same 4 098 chunks and about 1 465 entities, the same phase ticks at 18.0 ms on Leaf and 19.6 ms on Kindling, not marked. A profile of a longer phase (**Indicative**, one run each) shows Kindling finishing the view in about 15 s at 18 to 29 ms and settling at 10.6 ms; Leaf generates later, rises to 12 to 17 ms and settles at 11.1 ms.
 
 <details>
 <summary>Method and all numbers</summary>

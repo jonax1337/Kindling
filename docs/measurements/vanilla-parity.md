@@ -176,7 +176,7 @@ Nothing is significant; with three runs and a half range of 0.5 to 1 ms, an effe
 <details>
 <summary>Caveats and open points</summary>
 
-The speed of the async features against plain Leaf is not measured on its own; the [comparison with plain Leaf](vs-leaf.md) also changes the chunk defaults.
+The speed of the async features, on against off: [async pathfinding and mob spawning](vs-leaf.md#async-pathfinding-and-mob-spawning-opt-in).
 
 **Not tested on a running server:** async player data saving. Its new write ordering, flush barrier and shutdown drain have unit tests (`SerialWrites`), but `save-all flush` followed by a look at the file times, and a stop on a slow disk, were not run. The tracker's flag race has no unit test (`Entity` cannot be loaded without registries). The bench's fake players are creative by default, so mobs never path to them; the villager hall is the only scenario that exercises async pathfinding hard.
 
