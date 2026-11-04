@@ -65,6 +65,7 @@ Reads the machine and the server settings and lists what costs performance or me
 | View and simulation distance | Against the processors. |
 | Network compression behind a proxy | A warning when the proxy runs on this machine or its place is unknown, a hint when it runs elsewhere. |
 | Free disk space of the worlds | A warning below 5 GiB or 10 %. |
+| `region-file-compression` | A hint to use `lz4` while the region files use `deflate` and the disk has room. Skipped with Leaf's Buffered Linear region format. |
 | Kindling's recommended options in `leaf-global.yml` | An older file that keeps other values. |
 | Vanilla parity | Ten Leaf and Gale settings an older file may still run at non-vanilla values. One `INFO` names each deviating value and the vanilla one. |
 

@@ -95,12 +95,14 @@ java -Xms3G -Xmx3G -XX:+UseCompactObjectHeaders -jar kindling-26.3-<build>.jar -
 
 Download the jar from [Releases](https://github.com/jonax1337/Kindling/releases). New to Kindling: [Getting started](docs/getting-started.md). Coming from Leaf: [Switch from Leaf](docs/guides/switch-from-leaf.md), because an existing `leaf-global.yml` keeps Leaf's defaults.
 
+With room on the disk, set vanilla's `region-file-compression=lz4` in `server.properties`: players travelling through explored land then cost 10 % less CPU time, for chunk files about twice as large ([guide](docs/guides/region-compression.md)).
+
 ## Documentation
 
 | | |
 | --- | --- |
 | [Getting started](docs/getting-started.md) | First server, first pregeneration |
-| [Guides](docs/README.md#guides) | Switch from Leaf, memory and JVM flags, pregeneration, finding lag |
+| [Guides](docs/README.md#guides) | Switch from Leaf, memory and JVM flags, LZ4 region files, pregeneration, finding lag |
 | [Configuration](docs/reference/configuration.md) and [commands](docs/reference/commands.md) | Every setting and command |
 | [Vanilla differences](docs/reference/vanilla-differences.md) | What is restored and what still differs |
 | [Measurements](docs/MEASUREMENTS.md) | Why each change exists and what it measured |

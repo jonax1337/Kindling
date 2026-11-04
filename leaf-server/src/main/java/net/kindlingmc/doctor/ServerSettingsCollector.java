@@ -10,9 +10,12 @@ import java.net.UnknownHostException;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalInt;
 import java.util.Set;
+import me.earthme.luminol.enums.EnumRegionFormat;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.dedicated.DedicatedServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import org.bukkit.Bukkit;
@@ -24,6 +27,7 @@ import org.dreeam.leaf.config.modules.async.AsyncMobSpawning;
 import org.dreeam.leaf.config.modules.async.AsyncPathfinding;
 import org.dreeam.leaf.config.modules.async.AsyncPlayerDataSave;
 import org.dreeam.leaf.config.modules.async.MultithreadedTracker;
+import org.dreeam.leaf.config.modules.misc.RegionFormatConfig;
 import org.dreeam.leaf.config.modules.opt.IdleMemory;
 import org.dreeam.leaf.config.modules.opt.OptimizePlayerMovementProcessing;
 import org.dreeam.leaf.config.modules.opt.SkipMapItemDataUpdates;
@@ -37,7 +41,7 @@ final class ServerSettingsCollector {
     }
 
     static ServerSettings collect() {
-        final MinecraftServer server = ((CraftServer) Bukkit.getServer()).getServer();
+        final DedicatedServer server = ((CraftServer) Bukkit.getServer()).getServer();
         return new ServerSettings(
             explicitWorkerThreads(),
             Bukkit.getViewDistance(),
@@ -48,7 +52,14 @@ final class ServerSettingsCollector {
             proxyLocation(server),
             recommendedOptionsOff(),
             vanillaDeviations(server),
-            IdleMemory.enabled);
+            IdleMemory.enabled,
+            regionFileCompression(server));
+    }
+
+    private static Optional<String> regionFileCompression(final DedicatedServer server) {
+        return RegionFormatConfig.regionFormat == EnumRegionFormat.MCA
+            ? Optional.of(server.getProperties().regionFileComression)
+            : Optional.empty();
     }
 
     private static OptionalInt explicitWorkerThreads() {

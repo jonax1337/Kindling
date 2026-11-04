@@ -49,4 +49,39 @@ class StorageChecksTest {
 
         assertTrue(finding.fix().contains("Free disk space"), finding.fix());
     }
+
+    @Test
+    void deflateRegionFilesOnARoomyDiskSuggestLz4WithTheMeasurement() {
+        final Finding finding = StorageChecks.regionCompression(Optional.of("deflate"), disk(200, 500)).orElseThrow();
+
+        assertEquals(Severity.INFO, finding.severity());
+        assertEquals(Basis.KINDLING_MEASUREMENT, finding.basis());
+        assertTrue(finding.what().contains("10 %"), finding.what());
+        assertTrue(finding.fix().contains("region-file-compression=lz4"), finding.fix());
+    }
+
+    @Test
+    void deflateRegionFilesOnAnUnreadableDiskStillSuggestLz4() {
+        assertSeverity(Severity.INFO, StorageChecks.regionCompression(Optional.of("deflate"), Optional.empty()));
+    }
+
+    @Test
+    void deflateRegionFilesOnANearlyFullDiskAreFine() {
+        assertSeverity(Severity.OK, StorageChecks.regionCompression(Optional.of("deflate"), disk(4, 20)));
+    }
+
+    @Test
+    void lz4RegionFilesAreFine() {
+        assertSeverity(Severity.OK, StorageChecks.regionCompression(Optional.of("lz4"), disk(200, 500)));
+    }
+
+    @Test
+    void otherRegionCompressionsAreNotChecked() {
+        assertSkipped(StorageChecks.regionCompression(Optional.of("none"), disk(200, 500)));
+    }
+
+    @Test
+    void theBufferedLinearRegionFormatIsNotChecked() {
+        assertSkipped(StorageChecks.regionCompression(Optional.empty(), disk(200, 500)));
+    }
 }

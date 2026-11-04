@@ -40,6 +40,7 @@ public final class Doctor {
                 ServerSettingChecks.recommendedOptions(server),
                 ServerSettingChecks.vanillaParity(server),
                 StorageChecks.worldDisk(facts.worldDisk()),
+                StorageChecks.regionCompression(server.regionFileCompression(), facts.worldDisk()),
                 HostChecks.mainThreadWait(live),
                 HostChecks.chunkWorkerWait(live),
                 HostChecks.hostSteal(live),

@@ -46,6 +46,7 @@ The time over void was first measured on one line straight ahead of each player;
 | [Compiled material rules](measurements/chunks.md#compiled-material-rules) | **Faster.** +8.4 % chunks in a pregeneration at the same CPU time; 0 differences in 1.3 billion blocks |
 | [Compiled density](measurements/chunks.md#compiled-density) | **Faster.** +0.8 % new chunks per second; 0 differences in 40 000 calls |
 | [Loading chunks from disk](measurements/chunks.md#loading-chunks-from-disk) | **Correct.** Same result as the codec path; less worker time |
+| [Region file compression](measurements/chunks.md#region-file-compression) | **Trade-off**, vanilla setting. `lz4` instead of `deflate`: flight through a generated world CPU −10 %, chunk workers −35 %, same tick time; each rewritten chunk 2.0 times larger |
 | [Copies of unreadable chunks](measurements/chunks.md#copies-of-unreadable-chunks) | **Correct.** Damaged chunk data is copied to `kindling-quarantine/` |
 | [Client-paced chunk sending](measurements/chunks.md#client-paced-chunk-sending) | **Dropped.** No faster view for fast clients; slow clients join twice as slowly |
 

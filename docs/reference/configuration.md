@@ -283,6 +283,12 @@ network:
 - Overworld-like worlds only.
 - `travel-view-distance` changes what the server does around a fast traveller, which is why it is off by default. Chunks between the lowered and the usual distance are not loaded, so their mobs and blocks do not tick, nothing spawns there and the player does not see their entities. Chunks the player only flies past are never generated. A player faster than the chunks within the lowered distance are generated reaches chunks that are only previews. Plugins asking for the player's view, simulation or send distance get the lowered one.
 
+## Vanilla settings worth changing
+
+| Key in `server.properties` | Vanilla default | Effect |
+| --- | --- | --- |
+| `region-file-compression` | `deflate` | `lz4` saves chunks with much less CPU time and about twice the space per chunk; `none` is also accepted. Every chunk records its own compression, so older chunks stay readable after a switch. Kindling keeps the vanilla default: [when LZ4 pays off](../guides/region-compression.md), [measurement](../measurements/chunks.md#region-file-compression). |
+
 ## Leaf settings Kindling changes
 
 A fresh `config/leaf-global.yml` (and fresh Gale files) get these defaults. An existing file keeps its values; [Switch from Leaf](../guides/switch-from-leaf.md) lists what to set by hand.
