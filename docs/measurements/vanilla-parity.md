@@ -208,7 +208,7 @@ Bases scenario with a listener (`move-event-listener`, overlays `parity-sleeping
 
 ## Vanilla diff against Mojang's jar
 
-**Correct.** Contraptions: release 26.3-24 differs from Mojang's jar in 0 blocks and in no chest, as Paper build 237; plain Leaf release 26.3-15 differs in 8 blocks (an unpowered redstone wire network). Two hoppers save `TransferCooldown` 0 where vanilla saves 4 and 2 (sleeping hoppers, see below). 72 cells, 400 stepped ticks, one seed and one console script per jar, game rules set with their 26.3 names, 1 run each.
+**Correct.** Contraptions: release 26.3-24 differs from Mojang's jar in 0 blocks and in no chest, as Paper build 237; plain Leaf release 26.3-15 differs in 8 blocks (an unpowered redstone wire network). Two hoppers end with another transfer cooldown than vanilla's, with the same contents (sleeping hoppers, see below). 72 cells, 400 stepped ticks, one seed and one console script per jar, game rules set with their 26.3 names, 1 run each.
 
 **Correct.** Worldgen at one location: Kindling places the same blocks as Paper. Both differ from Mojang's jar in the same 2 blocks, which therefore come from Paper; plain Leaf differs in 10 (the same 2 and 8 leaf `distance` states). Mojang's jar against itself and Kindling against itself are identical. Release 26.3-24, Leaf release 26.3-15, Paper build 237 (`paperCommit` `7e88a0da`), a 4 x 4 chunk sweep at a desert village, 1 run each; the tool is deterministic, so a second Kindling run adds no spread.
 
@@ -221,12 +221,12 @@ Bases scenario with a listener (`move-event-listener`, overlays `parity-sleeping
 | ---: | ---: | ---: | --- | ---: |
 | Vanilla (the tool's noise) | 6 in 2 chunks | **0** | 4 + 2: two furnaces, cooking and fuel timing | 0 |
 | Paper build 237 | 28 in 12 chunks | **0** | 2 + 2: the same two furnaces | 24 |
-| Release 26.3-24 | 34 in 14 chunks | **0** | 6 + 4: the same two furnaces, two hoppers' `TransferCooldown` | 24 |
+| Release 26.3-24 | 34 in 14 chunks | **0** | 6 + 4: the same two furnaces, two empty hoppers' `TransferCooldown` | 24 |
 | Leaf release 26.3-15 | 65 in 17 chunks | **8** | 25 + 7: chests with other contents, the same furnaces; one scheduled tick | 24 |
 
 - **Vanilla against vanilla** is the noise floor: no block, no entity, two furnaces in smelting timing. The game rules (random ticks, mob spawning, weather, daylight, drops) are set with their 26.3 names; before, the tool sent the pre-26 names, which 26.3 rejects, so none of them was set and the floor held 80 differences.
 - **The 24 entity differences** are the same on Paper, Leaf and Kindling: 12 dropped items whose saved motion differs from vanilla's (the same items on all three, so they come from Paper).
-- **Release 26.3-24 against Paper:** the same blocks and chests. Two hoppers that Kindling lets sleep save a transfer cooldown of 0 where vanilla saves 4 and 2. After a restart such a hopper may move an item up to 4 ticks earlier than vanilla would. Open on the [roadmap](../ROADMAP.md).
+- **Release 26.3-24 against Paper:** the same blocks and chests. Two hoppers under a falling item pile end empty with a transfer cooldown of 0 where vanilla's end at 4 and 2, so their last transfer happened at another tick. With sleeping block entities off the difference is gone. It is fragile: one tick at a time (with the hopper read after each tick) both jars agree for all 400 ticks, saving after 150 or 300 ticks shows no difference, and an unrelated command block elsewhere moves vanilla's own end value from 4 to 6 or removes the difference. The cause is not found; open on the [roadmap](../ROADMAP.md).
 - **Leaf release 26.3-15 against vanilla:** a redstone wire network is unpowered where vanilla has power 10 to 15, together with a powered repeater (8 blocks); chests hold other contents (hopper pile cells, so entity order). Kindling's restored `Vec3i` hash and entity order aim at exactly these differences.
 
 The comparer needed two fixes before the runs were meaningful: Minecraft 26 block palette entries (a different format) and wrapper compounds in mixed NBT lists. Both are committed with a unit test.
