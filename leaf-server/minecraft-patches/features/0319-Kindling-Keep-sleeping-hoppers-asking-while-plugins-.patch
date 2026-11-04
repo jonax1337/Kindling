@@ -6,7 +6,7 @@ Subject: [PATCH] Kindling: Keep sleeping hoppers asking while plugins hold
 
 
 diff --git a/net/minecraft/world/level/block/entity/HopperBlockEntity.java b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
-index 4e8098cecc173d1ea6e97a6c67e0bbfd1ffdd86a..612273553c3ec334ffbdb9ef09c52fecfc107b6b 100644
+index a4aed3375b026d7bfa59a29990811024c02171ca..25a172caf15527372ff59bd8e092b84ab2c622cd 100644
 --- a/net/minecraft/world/level/block/entity/HopperBlockEntity.java
 +++ b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
 @@ -134,6 +134,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
@@ -30,21 +30,27 @@ index 4e8098cecc173d1ea6e97a6c67e0bbfd1ffdd86a..612273553c3ec334ffbdb9ef09c52fec
          Direction direction = self.facing.getOpposite();
          // Leaves start - Lithium Sleeping Block Entity
 -        if (org.dreeam.leaf.config.modules.opt.SleepingBlockEntity.enabled) {
-+        if (org.dreeam.leaf.config.modules.opt.SleepingBlockEntity.enabled && !hasPrepareTransferListeners()) { // Kindling - Paper's path asks PrepareHopperTransferEvent, Lithium's does not
++        if (org.dreeam.leaf.config.modules.opt.SleepingBlockEntity.enabled && !hasPrepareTransferListeners()) { // Kindling - Lithium's insertion skips the event while no inventory changed; Paper's path asks it every time
              Boolean res = lithiumInsert(level, blockPos, self, container);
              if (res != null) {
                  return res;
-@@ -562,8 +564,9 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+@@ -562,7 +564,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
              Direction direction = Direction.DOWN;
              skipPullModeEventFire = skipHopperEvents; // Paper - Perf: Optimize Hoppers
-             final long disallowedSlots = callPrepareTransferEvent(level, container, hopper, false); // Paper - Add PrepareHopperTransferEvent
-+            if (disallowedSlots != 0 && hopper instanceof HopperBlockEntity held) held.pluginHeldBack = true; // Kindling - Keep hoppers asking while plugins hold transfers back
              // Leaves start - Lithium Sleeping Block Entity
 -            if (org.dreeam.leaf.config.modules.opt.SleepingBlockEntity.enabled) {
-+            if (org.dreeam.leaf.config.modules.opt.SleepingBlockEntity.enabled && disallowedSlots == 0) { // Kindling - Lithium's extraction does not skip disallowed slots
++            if (org.dreeam.leaf.config.modules.opt.SleepingBlockEntity.enabled && !hasPrepareTransferListeners()) { // Kindling - Lithium's extraction skips the event while no inventory changed; Paper's path asks it every time
                  Boolean res = lithiumExtract(level, hopper, container);
                  if (res != null) {
                      return res;
+@@ -570,6 +572,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+             }
+             // Leaves end - Lithium Sleeping Block Entity
+             final long disallowedSlots = callPrepareTransferEvent(level, container, hopper, false); // Paper - Add PrepareHopperTransferEvent
++            if (disallowedSlots != 0 && hopper instanceof HopperBlockEntity held) held.pluginHeldBack = true; // Kindling - Keep hoppers asking while plugins hold transfers back
+ 
+             for (int slot : getSlots(container, direction)) {
+                 if (isSlotDisallowed(disallowedSlots, slot)) continue; // Paper - Add PrepareHopperTransferEvent
 @@ -612,6 +615,12 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
              getInventory(container), (org.bukkit.entity.Item) entity.getBukkitEntity() // Paper - Perf: Optimize Hoppers; use getInventory() to avoid snapshot creation
          );
@@ -122,7 +128,7 @@ index 4e8098cecc173d1ea6e97a6c67e0bbfd1ffdd86a..612273553c3ec334ffbdb9ef09c52fec
      }
  
      public @Nullable Container getInsertInventory0(final Level world) {
-@@ -1550,7 +1584,10 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+@@ -1552,7 +1586,10 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
                      if (!skipPushModeEventFire && canTakeItemFromContainer(insertInventory, hopperBlockEntity, transferStack, i, Direction.DOWN)) {
                          transferStack = callPushMoveEvent(insertInventory, transferStack, hopperBlockEntity);
                          if (transferStack == null) { // cancelled
@@ -134,7 +140,7 @@ index 4e8098cecc173d1ea6e97a6c67e0bbfd1ffdd86a..612273553c3ec334ffbdb9ef09c52fec
                          }
                      }
                      boolean transferSuccess = net.caffeinemc.mods.lithium.common.hopper.HopperHelper.tryMoveSingleItem(insertInventory, transferStack, fromDirection);
-@@ -1572,10 +1609,12 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+@@ -1574,10 +1611,12 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
                  }
              }
          }

@@ -10,7 +10,7 @@ public class WorkerPriority extends ConfigModule {
         return ConfigCategory.PERF.basePath() + ".worker-priority";
     }
 
-    public static boolean enabled = false;
+    public static boolean enabled = true;
     public static int nice = 10;
 
     @Override

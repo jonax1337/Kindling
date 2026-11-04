@@ -5,7 +5,7 @@ Subject: [PATCH] Kindling: Fix sleeping block entity behaviour differences
 
 
 diff --git a/net/minecraft/world/level/Level.java b/net/minecraft/world/level/Level.java
-index 4e489f8ce310e8fff39cb5c179bfad9c4f89aa6a..72933d63550bcc87046de9e80452b951d913a529 100644
+index 5324975538dc94868a381b1c381c88faa40631b1..a128b59db04cd646143a0acafbaf50019caa97a0 100644
 --- a/net/minecraft/world/level/Level.java
 +++ b/net/minecraft/world/level/Level.java
 @@ -1178,6 +1178,7 @@ public abstract class Level implements LevelAccessor, AutoCloseable, ca.spottedl
@@ -82,7 +82,7 @@ index 5dbd3bed341e28c0f7b2087c06d9abc54bf93529..f3e2c1ab83e9605566206d6cf68b3bab
              }
              entity.fuel = event.getFuelPower();
 diff --git a/net/minecraft/world/level/block/entity/HopperBlockEntity.java b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
-index 612273553c3ec334ffbdb9ef09c52fecfc107b6b..fd7bc0b51c4484c7c54ec353f902607bf12c52b8 100644
+index 25a172caf15527372ff59bd8e092b84ab2c622cd..5bbcfc4bbabb0e4cab22cb32bce10e3b1880e9ec 100644
 --- a/net/minecraft/world/level/block/entity/HopperBlockEntity.java
 +++ b/net/minecraft/world/level/block/entity/HopperBlockEntity.java
 @@ -211,7 +211,8 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
@@ -99,17 +99,17 @@ index 612273553c3ec334ffbdb9ef09c52fecfc107b6b..fd7bc0b51c4484c7c54ec353f902607b
  
          Direction direction = self.facing.getOpposite();
          // Leaves start - Lithium Sleeping Block Entity
--        if (org.dreeam.leaf.config.modules.opt.SleepingBlockEntity.enabled && !hasPrepareTransferListeners()) { // Kindling - Paper's path asks PrepareHopperTransferEvent, Lithium's does not
-+        if (org.dreeam.leaf.config.modules.opt.SleepingBlockEntity.enabled && !hasPrepareTransferListeners() && lithiumTransferMatchesPaper(level)) { // Kindling - Paper's path asks PrepareHopperTransferEvent, fires InventoryMoveItemEvent and moves hopper-amount items, Lithium's does not
+-        if (org.dreeam.leaf.config.modules.opt.SleepingBlockEntity.enabled && !hasPrepareTransferListeners()) { // Kindling - Lithium's insertion skips the event while no inventory changed; Paper's path asks it every time
++        if (org.dreeam.leaf.config.modules.opt.SleepingBlockEntity.enabled && !hasPrepareTransferListeners() && lithiumTransferMatchesPaper(level)) { // Kindling - Paper's path asks PrepareHopperTransferEvent every time, fires InventoryMoveItemEvent and moves hopper-amount items; Lithium's skips the event while no inventory changed and does neither
              Boolean res = lithiumInsert(level, blockPos, self, container);
              if (res != null) {
                  return res;
-@@ -566,7 +567,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
-             final long disallowedSlots = callPrepareTransferEvent(level, container, hopper, false); // Paper - Add PrepareHopperTransferEvent
-             if (disallowedSlots != 0 && hopper instanceof HopperBlockEntity held) held.pluginHeldBack = true; // Kindling - Keep hoppers asking while plugins hold transfers back
+@@ -564,7 +565,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+             Direction direction = Direction.DOWN;
+             skipPullModeEventFire = skipHopperEvents; // Paper - Perf: Optimize Hoppers
              // Leaves start - Lithium Sleeping Block Entity
--            if (org.dreeam.leaf.config.modules.opt.SleepingBlockEntity.enabled && disallowedSlots == 0) { // Kindling - Lithium's extraction does not skip disallowed slots
-+            if (org.dreeam.leaf.config.modules.opt.SleepingBlockEntity.enabled && disallowedSlots == 0 && lithiumTransferMatchesPaper(level)) { // Kindling - Lithium's extraction does not skip disallowed slots, fire InventoryMoveItemEvent or move hopper-amount items
+-            if (org.dreeam.leaf.config.modules.opt.SleepingBlockEntity.enabled && !hasPrepareTransferListeners()) { // Kindling - Lithium's extraction skips the event while no inventory changed; Paper's path asks it every time
++            if (org.dreeam.leaf.config.modules.opt.SleepingBlockEntity.enabled && !hasPrepareTransferListeners() && lithiumTransferMatchesPaper(level)) { // Kindling - Paper's path asks PrepareHopperTransferEvent every time, fires InventoryMoveItemEvent and moves hopper-amount items; Lithium's skips the event while no inventory changed and does neither
                  Boolean res = lithiumExtract(level, hopper, container);
                  if (res != null) {
                      return res;
@@ -226,11 +226,11 @@ index 612273553c3ec334ffbdb9ef09c52fecfc107b6b..fd7bc0b51c4484c7c54ec353f902607b
  
 -        skipPushModeEventFire = skipHopperEvents;
 +        // Kindling - Fix sleeping block entity behaviour differences: a transfer that fires InventoryMoveItemEvent takes Paper's path, which takes from the hopper what was moved
+         final long disallowedSlots = callPrepareTransferEvent(world, hopperBlockEntity, insertInventory, true); // Paper - Add PrepareHopperTransferEvent
          //noinspection ConstantConditions
          if (!(hopperBlockEntity.insertInventory == insertInventory && hopperBlockEntity.insertStackList.getFullSlots() == hopperBlockEntity.insertStackList.size())) {
-             Direction fromDirection = hopperBlockEntity.facing.getOpposite();
-@@ -1581,24 +1625,14 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
-             for (int i = 0; i < size; ++i) {
+@@ -1583,24 +1627,14 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+                 if (isSlotDisallowed(disallowedSlots, i)) continue; // Paper - Add PrepareHopperTransferEvent
                  ItemStack transferStack = hopperStackList.get(i);
                  if (!transferStack.isEmpty()) {
 -                    if (!skipPushModeEventFire && canTakeItemFromContainer(insertInventory, hopperBlockEntity, transferStack, i, Direction.DOWN)) {
@@ -258,7 +258,7 @@ index 612273553c3ec334ffbdb9ef09c52fecfc107b6b..fd7bc0b51c4484c7c54ec353f902607b
                          }
                          if (insertInventoryHandlesModdedCooldown) {
                              insertInventory.setTransferCooldown(hopperBlockEntity.tickedGameTime);
-@@ -1609,12 +1643,15 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+@@ -1611,12 +1645,15 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
                  }
              }
          }
@@ -274,7 +274,7 @@ index 612273553c3ec334ffbdb9ef09c52fecfc107b6b..fd7bc0b51c4484c7c54ec353f902607b
          return false;
      }
  
-@@ -1636,22 +1673,19 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+@@ -1638,6 +1675,7 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
                      //noinspection CollectionAddedToSelf
                      fromStackList.runComparatorUpdatePatternOnFailedExtract(fromStackList, from);
                  }
@@ -282,11 +282,13 @@ index 612273553c3ec334ffbdb9ef09c52fecfc107b6b..fd7bc0b51c4484c7c54ec353f902607b
                  return false;
              }
          }
- 
+@@ -1645,17 +1683,13 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
          int[] availableSlots = from instanceof WorldlyContainer ? ((WorldlyContainer) from).getSlotsForFace(Direction.DOWN) : null;
          int fromSize = availableSlots != null ? availableSlots.length : from.getContainerSize();
+         final long disallowedSlots = callPrepareTransferEvent(world, from, to, false); // Paper - Add PrepareHopperTransferEvent
 +        boolean failedOnTakeableItem = false; // Kindling - Fix sleeping block entity behaviour differences: Paper's hopper.cooldown-when-full
          for (int i = 0; i < fromSize; i++) {
+             if (isSlotDisallowed(disallowedSlots, i)) continue; // Paper - Add PrepareHopperTransferEvent
              int fromSlot = availableSlots != null ? availableSlots[i] : i;
              ItemStack itemStack = fromStackList.get(fromSlot);
              if (!itemStack.isEmpty() && canTakeItemFromContainer(to, from, itemStack, fromSlot, Direction.DOWN)) {
@@ -300,7 +302,7 @@ index 612273553c3ec334ffbdb9ef09c52fecfc107b6b..fd7bc0b51c4484c7c54ec353f902607b
                  //calling removeStack is necessary due to its side effects (markDirty in LootableContainerBlockEntity)
                  ItemStack takenItem = from.removeItem(fromSlot, 1);
                  assert !takenItem.isEmpty();
-@@ -1670,12 +1704,17 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
+@@ -1674,12 +1708,17 @@ public class HopperBlockEntity extends RandomizableContainerBlockEntity implemen
                  }
                  //calling setStack is necessary due to its side effects (markDirty in LootableContainerBlockEntity)
                  from.setItem(fromSlot, restoredStack);

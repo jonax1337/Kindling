@@ -12,8 +12,10 @@ const brandDir = fileURLToPath(new URL("../docs/branding", import.meta.url));
  */
 function brandFilesUnderFixedNames(): Plugin {
   const files = {
-    "social-preview.png": "holzschnitt/social-preview-dark.png",
-    "favicon.png": "holzschnitt/server-icon.png",
+    "social-preview.png": "pixel-leaf/social-preview-dark.png",
+    "favicon.png": "pixel-leaf/server-icon.png",
+    "favicon.svg": "pixel-leaf/app-icon.svg",
+    "apple-touch-icon.png": "pixel-leaf/apple-touch-icon.png",
   };
   return {
     name: "brand-files-under-fixed-names",
@@ -30,7 +32,7 @@ function brandFilesUnderFixedNames(): Plugin {
 function preloadFirstPaint(): Plugin {
   const preloads: { name: string; attrs: Record<string, string | boolean> }[] = [
     { name: "kindling-world.webp", attrs: { as: "image", fetchpriority: "high" } },
-    { name: "Fraunces.woff2", attrs: { as: "font", type: "font/woff2", crossorigin: true } },
+    { name: "Manrope.woff2", attrs: { as: "font", type: "font/woff2", crossorigin: true } },
   ];
   let base = "/";
   return {
@@ -70,5 +72,6 @@ export default defineConfig({
     },
   },
   // The brand kit lives in docs/branding next to this folder.
-  server: { host: "127.0.0.1", port: 5174, strictPort: true, fs: { allow: [".."] } },
+  server: { host: "127.0.0.1", port: 25999, strictPort: true, fs: { allow: [".."] } },
+  preview: { host: "127.0.0.1", port: 25999, strictPort: true },
 });

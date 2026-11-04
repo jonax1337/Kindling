@@ -4,9 +4,9 @@ the runs (half the gap between the highest and the lowest value) and how many ru
 Every label after the first is also tested against the first: its cell ends in the p-value of Welch's t-test. A '*'
 marks a difference as significant, which takes both p < 0.05 and a difference of the means larger than twice the
 larger half range of the two labels. The test needs two runs per label; with fewer there is no p-value, so no
-difference can be called significant. Rows that no run has are left out, so mixed and bases runs can be compared
-with the same script. The counters of a bases run must be identical in every run of every label; a row marked '!'
-differs, which means behaviour changed.
+difference can be called significant. Rows that no run has are left out, so mixed, bases and fidelity runs can be
+compared with the same script. The counters of a bases run must be identical in every run of every label; a row
+marked '!' differs, which means behaviour changed.
 
     python -I compare.py up-stock up-coh up-elastic ...
 """
@@ -25,17 +25,26 @@ FIGURES = [
     ("travel GC pause ms", ("travel", "gc_pause_millis")),
     ("travel main run ms", ("travel", "main_run_ms")),
     ("travel main wait ms", ("travel", "main_wait_ms")),
+    ("travel main alloc MB", ("travel", "main_alloc_mb")),
+    ("travel all alloc MB", ("travel", "all_alloc_mb")),
+    ("travel process CPU ms", ("travel", "process_cpu_ms")),
     ("travel CPU steal %", ("travel", "cpu_steal_pct")),
     ("travel CPU idle %", ("travel", "cpu_idle_pct")),
     ("steady mspt avg", ("steady", "mspt_avg")),
     ("steady mspt p95", ("steady", "mspt_p95")),
     ("steady GC pause ms", ("steady", "gc_pause_millis")),
     ("steady main wait ms", ("steady", "main_wait_ms")),
+    ("steady main alloc MB", ("steady", "main_alloc_mb")),
+    ("steady all alloc MB", ("steady", "all_alloc_mb")),
+    ("steady process CPU ms", ("steady", "process_cpu_ms")),
     ("bases mspt avg", ("bases", "mspt_avg")),
     ("bases mspt p95", ("bases", "mspt_p95")),
     ("bases mspt p99", ("bases", "mspt_p99")),
     ("bases GC pause ms", ("bases", "gc_pause_millis")),
     ("bases main wait ms", ("bases", "main_wait_ms")),
+    ("bases main alloc MB", ("bases", "main_alloc_mb")),
+    ("bases all alloc MB", ("bases", "all_alloc_mb")),
+    ("bases process CPU ms", ("bases", "process_cpu_ms")),
     ("warm-up s", ("warmup_seconds",)),
     ("join full view ms", ("join_full_view_ms",)),
     ("chunk packets warm-up", ("chunk_packets_warmup",)),
@@ -61,6 +70,37 @@ FIGURES = [
     ("GC pause ms", ("gc_pause_millis",)),
     ("CPU s", ("process_cpu_seconds",)),
 ]
+PREVIEW_FIGURES = [
+    ("saved n", "computed_saved"),
+    ("saved ms", "computed_saved_ms"),
+    ("seed n", "computed_seed"),
+    ("seed ms", "computed_seed_ms"),
+    ("cached n", "computed_seed_cached"),
+    ("cached ms", "computed_seed_cached_ms"),
+    ("read timeouts", "saved_read_timeouts"),
+    ("sent", "sent"),
+    ("sent raw MB", "sent_raw_mb"),
+    ("dropped", "dropped_on_arrival"),
+    ("failed", "failed"),
+    ("kept", "kept_on_client"),
+] + [(f"step {step} {unit}", f"step_{step}{suffix}")
+     for step in ("lakes", "local_modifications", "surface_structures", "vegetal_decoration")
+     for unit, suffix in (("n", ""), ("ms", "_ms"))]
+# The counters of the server's previews, at the end of the flight and at the end of the run (since the server started).
+FIGURES += [(f"prev {moment} {label}", ("previews", key_moment, key))
+            for moment, key_moment in (("flight", "flight_end"), ("run", "run_end")) for label, key in PREVIEW_FIGURES]
+# The share of columns per height bucket and per top block category of a fidelity run, and its sky light figures.
+FIGURES += [(f"fid height {bucket} %", ("fidelity", "height", bucket, "percent"))
+            for bucket in ("equal", "off_by_1_to_2", "off_by_3_to_8", "off_by_more")]
+FIGURES += [(f"fid top {category} %", ("fidelity", "top_block", category, "percent"))
+            for category in ("equal", "tree_missing", "tree_extra", "snow_ice", "water", "plant", "structure_or_other")]
+FIGURES += [
+    ("fid light above equal %", ("fidelity", "light", "above_surface_equal_percent")),
+    ("fid light band mean diff", ("fidelity", "light", "band_mean_abs_difference")),
+    ("fid light band >= 2 %", ("fidelity", "light", "band_differ_by_2_plus_percent")),
+    ("fid light band >= 5 %", ("fidelity", "light", "band_differ_by_5_plus_percent")),
+    ("fid light unsettled chunks", ("fidelity", "light_unsettled_chunks")),
+]
 NAME_WIDTH = 26
 SIGNIFICANCE_LEVEL = 0.05
 HALF_RANGES_APART = 2
@@ -79,6 +119,9 @@ def main(labels: list[str]) -> None:
     width = max(len(label) for label in labels) + 2
     width = max([width] + [len(cell) + 2 for _, cells in rows + counters for cell in cells])
     print(f"{'':{NAME_WIDTH}}" + "".join(f"{label:>{width}}" for label in labels))
+    against = fidelity_against(results, labels)
+    if any(against):
+        print_row("fid against", [value or "" for value in against], width)
     for name, cells in rows:
         print_row(name, cells, width)
     if counters:
@@ -86,7 +129,18 @@ def main(labels: list[str]) -> None:
     for name, cells in counters:
         print_row(name, cells, width)
     warn_unsettled(results)
+    if len({value for value in against if value}) > 1:
+        print("\nWARNING: the fidelity runs compare with different things (fid against); their figures do not compare")
     print(f"\n{LEGEND}")
+
+
+def fidelity_against(results: dict, labels: list[str]) -> list[str | None]:
+    """What each label's fidelity runs compared with (preview, twin, ...), joined if its runs differ."""
+    values = []
+    for label in labels:
+        kinds = sorted({run["fidelity"]["against"] for run in results[label] if "against" in run.get("fidelity", {})})
+        values.append("/".join(kinds) or None)
+    return values
 
 
 def print_row(name: str, cells: list[str], width: int) -> None:

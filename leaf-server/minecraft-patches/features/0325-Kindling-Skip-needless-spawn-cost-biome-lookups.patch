@@ -165,10 +165,10 @@ index f697d10f00c430e04bc974055977dfd3d9b3a043..5b7aaaac2b891f45c40aeb06748a9441
  
      public WeightedList<MobSpawnSettings.SpawnerData> getMobsToSpawn(final MobCategory category) {
 diff --git a/net/minecraft/world/level/chunk/ChunkGenerator.java b/net/minecraft/world/level/chunk/ChunkGenerator.java
-index b4fd47238f2efed3a9fb9ff881cdcd5d8658e8c3..38358cdd4bad71c8864bc9311674039e199ed8e2 100644
+index 968de3ccdb44b3e15aa75a80aeecfa6341f17e21..949c6f80a2d7ec2f8c63ce78127c0237819f21a5 100644
 --- a/net/minecraft/world/level/chunk/ChunkGenerator.java
 +++ b/net/minecraft/world/level/chunk/ChunkGenerator.java
-@@ -614,7 +614,7 @@ public abstract class ChunkGenerator {
+@@ -705,7 +705,7 @@ public abstract class ChunkGenerator {
              }
          }
  

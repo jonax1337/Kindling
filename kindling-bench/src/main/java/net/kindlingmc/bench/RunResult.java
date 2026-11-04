@@ -16,8 +16,19 @@ final class RunResult {
 
     private final Map<String, Object> figures = new LinkedHashMap<>();
 
+    /** A result starts with the Java runtime it ran on, so runs on different JDK builds cannot be mixed up. */
+    RunResult() {
+        figures.put("java_version", Runtime.version().toString());
+    }
+
     void put(String name, Object value) {
         figures.put(name, value);
+    }
+
+    /** Sets {@code name} inside the object {@code group}, which the first call creates. */
+    @SuppressWarnings("unchecked")
+    void putUnder(String group, String name, Object value) {
+        ((Map<String, Object>) figures.computeIfAbsent(group, key -> new LinkedHashMap<String, Object>())).put(name, value);
     }
 
     void putAll(Map<String, ?> more) {

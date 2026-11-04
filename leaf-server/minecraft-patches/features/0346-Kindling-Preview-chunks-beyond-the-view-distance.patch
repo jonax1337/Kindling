@@ -1,0 +1,114 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Sun, 1 Nov 2026 12:07:46 +0100
+Subject: [PATCH] Kindling: Preview chunks beyond the view distance
+
+
+diff --git a/ca/spottedleaf/moonrise/patches/chunk_system/player/RegionizedPlayerChunkLoader.java b/ca/spottedleaf/moonrise/patches/chunk_system/player/RegionizedPlayerChunkLoader.java
+index 116a66303a1da9a9b5bfc3560d7adb4778c96cbb..532c86ef20aab42ad4f7cba0be26caad1dc6db84 100644
+--- a/ca/spottedleaf/moonrise/patches/chunk_system/player/RegionizedPlayerChunkLoader.java
++++ b/ca/spottedleaf/moonrise/patches/chunk_system/player/RegionizedPlayerChunkLoader.java
+@@ -315,6 +315,7 @@ public final class RegionizedPlayerChunkLoader {
+             }
+             loader.update(); // can't invoke plugin logic
+             loader.updateQueues(currTime);
++            loader.tickPreviews(); // Kindling - preview chunks beyond the view distance
+         }
+     }
+ 
+@@ -334,6 +335,7 @@ public final class RegionizedPlayerChunkLoader {
+         // Kindling start - load chunks ahead of fast players first
+         private final net.kindlingmc.chunk.LookAheadDirection lookAhead = new net.kindlingmc.chunk.LookAheadDirection();
+         // Kindling end - load chunks ahead of fast players first
++        private final net.kindlingmc.preview.PlayerPreviews previews; // Kindling - preview chunks beyond the view distance
+ 
+         private int lastSendDistance = Integer.MIN_VALUE;
+         private int lastLoadDistance = Integer.MIN_VALUE;
+@@ -423,6 +425,7 @@ public final class RegionizedPlayerChunkLoader {
+         public PlayerChunkLoaderData(final ServerLevel world, final ServerPlayer player) {
+             this.world = world;
+             this.player = player;
++            this.previews = new net.kindlingmc.preview.PlayerPreviews(world, player, this.sentChunks); // Kindling - preview chunks beyond the view distance
+         }
+ 
+         private void flushDelayedTicketOps() {
+@@ -472,7 +475,9 @@ public final class RegionizedPlayerChunkLoader {
+             // Note: drop isAlive() check so that chunks properly unload client-side when the player dies
+             ((ChunkSystemChunkHolder)((ChunkSystemServerLevel)this.world).moonrise$getChunkTaskScheduler().chunkHolderManager
+                 .getChunkHolder(chunkX, chunkZ).vanillaChunkHolder).moonrise$removeReceivedChunk(this.player);
++            if (!this.previews.keepOnClient(chunkX, chunkZ)) { // Kindling - a real chunk within the preview radius stays on the client as its preview
+             this.player.connection.send(new ClientboundForgetLevelChunkPacket(new ChunkPos(chunkX, chunkZ)));
++            } // Kindling - a real chunk within the preview radius stays on the client as its preview
+             // Paper start - PlayerChunkUnloadEvent
+             if (io.papermc.paper.event.packet.PlayerChunkUnloadEvent.getHandlerList().getRegisteredListeners().length > 0) {
+                 new io.papermc.paper.event.packet.PlayerChunkUnloadEvent(player.getBukkitEntity().getWorld().getChunkAt(new ChunkPos(chunkX, chunkZ).longKey()), player.getBukkitEntity()).callEvent();
+@@ -575,8 +580,8 @@ public final class RegionizedPlayerChunkLoader {
+         }
+ 
+         private Packet<?> updateClientChunkRadius(final int radius) {
+-            this.lastSentChunkRadius = radius;
+-            return new ClientboundSetChunkCacheRadiusPacket(radius);
++            this.lastSentChunkRadius = this.previews.clientRadius(radius); // Kindling - preview chunks beyond the view distance
++            return new ClientboundSetChunkCacheRadiusPacket(this.lastSentChunkRadius); // Kindling - preview chunks beyond the view distance
+         }
+ 
+         private Packet<?> updateClientSimulationDistance(final int distance) {
+@@ -936,12 +941,13 @@ public final class RegionizedPlayerChunkLoader {
+             final ViewDistances playerDistances = ((ChunkSystemServerPlayer)this.player).moonrise$getViewDistanceHolder().getViewDistances();
+             final ViewDistances worldDistances = ((ChunkSystemServerLevel)this.world).moonrise$getViewDistanceHolder().getViewDistances();
+ 
+-            final int tickViewDistance = getTickDistance(
++            final int configuredTickViewDistance = getTickDistance( // Kindling - previews stand in for the far chunks of a player on a fast journey
+                     playerDistances.tickViewDistance, worldDistances.tickViewDistance,
+                     playerDistances.loadViewDistance, worldDistances.loadViewDistance
+             );
+             // load view cannot be less-than tick view + 1
+-            final int loadViewDistance = getLoadViewDistance(tickViewDistance, playerDistances.loadViewDistance, worldDistances.loadViewDistance);
++            final int loadViewDistance = this.previews.loadDistance(getLoadViewDistance(configuredTickViewDistance, playerDistances.loadViewDistance, worldDistances.loadViewDistance)); // Kindling - previews stand in for the far chunks of a player on a fast journey
++            final int tickViewDistance = Math.min(configuredTickViewDistance, loadViewDistance - 1); // Kindling - previews stand in for the far chunks of a player on a fast journey
+             // send view cannot be greater-than load view
+             final int clientViewDistance = getClientViewDistance(this.player);
+             final int sendViewDistance = getSendViewDistance(loadViewDistance, clientViewDistance, playerDistances.sendViewDistance, worldDistances.sendViewDistance);
+@@ -981,7 +987,7 @@ public final class RegionizedPlayerChunkLoader {
+ 
+             // update VDs for client
+             // this should be after the distance map updates, as they will send unload packets
+-            if (this.lastSentChunkRadius != sendViewDistance) {
++            if (this.lastSentChunkRadius != this.previews.clientRadius(sendViewDistance)) { // Kindling - preview chunks beyond the view distance
+                 this.player.connection.send(this.updateClientChunkRadius(sendViewDistance));
+             }
+             if (this.lastSentSimulationDistance != tickViewDistance) {
+@@ -1078,18 +1084,33 @@ public final class RegionizedPlayerChunkLoader {
+             // update the chunk center
+             // this must be done last so that the client does not ignore any of our unload chunk packets above
+             if (this.lastSentChunkCenterX != currentChunkX || this.lastSentChunkCenterZ != currentChunkZ) {
++                this.previews.recenter(currentChunkX, currentChunkZ); // Kindling - preview chunks beyond the view distance; their forget packets go before the new center, like the loader's own
+                 this.player.connection.send(this.updateClientChunkCenter(currentChunkX, currentChunkZ));
+             }
+ 
+             this.flushDelayedTicketOps();
+         }
+ 
++        // Kindling start - preview chunks beyond the view distance
++        void tickPreviews() {
++            if (this.removed) {
++                return;
++            }
++            this.previews.tick(this.lastChunkX, this.lastChunkZ, this.lastSendDistance, getClientViewDistance(this.player), this.lookAhead);
++            // previews turned on or off by a config reload change the client's radius without any view distance change
++            if (this.lastSentChunkRadius != this.previews.clientRadius(this.lastSendDistance)) {
++                this.player.connection.send(this.updateClientChunkRadius(this.lastSendDistance));
++            }
++        }
++        // Kindling end - preview chunks beyond the view distance
++
+         void remove() {
+             TickThread.ensureTickThread(this.player, "Cannot add player asynchronously");
+             if (this.removed) {
+                 throw new IllegalStateException("Removing removed player chunk loader");
+             }
+             this.removed = true;
++            this.previews.close(); // Kindling - preview chunks beyond the view distance; before the unload packets below, so all are sent
+             // sends the chunk unload packets
+             this.broadcastMap.remove();
+             // cleans up loading/generating tickets

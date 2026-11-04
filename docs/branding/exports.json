@@ -1,104 +1,140 @@
 [
   {
-    "file": "holzschnitt/icon-color.svg",
+    "file": "pixel-leaf/icon-color.svg",
     "width": 1024,
     "height": 1024,
     "transparent": true
   },
   {
-    "file": "holzschnitt/icon-inverse.svg",
+    "file": "pixel-leaf/icon-inverse.svg",
     "width": 1024,
     "height": 1024,
     "transparent": true
   },
   {
-    "file": "holzschnitt/icon-mono-black.svg",
+    "file": "pixel-leaf/icon-mono-black.svg",
     "width": 1024,
     "height": 1024,
     "transparent": true
   },
   {
-    "file": "holzschnitt/icon-mono-white.svg",
+    "file": "pixel-leaf/icon-mono-white.svg",
     "width": 1024,
     "height": 1024,
     "transparent": true
   },
   {
-    "file": "holzschnitt/wordmark-light.svg",
+    "file": "pixel-leaf/wordmark-light.svg",
     "width": 1600,
     "height": 480,
     "transparent": true
   },
   {
-    "file": "holzschnitt/logo-horizontal-light.svg",
+    "file": "pixel-leaf/logo-horizontal-light.svg",
     "width": 1600,
     "height": 420,
     "transparent": true
   },
   {
-    "file": "holzschnitt/logo-stacked-light.svg",
-    "width": 1000,
-    "height": 1000,
+    "file": "pixel-leaf/logo-stacked-light.svg",
+    "width": 1024,
+    "height": 1024,
     "transparent": true
   },
   {
-    "file": "holzschnitt/avatar-light.svg",
+    "file": "pixel-leaf/avatar-light.svg",
     "width": 1024,
     "height": 1024,
     "transparent": false
   },
   {
-    "file": "holzschnitt/banner-light.svg",
+    "file": "pixel-leaf/banner-light.svg",
     "width": 1600,
     "height": 500,
     "transparent": false
   },
   {
-    "file": "holzschnitt/social-preview-light.svg",
+    "file": "pixel-leaf/social-preview-light.svg",
     "width": 1280,
     "height": 640,
     "transparent": false
   },
   {
-    "file": "holzschnitt/wordmark-dark.svg",
+    "file": "pixel-leaf/wordmark-dark.svg",
     "width": 1600,
     "height": 480,
     "transparent": true
   },
   {
-    "file": "holzschnitt/logo-horizontal-dark.svg",
+    "file": "pixel-leaf/logo-horizontal-dark.svg",
     "width": 1600,
     "height": 420,
     "transparent": true
   },
   {
-    "file": "holzschnitt/logo-stacked-dark.svg",
-    "width": 1000,
-    "height": 1000,
+    "file": "pixel-leaf/logo-stacked-dark.svg",
+    "width": 1024,
+    "height": 1024,
     "transparent": true
   },
   {
-    "file": "holzschnitt/avatar-dark.svg",
+    "file": "pixel-leaf/avatar-dark.svg",
     "width": 1024,
     "height": 1024,
     "transparent": false
   },
   {
-    "file": "holzschnitt/banner-dark.svg",
+    "file": "pixel-leaf/banner-dark.svg",
     "width": 1600,
     "height": 500,
     "transparent": false
   },
   {
-    "file": "holzschnitt/social-preview-dark.svg",
+    "file": "pixel-leaf/social-preview-dark.svg",
     "width": 1280,
     "height": 640,
+    "transparent": false
+  },
+  {
+    "file": "pixel-leaf/icon-4k.svg",
+    "width": 4096,
+    "height": 4096,
+    "transparent": true
+  },
+  {
+    "file": "pixel-leaf/server-icon.png",
+    "width": 64,
+    "height": 64,
+    "transparent": true
+  },
+  {
+    "file": "pixel-leaf/icon-32-light.png",
+    "width": 32,
+    "height": 32,
+    "transparent": true
+  },
+  {
+    "file": "pixel-leaf/icon-32-dark.png",
+    "width": 32,
+    "height": 32,
+    "transparent": true
+  },
+  {
+    "file": "pixel-leaf/app-icon.svg",
+    "width": 192,
+    "height": 192,
+    "transparent": false
+  },
+  {
+    "file": "pixel-leaf/apple-touch-icon.png",
+    "width": 180,
+    "height": 180,
     "transparent": false
   },
   {
     "file": "brand-overview.svg",
     "width": 1800,
-    "height": 1740,
+    "height": 1850,
     "transparent": false
   }
 ]

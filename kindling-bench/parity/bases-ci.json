@@ -17,7 +17,11 @@
     "chunkAcks": 0.0,
     "warmupQuietSeconds": 5,
     "warmupMaxSeconds": 120,
-    "moveEventListener": false
+    "moveEventListener": false,
+    "fidelityChunks": 400,
+    "fidelityRadius": 1500,
+    "fidelityAgainst": "PREVIEW",
+    "travelCommands": []
   },
   "counters": {
     "brewing_brews_finished": 20,

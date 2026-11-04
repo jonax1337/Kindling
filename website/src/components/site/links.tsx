@@ -44,7 +44,7 @@ export function DownloadButton({ className }: { className?: string }) {
       asChild
       size="lg"
       className={cn(
-        "h-14 rounded-lg px-8 text-[15px] font-bold glow-ember duration-300 ease-out-expo hover:-translate-y-0.5 hover:bg-[#ff9b60] active:translate-y-px active:scale-[.98]",
+        "h-14 rounded-lg px-8 text-[15px] font-bold glow-ember duration-300 ease-out-expo hover:-translate-y-0.5 hover:bg-[#ffa36e] active:translate-y-px active:scale-[.98]",
         className,
       )}
     >

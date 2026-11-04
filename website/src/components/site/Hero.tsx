@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import kindlingWorld from "@/assets/kindling-world.webp";
+import { brandMark } from "@/lib/brand";
 import { gsap, motion, useGSAP } from "@/lib/gsap";
 import { Foundations } from "./Foundations";
 import { DownloadButton, TextLink } from "./links";
@@ -42,18 +43,29 @@ export function Hero() {
           fetchPriority="high"
           className="absolute -top-[6%] -left-[4%] h-[112%] w-[108%] max-w-none object-cover object-[68%_50%] md:object-[62%_50%]"
         />
-        <div className="absolute inset-0 bg-[linear-gradient(0deg,var(--background)_6%,rgb(11_18_14/.85)_40%,rgb(11_18_14/.6)_72%,rgb(11_18_14/.75))] md:bg-[radial-gradient(120%_90%_at_70%_40%,transparent_30%,rgb(11_18_14/.55)_75%),linear-gradient(90deg,rgb(11_18_14/.92),rgb(11_18_14/.55)_38%,rgb(11_18_14/.05)_70%),linear-gradient(0deg,var(--background)_0%,rgb(11_18_14/.6)_16%,transparent_42%,rgb(11_18_14/.45)_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(0deg,var(--background)_6%,rgb(11_23_16/.85)_40%,rgb(11_23_16/.6)_72%,rgb(11_23_16/.75))] md:bg-[radial-gradient(120%_90%_at_70%_40%,transparent_30%,rgb(11_23_16/.55)_75%),linear-gradient(90deg,rgb(11_23_16/.92),rgb(11_23_16/.55)_38%,rgb(11_23_16/.05)_70%),linear-gradient(0deg,var(--background)_0%,rgb(11_23_16/.6)_16%,transparent_42%,rgb(11_23_16/.45)_100%)]" />
       </div>
       <div data-hero-content className="wrap pt-16 pb-10 md:pt-24 md:pb-14">
-        <p
+        <div
           data-hero-enter
-          className="mb-6 text-[13px] font-bold tracking-[.14em] text-foreground uppercase [text-shadow:0_1px_8px_rgb(11_18_14/.9)]"
+          className="mb-6 flex items-center gap-4 text-[12px] font-bold tracking-[.12em] text-foreground uppercase [text-shadow:0_1px_8px_rgb(11_23_16/.9)]"
         >
-          Open-source Leaf fork for Minecraft 26.3
-        </p>
+          <img
+            src={brandMark}
+            width={64}
+            height={64}
+            alt=""
+            className="size-14 shrink-0 md:size-16"
+          />
+          <p className="max-w-64 leading-6">
+            Open-source <span className="text-leaf">Leaf</span> fork
+            <br />
+            for Minecraft 26.3
+          </p>
+        </div>
         <h1
           id="hero-title"
-          className="text-[clamp(46px,8.4vw,124px)] leading-[.98] font-[680] tracking-[-.045em] [word-spacing:.06em]"
+          className="text-[clamp(42px,7.8vw,112px)] leading-[1.02] font-extrabold tracking-[-.055em]"
         >
           <span className="-mb-[.1em] block overflow-hidden pb-[.1em]">
             <span data-hero-line className="block">

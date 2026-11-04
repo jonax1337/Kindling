@@ -4,7 +4,7 @@ left means Kindling is better. A bar is coloured only when compare.py would mark
 others are gray.
 
     python -I kindling-bench/chart.py final-mixed-leaf final-mixed-rc final-bases-leaf final-bases-rc \
-        docs/media/kindling-vs-leaf
+        kindling-vs-leaf
 
 The four labels are the mixed runs of Leaf and of Kindling, then the bases runs of both; the last argument is the
 output path without the "-light.svg" / "-dark.svg" ending.

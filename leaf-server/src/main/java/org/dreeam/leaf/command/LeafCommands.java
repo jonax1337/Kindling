@@ -27,5 +27,6 @@ public final class LeafCommands {
         net.kindlingmc.doctor.StartupCheck.install(server); // Kindling - /kindling doctor start-up check
         net.kindlingmc.doctor.HostMonitor.install(server); // Kindling - /kindling doctor live host diagnostics
         net.kindlingmc.memory.IdleMemoryWatcher.install(server); // Kindling - memory return while nobody is online
+        net.kindlingmc.chunk.WorkerDemand.install(); // Kindling - chunk worker count that follows the generation backlog
     }
 }

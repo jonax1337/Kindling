@@ -1,4 +1,4 @@
-import { serverIcon } from "@/lib/brand";
+import { logoHorizontalDark } from "@/lib/brand";
 import { links } from "@/lib/links";
 
 const FOOTER_LINKS = [
@@ -8,6 +8,7 @@ const FOOTER_LINKS = [
   { href: links.roadmap, label: "Roadmap" },
   { href: links.measurements, label: "Measurements" },
   { href: links.leaf, label: "Built on Leaf" },
+  { href: links.brand, label: "Brand kit" },
   { href: links.license, label: "License and credits" },
 ];
 
@@ -19,8 +20,13 @@ export function SiteFooter() {
         aria-label="Back to top"
         className="flex min-h-11 items-center gap-4 font-display text-[22px] font-extrabold no-underline"
       >
-        <img src={serverIcon} width={40} height={40} alt="" className="rounded-lg" />
-        Kindling
+        <img
+          src={logoHorizontalDark}
+          width={176}
+          height={46}
+          alt="Kindling"
+          className="h-11 w-auto"
+        />
       </a>
       <nav aria-label="Footer" className="flex flex-wrap gap-x-8 gap-y-1">
         {FOOTER_LINKS.map((link) => (

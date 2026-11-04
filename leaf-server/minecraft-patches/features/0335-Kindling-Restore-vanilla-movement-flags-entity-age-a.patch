@@ -6,7 +6,7 @@ Subject: [PATCH] Kindling: Restore vanilla movement flags, entity age and
 
 
 diff --git a/net/minecraft/world/entity/Entity.java b/net/minecraft/world/entity/Entity.java
-index 42b99ddade93be2901199fae53161a4942062a03..45bb7f5d463bd6fa9e5a729f6b6d071c4fb9fc4b 100644
+index baa66320f2b8f773add39133f835b476e9ccb8f8..b5ec31d758719f9ba9b0140254f103f5437dbb5d 100644
 --- a/net/minecraft/world/entity/Entity.java
 +++ b/net/minecraft/world/entity/Entity.java
 @@ -953,6 +953,11 @@ public abstract class Entity
@@ -51,7 +51,7 @@ index 42b99ddade93be2901199fae53161a4942062a03..45bb7f5d463bd6fa9e5a729f6b6d071c
                          this.setDeltaMovement(oldDeltaMovement.multiply(blockSpeedFactor, 1.0, blockSpeedFactor));
                      }
                  }
-@@ -5956,6 +5965,14 @@ public abstract class Entity
+@@ -5961,6 +5970,14 @@ public abstract class Entity
      // Use Math#sqrt instead of Mojang's Mth#sqrt - only cast once
      // Added option to enable FMA acceleration
      public final float distanceTo(final Entity entity) {

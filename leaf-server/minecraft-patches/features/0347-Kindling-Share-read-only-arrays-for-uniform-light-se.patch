@@ -1,0 +1,45 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Tue, 3 Nov 2026 09:11:20 +0100
+Subject: [PATCH] Kindling: Share read-only arrays for uniform light sections
+
+
+diff --git a/ca/spottedleaf/moonrise/patches/starlight/light/SWMRNibbleArray.java b/ca/spottedleaf/moonrise/patches/starlight/light/SWMRNibbleArray.java
+index ce1cd4e455bd94ac3747a9288f306197f60875c1..2a0791b472ea4c61e204101be1b18a77af94b7a1 100644
+--- a/ca/spottedleaf/moonrise/patches/starlight/light/SWMRNibbleArray.java
++++ b/ca/spottedleaf/moonrise/patches/starlight/light/SWMRNibbleArray.java
+@@ -45,6 +45,7 @@ public final class SWMRNibbleArray {
+     }
+ 
+     private static void freeBytes(final byte[] bytes) {
++        if (net.kindlingmc.light.SharedLightArrays.isShared(bytes)) return; // Kindling - Share read-only arrays for uniform light sections: never reuse them for writing
+         // Leaf start - Optimize chunkUnload
+         final ArrayDeque<byte[]> queue = WORKING_BYTES_POOL.get();
+         if (queue.size() < 8) {  // Limit pool size to prevent memory leaks
+@@ -94,7 +95,7 @@ public final class SWMRNibbleArray {
+             throw new IllegalArgumentException("Data cannot be null and have state be initialised");
+         }
+         this.stateUpdating = this.stateVisible = state;
+-        this.storageUpdating = this.storageVisible = bytes;
++        this.storageUpdating = this.storageVisible = bytes == null ? null : net.kindlingmc.light.SharedLightArrays.shareIfUniform(bytes); // Kindling - Share read-only arrays for uniform light sections
+     }
+ 
+     @Override
+@@ -379,7 +380,16 @@ public final class SWMRNibbleArray {
+             if (this.stateUpdating == INIT_STATE_NULL || this.stateUpdating == INIT_STATE_UNINIT) {
+                 this.storageVisible = null;
+             } else {
+-                if (this.storageVisible == null) {
++                // Kindling start - Share read-only arrays for uniform light sections
++                final byte[] shared = net.kindlingmc.light.SharedLightArrays.shareIfUniform(this.storageUpdating);
++                if (net.kindlingmc.light.SharedLightArrays.isShared(shared)) {
++                    // only the private updating copy goes back to the pool; readers may still hold the old visible array
++                    if (this.storageUpdating != this.storageVisible) {
++                        freeBytes(this.storageUpdating);
++                    }
++                    this.storageUpdating = this.storageVisible = shared;
++                } else if (this.storageVisible == null || net.kindlingmc.light.SharedLightArrays.isShared(this.storageVisible)) {
++                    // Kindling end - Share read-only arrays for uniform light sections
+                     this.storageVisible = this.storageUpdating.clone();
+                 } else {
+                     if (this.storageUpdating != this.storageVisible) {
