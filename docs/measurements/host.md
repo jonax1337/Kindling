@@ -119,7 +119,7 @@ The setting makes the pregenerator throttle while the main thread waited for a C
 
 **Faster.** Flight over a pregenerated world: tick time 35.6 → 33.3 ms, p95 54.3 → 50.5 ms, main-thread wait 709 → 311 ms, CPU time 513 → 477 s. Elytra, mixed flight and bases show no marked difference. Against the same build with it off (five fixed workers), 3 runs each. On by default.
 
-**Slower than plain Leaf.** Against plain Leaf `66f99f8e` the pregenerated flight still ticks 5 % slower (31.7 → 33.3 ms), at the same CPU time (462 → 477 s, p = 0.085). The bases keep 13 % more CPU time (276 → 313 s). Same series, 3 runs each.
+Against plain Leaf the whole build is compared in [Kindling against Leaf](vs-leaf.md#paper-purpur-leaf-and-kindling): over a pregenerated world it ticks like Leaf release 26.3-15 (25.0 against 25.2 ms) at the same CPU time (284 against 285 s).
 
 `performance.worker-demand` runs every configured chunk worker only while new terrain waits for them. A profile of the pregenerated flight with the worker count as the variable (3 runs each, against Leaf) had put both losses of the [campaign against Leaf](vs-leaf.md) on the five workers: with Paper's two the flight ticked like Leaf (33.3 against 32.6 ms, p = 0.15) and the bases used Leaf's CPU time (281.5 against 280.0 s), with five it was 36.1 ms and 334 s. Five workers on four cores generate new terrain 3.6 times as fast, but where little is generated they only crowd the main thread.
 
@@ -154,8 +154,8 @@ Every second the server reads how many generation steps waited for a worker on a
 <details>
 <summary>Caveats</summary>
 
-- The mixed flight ticked slower with worker demand in all three rounds (33.4 against 30.9 ms) while it generated 7 % more chunks per second; not significant, because the fixed-worker runs spread ±2.9 ms. Watch it in the next comparison.
-- The bases' extra CPU time against Leaf did not move (313 against 324 s, p = 0.09). They generate only at the start, so the cause is likely the spawn area being generated with every worker; not established.
+- The mixed flight ticked slower with worker demand in all three rounds (33.4 against 30.9 ms) while it generated 7 % more chunks per second; not significant, because the fixed-worker runs spread ±2.9 ms. In the comparison with Leaf release 26.3-15 the mixed flight ticks at 32.5 against 33.3 ms, not marked.
+- The bases' extra CPU time against Leaf did not move with worker demand (313 against 324 s, p = 0.09). It lies in the warm-up, in the chunk workers and JIT compilation ([Kindling against Leaf](vs-leaf.md#paper-purpur-leaf-and-kindling)).
 - The thresholds come from one host with five players at 1.7 blocks per tick. A host with more cores or more players may see a different queue over generated terrain; 16 is about three times what the pregenerated flight ever reached.
 - No effect while `performance.worker-governor` is on; a Paper config reload sets the configured count again until the next sample.
 

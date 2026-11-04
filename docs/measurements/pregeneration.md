@@ -6,7 +6,7 @@ The built-in pregenerator: its speed against its first version, its safety check
 
 ## The tiled pregenerator
 
-**Indicative.** Chunks generated +59 % (19 040 → 30 315), CPU per chunk −41 % (47 → 28 ms). Against the ring-by-ring first version, Kindling 26.3-1, 2 runs each. Plain Leaf has no pregenerator, and a comparison with Chunky on Leaf was not measured.
+**Indicative.** Chunks generated +59 % (19 040 → 30 315), CPU per chunk −41 % (47 → 28 ms). Against the ring-by-ring first version, Kindling 26.3-1, 2 runs each. Plain Leaf has no pregenerator; Chunky on Leaf against Chunky and `/pregen` on Kindling: [Kindling against Leaf](vs-leaf.md#paper-purpur-leaf-and-kindling).
 
 `/pregen start <world> <radius> [<x> <z>]`, `pause`, `resume`, `cancel` and `status`, with an optional automatic start per dimension ([commands](../reference/commands.md), [settings](../reference/configuration.md)). No Chunky needed. It runs at the chunk system's lowest priority, so chunks players need always come first. It throttles itself by tick time and resumes after a restart. It works in 16 × 16 chunk tiles and keeps the half-generated neighbours in memory instead of saving and re-reading them. It costs 5 ms per tick while it runs. The throttle by the main thread's wait for a CPU is measured with [worker priority](host.md).
 

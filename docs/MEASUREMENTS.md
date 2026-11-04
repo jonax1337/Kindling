@@ -30,7 +30,7 @@ The time over void was first measured on one line straight ahead of each player;
 | [Pregeneration](measurements/vs-leaf.md#paper-purpur-leaf-and-kindling) | **Trade-off.** Chunky 97.9 → 211.2 chunks per second, for tick time 3.7 → 5.0 ms and 6 % more CPU time per chunk |
 | [Ticking without new terrain](measurements/vs-leaf.md#paper-purpur-leaf-and-kindling) | **Same** as Leaf in the bases, among villagers and over a pregenerated world; Kindling 14 to 40 % faster than Paper and Purpur |
 | [View distance 32](measurements/vs-leaf.md#paper-purpur-leaf-and-kindling) | **Trade-off.** Time over void 69 % → 0.2 % and flight p95 125 → 72 ms, but flight tick time avg 36.0 → 50.9 ms and 1.6 times the heap |
-| [CPU time](measurements/vs-leaf.md#paper-purpur-leaf-and-kindling) | **Slower.** +44 % exploring, +82 % with elytras, +10 % in the bases, none over a pregenerated world |
+| [CPU time](measurements/vs-leaf.md#paper-purpur-leaf-and-kindling) | **Slower.** +44 % exploring, +82 % with elytras; in the bases +10 % for the whole run, all in the warm-up (workers and JIT), none in the measured phase; none over a pregenerated world |
 | [Async pathfinding and mob spawning](measurements/vs-leaf.md#async-pathfinding-and-mob-spawning-opt-in) | **Faster**, opt-in. 1 200 standing mobs 34.9 → 31.8 ms with them on; not vanilla, so off by default |
 | [Leaf's options](measurements/vs-leaf.md#leafs-options-one-by-one) | **Indicative.** No option is both faster and vanilla; [ten not adopted](measurements/vs-leaf.md#not-adopted-although-leaf-offers-them) |
 

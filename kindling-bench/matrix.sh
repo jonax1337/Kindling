@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Runs benchmark variants against one server jar, twice each, one after another (never in parallel: they would share
+# Runs benchmark variants against one server jar, three times each by default, one after another (never in parallel: they would share
 # the CPU and skew each other). Usage: [RUNS=3] [SCENARIO=type=bases] matrix.sh <server.jar> <label prefix> [variant ...]
 # Three runs per variant by default: compare.py needs at least two per label for a p-value and trusts a difference
 # only if it is significant and larger than twice the spread of the runs.

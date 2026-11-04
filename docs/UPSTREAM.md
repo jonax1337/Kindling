@@ -6,9 +6,9 @@ Kindling is a GitHub fork of [Leaf](https://github.com/Winds-Studio/Leaf): Leaf'
 
 | Path | Contents |
 | --- | --- |
-| `leaf-server/src/main/java/net/kindlingmc/` | Kindling's own server code. Packages: `pregen`, `chunk` (palette decoder, quarantine, worker count, worker demand, worker governor, look-ahead), `worldgen` (compiled material rules and density), `doctor` (with the host monitor), `stress`, `memory`, `os` (worker priority), `sleeping`, `spawn`, `path`, `tracker`, `save`, `entity`, `ai`, `world`, `biome`, `recipe`, `version`. |
+| `leaf-server/src/main/java/net/kindlingmc/` | Kindling's own server code. Packages: `pregen`, `chunk` (palette decoder, quarantine, worker count, worker demand, worker governor, look-ahead), `worldgen` (compiled material rules and density), `preview` (preview chunks), `light` (shared light arrays), `branding` (fresh-server branding), `doctor` (with the host monitor), `stress`, `memory`, `os` (worker priority), `sleeping`, `spawn`, `path`, `tracker`, `save`, `entity`, `ai`, `world`, `biome`, `recipe`, `version`. |
 | `leaf-server/src/test/java/net/kindlingmc/` | Kindling's tests, run through `org.bukkit.support.suite.KindlingTestSuite`. |
-| `leaf-server/minecraft-patches/features/0316-…` to `0345-…` | Kindling's Minecraft patches, subject `Kindling:`, listed below. |
+| `leaf-server/minecraft-patches/features/0316-…` to `0349-…` | Kindling's Minecraft patches, subject `Kindling:`, listed below. |
 | `leaf-server/paper-patches/features/0069-…` to `0075-…` | Kindling's Paper patches, listed below. |
 | `leaf-server/minecraft-patches/features/0066-5-second-TPS-average.patch` | A Leaf patch changed to match Leaf pull request [#970](https://github.com/Winds-Studio/Leaf/pull/970) exactly, without a `Kindling` marker. |
 | `leaf-server/src/main/java/org/dreeam/leaf/` | Leaf's own code. Kindling changes defaults and adds config modules here; every line is marked `// Kindling - …`. |
@@ -36,6 +36,9 @@ Kindling is a GitHub fork of [Leaf](https://github.com/Winds-Studio/Leaf): Leaf'
 | `0342` | A random of its own for entities created off the tick threads |
 | `0344` | Compiled density |
 | `0345` | Wait counter for worker demand |
+| `0346` | Preview chunks beyond the view distance |
+| `0347`, `0348` | Shared data for uniform light sections and single-value palettes |
+| `0349` | Branding of newly initialized servers |
 | Paper `0069`, `0072` | Default number of chunk workers (`ChunkWorkers`) |
 | Paper `0070` | `/version` message |
 | Paper `0073` | Lower OS priority for chunk workers |
