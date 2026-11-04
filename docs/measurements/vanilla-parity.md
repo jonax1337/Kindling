@@ -208,9 +208,9 @@ Bases scenario with a listener (`move-event-listener`, overlays `parity-sleeping
 
 ## Vanilla diff against Mojang's jar
 
-**Correct.** Contraptions: the restorations build differs from vanilla in 0 blocks; release 26.3-12 differed in 8, vanilla against vanilla in 0. 72 cells, 400 stepped ticks, one seed and one console script per jar, 1 run each (the first real runs of the tool).
+**Correct.** Contraptions: release 26.3-24 differs from Mojang's jar in 0 blocks and in no chest, as Paper build 237; plain Leaf release 26.3-15 differs in 8 blocks (an unpowered redstone wire network). Two hoppers end with another transfer cooldown than vanilla's, with the same contents (sleeping hoppers, see below). 72 cells, 400 stepped ticks, one seed and one console script per jar, game rules set with their 26.3 names, 1 run each.
 
-**Indicative.** Worldgen: not conclusive (see below).
+**Correct.** Worldgen at one location: Kindling places the same blocks as Paper. Both differ from Mojang's jar in the same 2 blocks, which therefore come from Paper; plain Leaf differs in 10 (the same 2 and 8 leaf `distance` states). Mojang's jar against itself and Kindling against itself are identical. Release 26.3-24, Leaf release 26.3-15, Paper build 237 (`paperCommit` `7e88a0da`), a 4 x 4 chunk sweep at a desert village, 1 run each; the tool is deterministic, so a second Kindling run adds no spread.
 
 [`kindling-bench/vanilla-diff`](../../kindling-bench/vanilla-diff/README.md) starts Mojang's server jar and the jar under test one after the other on the same seed with the same console script, saves both worlds and compares them: block states, biomes, block entities, entities, scheduled ticks. In the contraptions mode, 72 redstone, hopper, piston, rail and sensor cells are built while the game is frozen, then stepped for 400 ticks; 110 full chunks were compared. Contraptions without a difference show that the restorations build acts as vanilla in these 72 cells, not in all cases.
 
@@ -218,16 +218,16 @@ Bases scenario with a listener (`move-event-listener`, overlays `parity-sleeping
 <summary>Method and all numbers</summary>
 
 | Jar under test | Differences | Blocks | Block entities and containers | Entities |
-| --- | ---: | ---: | --- | ---: |
-| Vanilla (the tool's noise) | 80 in 23 chunks | **0** | 4 + 2: two furnaces, cooking and fuel timing | 74 |
-| Release 26.3-12 | 165 in 49 chunks | **8** | 27 + 7: five chests, the same two furnaces; one scheduled tick | 122 |
-| Restorations build | 128 in 45 chunks | **0** | 4 + 2: the same two furnaces | 122 |
+| ---: | ---: | ---: | --- | ---: |
+| Vanilla (the tool's noise) | 6 in 2 chunks | **0** | 4 + 2: two furnaces, cooking and fuel timing | 0 |
+| Paper build 237 | 28 in 12 chunks | **0** | 2 + 2: the same two furnaces | 24 |
+| Release 26.3-24 | 34 in 14 chunks | **0** | 6 + 4: the same two furnaces, two empty hoppers' `TransferCooldown` | 24 |
+| Leaf release 26.3-15 | 65 in 17 chunks | **8** | 25 + 7: chests with other contents, the same furnaces; one scheduled tick | 24 |
 
-- **Vanilla against vanilla** is the noise floor: no block differs. The entity differences are dropped items and minecarts whose position or motion differs (unseeded random spread), and two furnaces differ in smelting timing. Their number varies from run to run, so entity differences are not evaluated.
-- **Release 26.3-12 against vanilla:** a redstone wire network is unpowered where vanilla has power 10 to 15, together with a powered repeater (8 blocks). Three chests hold the same items in another order and two hold different totals (hopper pile cells, so entity order; for example 7 cobblestone and 9 oak logs in vanilla, 5 cobblestone, 9 oak logs and 1 sand in the jar). One comparator tick exists only in vanilla.
-- **Restorations build against vanilla:** no block differs and no chest differs. What is left is the noise of the vanilla run. The restored `Vec3i` hash and entity order aim at exactly the differences release 26.3-12 shows; the diff did not isolate which restoration fixed which cell.
-
-**The worldgen mode is not conclusive.** Vanilla against vanilla already differs in 410 of 624 chunks: feature placement across chunk borders depends on how the worker threads are scheduled. The restorations build against vanilla differs by 164 000 to 183 000 entries in 508 to 513 chunks; the terrain is equal, the features differ, which is the same scheduling effect. Six biome cells differ and are not explained. A comparison with one worker thread on both sides is open ([roadmap](../ROADMAP.md)).
+- **Vanilla against vanilla** is the noise floor: no block, no entity, two furnaces in smelting timing. The game rules (random ticks, mob spawning, weather, daylight, drops) are set with their 26.3 names; before, the tool sent the pre-26 names, which 26.3 rejects, so none of them was set and the floor held 80 differences.
+- **The 24 entity differences** are the same on Paper, Leaf and Kindling: 12 dropped items whose saved motion differs from vanilla's (the same items on all three, so they come from Paper).
+- **Release 26.3-24 against Paper:** the same blocks and chests. Two hoppers under a falling item pile end empty with a transfer cooldown of 0 where vanilla's end at 4 and 2, so their last transfer happened at another tick. With sleeping block entities off the difference is gone. It is fragile: one tick at a time (with the hopper read after each tick) both jars agree for all 400 ticks, saving after 150 or 300 ticks shows no difference, and an unrelated command block elsewhere moves vanilla's own end value from 4 to 6 or removes the difference. The cause is not found; kept as a [known limit](../ROADMAP.md#known-limits).
+- **Leaf release 26.3-15 against vanilla:** a redstone wire network is unpowered where vanilla has power 10 to 15, together with a powered repeater (8 blocks); chests hold other contents (hopper pile cells, so entity order). Kindling's restored `Vec3i` hash and entity order aim at exactly these differences.
 
 The comparer needed two fixes before the runs were meaningful: Minecraft 26 block palette entries (a different format) and wrapper compounds in mixed NBT lists. Both are committed with a unit test.
 

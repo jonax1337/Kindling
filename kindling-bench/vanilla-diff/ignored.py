@@ -9,8 +9,9 @@ VOLATILE_KEYS = frozenset({
     "UUID",        # entity ids are random per run
     "keepPacked",  # a marker of how a block entity was written, not game state
     "Leash",       # references a UUID
+    "WorldUUIDLeast", "WorldUUIDMost",  # CraftBukkit stamps the world's random UUID on every entity it saves
 })
-VOLATILE_KEY_PREFIXES = ("Paper.", "Spigot.", "Bukkit", "Leaf.", "Kindling.")
+VOLATILE_KEY_PREFIXES = ("Paper.", "Spigot.", "Bukkit", "Purpur.", "Leaf.", "Kindling.")
 
 # (what, why), printed by --list-ignored and at the top of every report
 IGNORED_FIELDS = (
@@ -20,9 +21,10 @@ IGNORED_FIELDS = (
      "derived or generation-time data"),
     ("chunk: isLightOn, sections' BlockLight and SkyLight",
      "light may legitimately be recomputed; compare it only after adding it deliberately"),
-    ("block entities and entities: UUID, keepPacked, Leash", "random per run or a marker, not state"),
-    ("block entities and entities: keys starting with Paper., Spigot., Bukkit, Leaf., Kindling.",
-     "tags that only Paper, Spigot, Bukkit, Leaf or Kindling write (Paper.FailedSpawnAttempts, Spigot.ticksLived, ...)"),
+    ("block entities and entities: UUID, keepPacked, Leash, WorldUUIDLeast/Most", "random per run or a marker, not state"),
+    ("block entities and entities: keys starting with Paper., Spigot., Bukkit, Purpur., Leaf., Kindling.",
+     "tags that only Paper, Spigot, Bukkit, Purpur, Leaf or Kindling write (Paper.FailedSpawnAttempts, Spigot.ticksLived,"
+     " Purpur.ShouldBurnInDay, ...)"),
     ("region files: header timestamps, sector layout, compression", "storage details; the decoded chunk is compared"),
     ("everything else in a chunk file: poi, player data, level.dat, scoreboard, raids",
      "not read at all"),

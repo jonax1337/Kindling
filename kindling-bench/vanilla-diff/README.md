@@ -3,7 +3,7 @@
 A differential test: it runs Mojang's official server jar and a server jar under test (Kindling, Leaf or Paper) on the same seed with the same scripted console input, then compares the two saved worlds. A difference means the jar under test does not do what vanilla does. The cases are the ones that tuned servers tend to break quietly: redstone update order, entity order, game events, block entity contents, world generation.
 
 > [!NOTE]
-> Do `./run.sh --self-check` first (vanilla against vanilla). A differential test is only worth anything once vanilla agrees with itself. In contraptions mode vanilla against vanilla differs in 0 blocks; 80 entity and furnace-timing differences are the tool's noise. Worldgen mode is not conclusive: vanilla against vanilla already differs in 410 of 624 chunks. Results for Kindling, Leaf and Paper: [vanilla parity measurements](../../docs/measurements/vanilla-parity.md).
+> Do `./run.sh --self-check` first (vanilla against vanilla). A differential test is only worth anything once vanilla agrees with itself. In contraptions mode vanilla against vanilla differs in 0 blocks; 6 furnace-timing differences are the tool's noise. Worldgen mode is not conclusive: vanilla against vanilla already differs in 410 of 624 chunks; [`../worldgen-parity`](../worldgen-parity/README.md) compares world generation deterministically. Results for Kindling, Leaf and Paper: [vanilla parity measurements](../../docs/measurements/vanilla-parity.md).
 
 The comparer, the fetch script and the command generators have tests (`python -I test_compare_worlds.py`, 39 tests on synthetic region files). The generated block, item and entity ids were checked against the 26.3 server jar.
 
@@ -44,7 +44,7 @@ Both servers listen on `127.0.0.1:25999` only, one after the other, in a fresh f
 
 ### contraptions
 
-A flat world with one stone layer (the generator settings are in `contraptions.py`), `randomTickSpeed 0`, `doMobSpawning false`, `doWeatherCycle false`, `doDaylightCycle false`, and also fire spread, tile drops, entity drops and mob loot off. The server is frozen (`tick freeze`) while 72 cells are built, so nothing runs until the first `tick step`. Each cell is a 10 x 10 footprint **in its own chunk**, on a two-layer stone platform, inside a forceloaded rectangle with a chunk of margin all around. The cell is shifted inside its chunk by a different amount each, so the `BlockPos` values (and their hash order) differ from cell to cell. Then the game is stepped 400 ticks in nine steps (1, 1, 2, 5, 11, 20, 60, 100, 200); some designs are touched again between the steps ("stages").
+A flat world with one stone layer (the generator settings are in `contraptions.py`), `random_tick_speed 0`, `spawn_mobs false`, `advance_weather false`, `advance_time false`, and also block drops, entity drops and mob drops off (26.3 names; fire spread has no direct 26.3 rule and stays on). The server is frozen (`tick freeze`) while 72 cells are built, so nothing runs until the first `tick step`. Each cell is a 10 x 10 footprint **in its own chunk**, on a two-layer stone platform, inside a forceloaded rectangle with a chunk of margin all around. The cell is shifted inside its chunk by a different amount each, so the `BlockPos` values (and their hash order) differ from cell to cell. Then the game is stepped 400 ticks in nine steps (1, 1, 2, 5, 11, 20, 60, 100, 200); some designs are touched again between the steps ("stages").
 
 | Design | Cells | What it exercises |
 | --- | --- | --- |

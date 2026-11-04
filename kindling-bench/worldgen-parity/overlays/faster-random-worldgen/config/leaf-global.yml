@@ -1,0 +1,5 @@
+# Self-test 5: Leaf's option that swaps the decoration random (FastRNG); it warns that it changes world generation.
+performance:
+  faster-random-generator:
+    enabled: true
+    enable-for-worldgen: true

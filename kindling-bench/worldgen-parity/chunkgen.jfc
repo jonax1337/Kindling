@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Records only Minecraft's chunk generation event (ChunkStep.apply), which is @Enabled(false) by default. -->
+<configuration version="2.0" label="Worldgen parity" description="minecraft.ChunkGeneration only" provider="Kindling">
+  <event name="minecraft.ChunkGeneration">
+    <setting name="enabled">true</setting>
+    <setting name="threshold">0 ms</setting>
+  </event>
+</configuration>
