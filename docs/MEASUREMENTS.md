@@ -118,7 +118,7 @@ The time over void was first measured on one line straight ahead of each player;
 | [Async fixes](measurements/vanilla-parity.md#async-fixes-for-pathfinding-tracker-and-saving) | **Correct.** Shared villager beds 5 and 3 → 0 |
 | [Sleeping hoppers with a move event listener](measurements/vanilla-parity.md#sleeping-hoppers-with-a-move-event-listener) | **Same.** No measurable cost |
 | [Parity scenarios](measurements/vanilla-parity.md#parity-scenarios) | **Correct.** All four pass |
-| [Vanilla diff against Mojang's jar](measurements/vanilla-parity.md#vanilla-diff-against-mojangs-jar) | **Correct.** 0 block differences in 72 contraption cells |
+| [Vanilla diff against Mojang's jar](measurements/vanilla-parity.md#vanilla-diff-against-mojangs-jar) | **Correct.** 0 block differences in 72 contraption cells, as Paper; two sleeping hoppers save another cooldown; worldgen at one location equal to Paper, 2 blocks from Mojang's jar, both from Paper |
 | [Entity UUIDs from world generation](measurements/vanilla-parity.md#entity-uuids-from-world-generation) | **Correct.** No more refused mobs |
 
 ## JVM and memory

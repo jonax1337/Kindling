@@ -4,7 +4,7 @@ Kindling aims at vanilla behaviour. This page lists where Leaf (or Gale, Purpur 
 
 Everything not listed here is Leaf, unchanged.
 
-This rests on reading code, unit tests, the parity scenarios and, for redstone and hopper contraptions, the [vanilla diff](../../kindling-bench/vanilla-diff/README.md) against Mojang's jar: 0 differing blocks in 72 contraption cells. World generation is not compared yet; the diff's worldgen mode is not conclusive.
+This rests on reading code, unit tests, the parity scenarios and, for redstone and hopper contraptions, the [vanilla diff](../../kindling-bench/vanilla-diff/README.md) against Mojang's jar: 0 differing blocks in 72 contraption cells, as on Paper. World generation is compared at one overworld location: Kindling places the same blocks as Paper, 2 blocks away from Mojang's jar ([worldgen parity](../measurements/vanilla-parity.md#vanilla-diff-against-mojangs-jar)).
 
 ## Still different from vanilla
 
@@ -20,8 +20,9 @@ Always on, not yet restored:
 - **Gale's zero-movement skip** (Leaf patch `0051`): skips side effects of a zero-length move that vanilla runs: the record for inside-block checks, the fluid update in `LivingEntity.checkFallDamage` when not in water, and the empty movement emission. Only the vertical collision flags and the ground state are restored.
 - **Sculk catalysts** (Leaf patch `0093`): drop game events through Leaf's `listensToEvent` pre-filter when their block entity was removed but the listener is still registered.
 - **Entity age with a despawn time:** where Paper's `entities.spawning.despawn-time` is set for a type, Leaf counts ticks spent in weak-loaded chunks too, so `getTicksLived()` and the saved age are larger than on Paper. A thrown projectile also checks despawn before its physics there. Without that setting, the age counts as on Paper.
-- **Sleeping hoppers** skip the `InventoryMoveItemEvent` attempts Paper fires on every check against a full destination, so plugins see fewer events. With `gameplay.use-vanilla-hopper` a pull still wakes them.
+- **Sleeping hoppers** skip the `InventoryMoveItemEvent` attempts Paper fires on every check against a full destination, so plugins see fewer events. A sleeping hopper also saves its transfer cooldown as 0 where vanilla saves the ticks left, so after a restart it may move an item up to 4 ticks earlier. With `gameplay.use-vanilla-hopper` a pull still wakes them.
 - **`performance.optimize-block-entities`** no longer affects `World#getTileEntityCount`.
+- **Entity base attributes in saves** (Purpur, through Leaf): villagers, cats, cows, camels, iron golems and other mobs with a Purpur base-attribute setting save that attribute at its default base value, which vanilla leaves out of the save. The values are equal, so play does not change.
 
 ## Restored Leaf changes
 

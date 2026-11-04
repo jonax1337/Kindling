@@ -10,7 +10,7 @@ Every item follows the same rules: vanilla behaviour by default, three runs per 
 
 | Item | Why it is open |
 | --- | --- |
-| Skipping discarded density branches | 7 to 10 % of the chunk workers' CPU evaluates range-choice branches that are thrown away ([profile](measurements/pregeneration.md#where-the-time-goes-in-the-chunk-workers)). Compiled density takes the cell-corner part; the noodle cave and ore vein choices run per block on interpolated inputs and need their own fix. Prerequisite: the worldgen vanilla diff with one worker thread (below). |
+| Skipping discarded density branches | 7 to 10 % of the chunk workers' CPU evaluates range-choice branches that are thrown away ([profile](measurements/pregeneration.md#where-the-time-goes-in-the-chunk-workers)). Compiled density takes the cell-corner part; the noodle cave and ore vein choices run per block on interpolated inputs and need their own fix. [`worldgen-parity`](../kindling-bench/worldgen-parity/README.md) can check a change here block for block. |
 | Empty sections of the generation ring | 82 % of the overworld sections in memory hold only air, and their fixed overhead is 20 to 22 % of the live heap ([census](measurements/memory-jvm.md#the-ring-of-partly-generated-chunks)). Single-value palettes and uniform light arrays are [shared already](measurements/memory-jvm.md#shared-data-for-uniform-sections); a shared empty section for chunks below `BIOMES`, materialised on the first write, would take back the sections and lists that remain. `ChunkLoadTask` also parses the whole chunk NBT for a `STRUCTURE_STARTS` target; to be looked at afterwards. |
 | A criterion for the pregenerator's wait throttle | A share of the last minute fires at baseline on a VPS and at 0.10 halves pregeneration. Candidates: the absolute wait per tick, a higher limit such as 0.20, or throttling only while the machine is busy. |
 | A documented "fast" profile | Async pathfinding and mob spawning make 1 200 standing mobs 9 % faster, but are not vanilla. Whether a profile with them belongs in the docs and the doctor. |
@@ -33,11 +33,12 @@ Every item follows the same rules: vanilla behaviour by default, three runs per 
 
 | Item | Why it is open |
 | --- | --- |
-| Worldgen vanilla diff with one worker thread | Vanilla against vanilla already differs in 410 of 624 chunks, because feature placement across chunk borders depends on worker scheduling. With one worker on both sides, the 6 biome cells that differ from vanilla can be explained or cleared. |
+| Worldgen parity beyond one location | [`worldgen-parity`](../kindling-bench/worldgen-parity/README.md) shows Kindling equal to Paper at one overworld location ([result](measurements/vanilla-parity.md#vanilla-diff-against-mojangs-jar)). Open: the Nether, the End, a location where a structure starts inside the sweep, and the larger profile. |
 | Parity checks in the game | Hopper pull order with several items, pressure plate and tripwire order for falling entities, a plugin placing a sculk sensor from `BlockReceiveGameEvent`, a client-steered vehicle standing still, lightning frequency, the cure discount, a border-clipped automatic pregeneration across a restart, a full disk freeing up while the server sleeps. |
 | Async player data saving on a real server | Write order, the flush barrier and the shutdown drain have unit tests only. Needs `save-all flush` with a look at the file times, and a stop on a slow disk. |
 | Scenarios for four fixes | The removed nitwit shortcut, the happy ghast's adult sensor, the idle-memory pause during a pregeneration and the async writer's publication rest on unit tests and review. |
 | The furnace fix and shared job sites | Neither bug reproduced on the release, so their fixes have no counter. |
+| Saved cooldown of sleeping hoppers | The vanilla diff shows two sleeping hoppers saving `TransferCooldown` 0 where vanilla saves 4 and 2 ([result](measurements/vanilla-parity.md#vanilla-diff-against-mojangs-jar)). Kindling writes world data like vanilla, so a sleeping hopper should save the cooldown it would have; whether it also acts early without a restart is unchecked. |
 | All parity scenarios in CI | `parity.yml` runs the bases check only; the sleeping and villager pairs run by hand. |
 | A POI warning at shutdown | "Accessing poi chunk off-main" during `stop` while a pregeneration ran, once in 8 stops; the stack holds only vanilla, Paper and Moonrise code. Whether the skipped POI update is repaired on the next load is unchecked. A candidate for an upstream report. |
 

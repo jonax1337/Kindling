@@ -4,10 +4,11 @@ Compares the world generation of a server jar (Paper, Leaf, Kindling) with Mojan
 block, in a way that gives exactly 0 differences when Mojang's jar is compared with itself. Why that is hard and how it
 works: [DESIGN.md](DESIGN.md). What was run and seen: [IMPL-NOTES.md](IMPL-NOTES.md).
 
-Result on the dev profile (one 4 x 4 sweep at a desert village, seed -4172144997902289642, this PC, 2026-10-30):
-Mojang's jar against itself **identical in everything compared**, 3 of 3 pairs of fresh runs (and 4 of 4 pairs of an
-earlier round with the same settings); every planted change found, nothing else. Kindling (`work/kindling-hardening`
-at 23a2629) against Mojang: **2 terrain blocks and 18 entities differ**; details in IMPL-NOTES.md.
+Result on the dev profile (one 4 x 4 sweep at a desert village, seed -4172144997902289642, bench host): Mojang's jar
+against itself and Kindling against itself **identical in everything compared**. Kindling 26.3-24 places the same blocks
+as Paper build 237; both differ from Mojang's jar in the same 2 blocks, and Kindling and Leaf save 18 entities with
+extra base attributes (Purpur's configurable base attributes). Plain Leaf 26.3-15 differs in 8 more blocks. Details and
+attribution: [vanilla parity measurements](../../docs/measurements/vanilla-parity.md#vanilla-diff-against-mojangs-jar).
 
 ## How it works, in short
 

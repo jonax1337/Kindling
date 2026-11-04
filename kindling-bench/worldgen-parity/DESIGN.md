@@ -1,6 +1,6 @@
 # Worldgen parity: design
 
-Status: Mode A implemented and run at dev size (2026-10-30). The first dev runs corrected four points of this design;
+Status: Mode A implemented and run at dev size. The first dev runs corrected four points of this design;
 section 8 lists them and wins over the text above it. Every claim below is marked **[code]** (read in the
 applied 26.3 sources or disassembled from Mojang's jar with `javap`, see IMPL-NOTES.md), **[measured]** (taken from
 an earlier run in `docs/measurements/vanilla-parity.md`) or **[to verify]** (first thing the dev run must check).
@@ -399,7 +399,7 @@ order, not a "neutral" one (irrelevant for equality, but stated); a difference f
 
 ---
 
-## 8. Implementation status and corrections from the dev runs (2026-10-30)
+## 8. Implementation status and corrections from the dev runs
 
 Evidence and output tails for each point: IMPL-NOTES.md, "implementation and dev runs".
 
@@ -425,7 +425,7 @@ location with a structure start in the swept band; Paper itself (`fetch_paper.py
 
 ---
 
-## 9. Open review points (second review, 2026-10-30)
+## 9. Open review points (second review)
 
 Fixed after the review (IMPL-NOTES.md, "review fixes"): the promotion-race exclusion is one-sided (only Mojang's side)
 and position-wise instead of chunk-wise; `compare` takes its locations, rectangles and bootstrap from the runs and

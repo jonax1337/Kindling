@@ -3,7 +3,7 @@
 Newest entries at the bottom. Each entry says what was done and what was seen; "read" means read in code, "ran" means
 executed, with the output tail.
 
-## 2026-10-30, design stage
+## Design stage
 
 No server was started, nothing was downloaded, nothing was committed.
 
@@ -44,7 +44,7 @@ No server was started, nothing was downloaded, nothing was committed.
 
 Next: the dev-run checklist in DESIGN.md section 7, on a 4 x 4 sweep, Mojang's jar first.
 
-## 2026-10-30, implementation and dev runs
+## Implementation and dev runs
 
 Everything below ran on this PC with Java 25 (`C:\Program Files\Eclipse Adoptium\jdk-25.0.5.8-hotspot`), one server at
 a time, each on 127.0.0.1:25999 (checked by `server.py` before start, by binding the port, and after start: "Starting
@@ -162,7 +162,7 @@ is about 576 x 0.35 s = 3.4 min of sweep per jar; the standard profile (6 locati
 starts.
 
 
-## 2026-10-30, review fixes
+## Review fixes
 
 Ran on this PC (Java 25, Mojang's jar, 127.0.0.1:25999 only, one server at a time, port free before and after).
 Nothing committed. New tests: `test_review_fixes.py` (27 tests); `test_mutate.py` now has 20. The steps below that
