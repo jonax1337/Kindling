@@ -34,7 +34,17 @@ kindling doctor
 
 You see a list of `WARN`, `INFO` and `OK` lines about this machine and its settings. Every `WARN` names its fix. On a fresh server most lines are `OK`.
 
-## 5. Pregenerate around spawn
+## 5. Choose how chunks are compressed
+
+If the disk has room, stop the server, set this line in `server.properties` and start again:
+
+```properties
+region-file-compression=lz4
+```
+
+Chunks are then saved with much less CPU time and take about twice the space. Doing it now means the pregeneration below writes its chunks this way. On a small disk, keep the default `deflate`. Details: [Use LZ4 region files](guides/region-compression.md).
+
+## 6. Pregenerate around spawn
 
 ```
 pregen start world 2000

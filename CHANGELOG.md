@@ -2,6 +2,12 @@
 
 Releases, newest first. Every build is a pre-release; the jars are on the [Releases](https://github.com/jonax1337/Kindling/releases) page. Build 26.3-6 was skipped and does not exist.
 
+## Unreleased
+
+### Added
+
+- `/kindling doctor` suggests vanilla's `region-file-compression=lz4` while the region files use `deflate` and the disk has room. In a flight through an already generated world, `lz4` took 10 % less CPU time and the chunk workers 35 % less at the same tick time, while each rewritten chunk took twice the space; the default stays `deflate` ([details](docs/measurements/chunks.md#region-file-compression), [guide](docs/guides/region-compression.md)).
+
 ## 26.3-24 - 2026-11-03
 
 Uniform chunk data shared instead of allocated per section, and the comparison with other forks carries the new runs.

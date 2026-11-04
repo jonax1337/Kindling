@@ -8,6 +8,7 @@
 
 - [Switch from Leaf](guides/switch-from-leaf.md)
 - [Memory and JVM flags](guides/memory-and-jvm.md)
+- [Use LZ4 region files](guides/region-compression.md)
 - [Pregenerate a world](guides/pregenerate.md)
 - [Find the cause of lag](guides/find-lag.md)
 
