@@ -38,7 +38,6 @@ Every item follows the same rules: vanilla behaviour by default, three runs per 
 | Async player data saving on a real server | Write order, the flush barrier and the shutdown drain have unit tests only. Needs `save-all flush` with a look at the file times, and a stop on a slow disk. |
 | Scenarios for four fixes | The removed nitwit shortcut, the happy ghast's adult sensor, the idle-memory pause during a pregeneration and the async writer's publication rest on unit tests and review. |
 | The furnace fix and shared job sites | Neither bug reproduced on the release, so their fixes have no counter. |
-| Transfer timing of sleeping hoppers under an item pile | Two sleeping hoppers end with another transfer cooldown than vanilla's, same contents ([result](measurements/vanilla-parity.md#vanilla-diff-against-mojangs-jar)). Gone with sleeping block entities off; absent when stepping one tick at a time and at saves after 150 or 300 ticks; an unrelated command block moves vanilla's own value. Saving is not the cause: the hopper's cooldown is equal at every tick it was read. Needs a trace that reads the hopper without changing tick order, for example a plugin-free JFR event. |
 | All parity scenarios in CI | `parity.yml` runs the bases check only; the sleeping and villager pairs run by hand. |
 | A POI warning at shutdown | "Accessing poi chunk off-main" during `stop` while a pregeneration ran, once in 8 stops; the stack holds only vanilla, Paper and Moonrise code. Whether the skipped POI update is repaired on the next load is unchecked. A candidate for an upstream report. |
 
@@ -46,6 +45,7 @@ Every item follows the same rules: vanilla behaviour by default, three runs per 
 
 | Item | Why it stays |
 | --- | --- |
+| Transfer timing of sleeping hoppers under an item pile | Two sleeping hoppers end with another transfer cooldown than vanilla's, with the same contents ([result](measurements/vanilla-parity.md#vanilla-diff-against-mojangs-jar)). Saving is not the cause, and every observation (stepping tick by tick, an extra command block) changes or removes the difference, also in vanilla's own run. Kept as is: no item, block or container differs, and a diagnostic trace would put code into the hopper's hot path. |
 | Partly generated chunks in memory | Under load 63 % of the chunk objects are neighbours generated only part of the way, kept by vanilla's chunk levels. Unloading them early would change the chunk lifecycle that plugins and the chunk system rely on. |
 | `Player#saveData` and `Server#savePlayers` | They return before the asynchronous write lands, as in Leaf. Server-side reads wait for it; outside readers of the file may see stale data until the next flush. Waiting would need a Paper change. |
 
