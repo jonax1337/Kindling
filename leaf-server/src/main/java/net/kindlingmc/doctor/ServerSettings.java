@@ -1,6 +1,7 @@
 package net.kindlingmc.doctor;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.OptionalInt;
 
 /**
@@ -13,6 +14,8 @@ import java.util.OptionalInt;
  * @param recommendedOptionsOff  the config keys of Kindling's recommended options that {@code leaf-global.yml} has switched off
  * @param vanillaDeviations      the performance settings whose running value differs from vanilla, in all loaded worlds
  * @param idleMemory             whether the server gives memory back while nobody is online
+ * @param regionFileCompression  {@code region-file-compression} from server.properties; empty when Leaf's Buffered Linear
+ *                               region format stores the chunks
  */
 public record ServerSettings(
     OptionalInt workerThreads,
@@ -24,6 +27,7 @@ public record ServerSettings(
     ProxyLocation proxyLocation,
     List<String> recommendedOptionsOff,
     List<VanillaParity.Deviation> vanillaDeviations,
-    boolean idleMemory
+    boolean idleMemory,
+    Optional<String> regionFileCompression
 ) {
 }
