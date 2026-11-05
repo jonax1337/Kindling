@@ -1,0 +1,34 @@
+From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+From: jonax1337 <jonas.laux@hotmail.com>
+Date: Thu, 5 Nov 2026 15:19:05 +0100
+Subject: [PATCH] Kindling: Optional limit for minecart pushes per tick
+
+
+diff --git a/net/minecraft/world/entity/vehicle/minecart/OldMinecartBehavior.java b/net/minecraft/world/entity/vehicle/minecart/OldMinecartBehavior.java
+index 615737bf848486c3399b30edd3986df83aed24df..29a2b4ac70056bcc688f0953233ca09f339a85cb 100644
+--- a/net/minecraft/world/entity/vehicle/minecart/OldMinecartBehavior.java
++++ b/net/minecraft/world/entity/vehicle/minecart/OldMinecartBehavior.java
+@@ -392,6 +392,7 @@ public class OldMinecartBehavior extends MinecartBehavior {
+     public boolean pushAndPickupEntities() {
+         AABB hitbox = this.minecart.getBoundingBox().inflate(0.2F, 0.0, 0.2F);
+         final boolean hasVehicleEntityCollisionEvent = org.bukkit.event.vehicle.VehicleEntityCollisionEvent.getHandlerList().getRegisteredListeners().length > 0; // Leaf - Skip VehicleEntityCollisionEvent if no listeners
++        int minecartPushesLeft = net.kindlingmc.entity.MinecartPushes.allowedPerTick(); // Kindling - optional minecart push limit
+         if (this.minecart.isRideable() && this.getDeltaMovement().horizontalDistanceSqr() >= 0.01) {
+             List<Entity> entities = this.level().getEntities(this.minecart, hitbox, EntitySelector.pushableBy(this.minecart));
+             if (!entities.isEmpty()) {
+@@ -411,6 +412,7 @@ public class OldMinecartBehavior extends MinecartBehavior {
+                         // CraftBukkit end
+                         entity.startRiding(this.minecart);
+                     } else {
++                        if (entity instanceof AbstractMinecart && minecartPushesLeft-- <= 0) continue; // Kindling - optional minecart push limit
+                         // CraftBukkit start
+                         if (!this.minecart.isPassengerOfSameVehicle(entity) && hasVehicleEntityCollisionEvent) { // Leaf - Skip VehicleEntityCollisionEvent if no listeners
+                             org.bukkit.event.vehicle.VehicleEntityCollisionEvent collisionEvent = new org.bukkit.event.vehicle.VehicleEntityCollisionEvent(
+@@ -426,6 +428,7 @@ public class OldMinecartBehavior extends MinecartBehavior {
+         } else {
+             for (Entity entity : this.level().getEntities(this.minecart, hitbox)) {
+                 if (!this.minecart.hasPassenger(entity) && entity.isPushable() && entity instanceof AbstractMinecart) {
++                    if (minecartPushesLeft-- <= 0) break; // Kindling - optional minecart push limit
+                     // CraftBukkit start
+                     if (hasVehicleEntityCollisionEvent) { // Leaf - Skip VehicleEntityCollisionEvent if no listeners
+                     org.bukkit.event.vehicle.VehicleEntityCollisionEvent collisionEvent = new org.bukkit.event.vehicle.VehicleEntityCollisionEvent(

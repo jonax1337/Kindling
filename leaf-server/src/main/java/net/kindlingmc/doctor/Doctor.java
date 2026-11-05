@@ -39,6 +39,7 @@ public final class Doctor {
                 ServerSettingChecks.proxyCompression(server),
                 ServerSettingChecks.recommendedOptions(server),
                 ServerSettingChecks.vanillaParity(server),
+                ServerSettingChecks.redstoneImplementation(server),
                 StorageChecks.worldDisk(facts.worldDisk()),
                 StorageChecks.regionCompression(server.regionFileCompression(), facts.worldDisk()),
                 HostChecks.mainThreadWait(live),

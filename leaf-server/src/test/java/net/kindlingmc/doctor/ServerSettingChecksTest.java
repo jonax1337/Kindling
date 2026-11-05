@@ -189,4 +189,46 @@ class ServerSettingChecksTest {
 
         assertSeverity(Severity.OK, ServerSettingChecks.proxyCompression(scenario.server()));
     }
+
+    @Test
+    void vanillaRedstoneSuggestsAlternateCurrentWithTheMeasurementAndTheCatch() {
+        scenario.redstoneImplementations = List.of("VANILLA");
+
+        final Finding finding = ServerSettingChecks.redstoneImplementation(scenario.server()).orElseThrow();
+
+        assertEquals(Severity.INFO, finding.severity());
+        assertEquals(Basis.KINDLING_MEASUREMENT, finding.basis());
+        assertTrue(finding.what().contains("11.0 ms instead of 34.4 ms"), finding.what());
+        assertTrue(finding.fix().contains("misc.redstone-implementation: ALTERNATE_CURRENT"), finding.fix());
+        assertTrue(finding.fix().contains("order of redstone updates"), finding.fix());
+    }
+
+    @Test
+    void anotherRedstoneImplementationIsOnlyNotedWithItsDifferentUpdateOrder() {
+        scenario.redstoneImplementations = List.of("ALTERNATE_CURRENT");
+
+        final Finding finding = ServerSettingChecks.redstoneImplementation(scenario.server()).orElseThrow();
+
+        assertEquals(Severity.INFO, finding.severity());
+        assertEquals("", finding.fix());
+        assertTrue(finding.what().contains("ALTERNATE_CURRENT"), finding.what());
+        assertTrue(finding.what().contains("order redstone updates differently"), finding.what());
+    }
+
+    @Test
+    void worldsWithDifferentRedstoneAreNamedTogether() {
+        scenario.redstoneImplementations = List.of("VANILLA", "EIGENCRAFT");
+
+        final Finding finding = ServerSettingChecks.redstoneImplementation(scenario.server()).orElseThrow();
+
+        assertEquals("", finding.fix());
+        assertTrue(finding.what().contains("VANILLA, EIGENCRAFT"), finding.what());
+    }
+
+    @Test
+    void noLoadedWorldMeansNoRedstoneFinding() {
+        scenario.redstoneImplementations = List.of();
+
+        assertSkipped(ServerSettingChecks.redstoneImplementation(scenario.server()));
+    }
 }
