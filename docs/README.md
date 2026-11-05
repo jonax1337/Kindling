@@ -11,6 +11,7 @@
 - [Use LZ4 region files](guides/region-compression.md)
 - [Pregenerate a world](guides/pregenerate.md)
 - [Find the cause of lag](guides/find-lag.md)
+- [Counter lag machines](guides/lag-machines.md)
 
 ## Reference
 
