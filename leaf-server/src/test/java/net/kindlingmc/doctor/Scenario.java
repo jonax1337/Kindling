@@ -39,6 +39,7 @@ final class Scenario {
     List<VanillaParity.Deviation> vanillaDeviations = List.of();
     boolean idleMemory = false;
     Optional<String> regionFileCompression = Optional.of("lz4");
+    List<String> redstoneImplementations = List.of();
 
     Optional<DiskSpace> worldDisk = Optional.empty();
     HostLoads live = HostLoads.NONE;
@@ -56,7 +57,7 @@ final class Scenario {
 
     ServerSettings server() {
         return new ServerSettings(workerThreads, viewDistance, simulationDistance, maxPlayers, behindProxy, compressionThreshold,
-            proxyLocation, recommendedOptionsOff, vanillaDeviations, idleMemory, regionFileCompression);
+            proxyLocation, recommendedOptionsOff, vanillaDeviations, idleMemory, regionFileCompression, redstoneImplementations);
     }
 
     DoctorFacts facts() {

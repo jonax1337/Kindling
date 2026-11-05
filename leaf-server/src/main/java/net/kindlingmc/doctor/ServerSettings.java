@@ -16,6 +16,7 @@ import java.util.OptionalInt;
  * @param idleMemory             whether the server gives memory back while nobody is online
  * @param regionFileCompression  {@code region-file-compression} from server.properties; empty when Leaf's Buffered Linear
  *                               region format stores the chunks
+ * @param redstoneImplementations Paper's {@code misc.redstone-implementation} of the loaded worlds, each name once
  */
 public record ServerSettings(
     OptionalInt workerThreads,
@@ -28,6 +29,7 @@ public record ServerSettings(
     List<String> recommendedOptionsOff,
     List<VanillaParity.Deviation> vanillaDeviations,
     boolean idleMemory,
-    Optional<String> regionFileCompression
+    Optional<String> regionFileCompression,
+    List<String> redstoneImplementations
 ) {
 }

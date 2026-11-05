@@ -6,7 +6,14 @@ Releases, newest first. Every build is a pre-release; the jars are on the [Relea
 
 ### Added
 
+- `performance.minecart-push-limit` (opt-in, patch `0350`): each minecart pushes at most `max-pushes` other minecarts per tick. On the bench's minecart lag machine the tick time fell from 22.1 to 19.0 ms with every counter the same; a crowd of carts spreads out more slowly than in vanilla, so it is off by default ([details](docs/measurements/lag-machines.md#minecart-lag-machines), [guide](docs/guides/lag-machines.md)).
+- `/kindling doctor` names Paper's `misc.redstone-implementation` the worlds use and, with vanilla redstone, points to `ALTERNATE_CURRENT`: on the bench's observer lag machine 34.4 → 11.0 ms, at the cost of a different update order ([details](docs/measurements/lag-machines.md#papers-redstone-implementations)).
+- kindling-bench `type=lag`: self-running clocks, farms, item sorters and a TNT chamber per plot, with optional observer, TNT and minecart lag machines. Under every lag machine the clocks, sorters and farms did the same work as on a calm server; TNT beyond Spigot's `max-tnt-per-tick` budget stalls instead of exploding ([details](docs/measurements/lag-machines.md#farms-and-clocks-under-load)).
 - `/kindling doctor` suggests vanilla's `region-file-compression=lz4` while the region files use `deflate` and the disk has room. In a flight through an already generated world, `lz4` took 10 % less CPU time and the chunk workers 35 % less at the same tick time, while each rewritten chunk took twice the space; the default stays `deflate` ([details](docs/measurements/chunks.md#region-file-compression), [guide](docs/guides/region-compression.md)).
+
+### Performance
+
+- The redstone wire power calculation reuses two block positions instead of allocating one per neighbour: on the observer lag machine the main thread allocated 36 % less, at the same tick time ([details](docs/measurements/lag-machines.md#redstone-wire-without-allocated-positions)).
 
 ## 26.3-24 - 2026-11-03
 

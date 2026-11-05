@@ -34,6 +34,11 @@ import net.minecraft.world.level.redstone.Redstone;
  * Ported from Lithium's {@code RedstoneWirePowerCalculations} (Space Walker), reduced to the
  * combined calculation of the default evaluator; every block access goes through the given
  * getter, so Paper's and Leaf's block state lookups stay in effect.
+ * <p>
+ * A wire is evaluated again for every update that reaches it, so the neighbours are addressed
+ * through two mutable positions instead of a new {@link BlockPos} per look: {@code side} for the
+ * block next to the wire, {@code around} for the blocks next to that one. Both are only passed
+ * to block state lookups and signal queries, which read the position and do not keep it.
  */
 public final class RedstoneWirePowerCalculations {
 
@@ -45,20 +50,24 @@ public final class RedstoneWirePowerCalculations {
      * components as well as from other wires.
      */
     public static int getTargetStrength(final RedstoneWireBlock wireBlock, final BlockGetter level, final BlockPos pos) {
+        final BlockPos.MutableBlockPos side = new BlockPos.MutableBlockPos();
+        final BlockPos.MutableBlockPos around = new BlockPos.MutableBlockPos();
         int signal = Redstone.SIGNAL_MIN;
 
         for (final Direction direction : DirectionConstants.VERTICAL) {
-            signal = Math.max(signal, getSignalFromVertical(wireBlock, level, pos.relative(direction), direction));
+            side.setWithOffset(pos, direction);
+            signal = Math.max(signal, getSignalFromVertical(wireBlock, level, side, direction, around));
             if (signal >= Redstone.SIGNAL_MAX) {
                 return Redstone.SIGNAL_MAX;
             }
         }
 
-        final BlockPos above = pos.above();
-        final boolean wiresAboveConnect = !level.getBlockState(above).isRedstoneConductor(level, above);
+        side.setWithOffset(pos, Direction.UP);
+        final boolean wiresAboveConnect = !level.getBlockState(side).isRedstoneConductor(level, side);
 
         for (final Direction direction : DirectionConstants.HORIZONTAL) {
-            signal = Math.max(signal, getSignalFromSide(wireBlock, level, pos.relative(direction), direction, wiresAboveConnect));
+            side.setWithOffset(pos, direction);
+            signal = Math.max(signal, getSignalFromSide(wireBlock, level, side, direction, wiresAboveConnect, around));
             if (signal >= Redstone.SIGNAL_MAX) {
                 return Redstone.SIGNAL_MAX;
             }
@@ -71,7 +80,8 @@ public final class RedstoneWirePowerCalculations {
      * Wires do not connect to wires directly above or below them, and air gives no power.
      */
     private static int getSignalFromVertical(
-        final RedstoneWireBlock wireBlock, final BlockGetter level, final BlockPos pos, final Direction toDirection
+        final RedstoneWireBlock wireBlock, final BlockGetter level, final BlockPos pos, final Direction toDirection,
+        final BlockPos.MutableBlockPos around
     ) {
         final BlockState state = level.getBlockState(pos);
         if (state.isAir() || state.is(wireBlock)) {
@@ -83,15 +93,16 @@ public final class RedstoneWirePowerCalculations {
             return signal;
         }
 
-        return Math.max(signal, getDirectSignalTo(wireBlock, level, pos, toDirection.getOpposite()));
+        return Math.max(signal, getDirectSignalTo(wireBlock, level, pos, toDirection.getOpposite(), around));
     }
 
     private static int getSignalFromSide(
-        final RedstoneWireBlock wireBlock, final BlockGetter level, final BlockPos pos, final Direction toDirection, final boolean wiresAboveConnect
+        final RedstoneWireBlock wireBlock, final BlockGetter level, final BlockPos pos, final Direction toDirection, final boolean wiresAboveConnect,
+        final BlockPos.MutableBlockPos around
     ) {
         final BlockState state = level.getBlockState(pos);
         if (state.is(wireBlock)) {
-            return Math.max(getWireSignal(state), getWireSignalAt(wireBlock, level, pos.below()));
+            return Math.max(getWireSignal(state), getWireSignalAt(wireBlock, level, around.setWithOffset(pos, Direction.DOWN)));
         }
 
         final int signal = state.getSignal(level, pos, toDirection);
@@ -100,15 +111,15 @@ public final class RedstoneWirePowerCalculations {
         }
 
         if (!state.isRedstoneConductor(level, pos)) {
-            return Math.max(signal, getWireSignalAt(wireBlock, level, pos.below()));
+            return Math.max(signal, getWireSignalAt(wireBlock, level, around.setWithOffset(pos, Direction.DOWN)));
         }
 
-        final int poweredSignal = Math.max(signal, getDirectSignalTo(wireBlock, level, pos, toDirection.getOpposite()));
+        final int poweredSignal = Math.max(signal, getDirectSignalTo(wireBlock, level, pos, toDirection.getOpposite(), around));
         if (poweredSignal >= Redstone.SIGNAL_MAX || !wiresAboveConnect) {
             return poweredSignal;
         }
 
-        return Math.max(poweredSignal, getWireSignalAt(wireBlock, level, pos.above()));
+        return Math.max(poweredSignal, getWireSignalAt(wireBlock, level, around.setWithOffset(pos, Direction.UP)));
     }
 
     private static int getWireSignalAt(final RedstoneWireBlock wireBlock, final BlockGetter level, final BlockPos pos) {
@@ -128,7 +139,8 @@ public final class RedstoneWirePowerCalculations {
      * the wire asking is in.
      */
     private static int getDirectSignalTo(
-        final RedstoneWireBlock wireBlock, final BlockGetter level, final BlockPos pos, final Direction ignored
+        final RedstoneWireBlock wireBlock, final BlockGetter level, final BlockPos pos, final Direction ignored,
+        final BlockPos.MutableBlockPos around
     ) {
         int signal = Redstone.SIGNAL_MIN;
 
@@ -137,13 +149,13 @@ public final class RedstoneWirePowerCalculations {
                 continue;
             }
 
-            final BlockPos side = pos.relative(direction);
-            final BlockState neighbor = level.getBlockState(side);
+            around.setWithOffset(pos, direction);
+            final BlockState neighbor = level.getBlockState(around);
             if (neighbor.isAir() || neighbor.is(wireBlock)) {
                 continue;
             }
 
-            signal = Math.max(signal, neighbor.getDirectSignal(level, side, direction));
+            signal = Math.max(signal, neighbor.getDirectSignal(level, around, direction));
             if (signal >= Redstone.SIGNAL_MAX) {
                 return Redstone.SIGNAL_MAX;
             }

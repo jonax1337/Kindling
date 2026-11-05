@@ -106,6 +106,17 @@ The time over void was first measured on one line straight ahead of each player;
 | [Main thread profile](measurements/ticking.md#where-the-time-goes-main-thread) | **Indicative.** Natural spawning is a third of the main thread while players explore |
 | [Ideas left alone](measurements/ticking.md#looked-at-and-left-alone) | **Dropped** |
 
+## Lag machines
+
+[lag-machines.md](measurements/lag-machines.md). How to counter them: [Counter lag machines](guides/lag-machines.md).
+
+| Change | Result |
+| --- | --- |
+| [Farms and clocks under load](measurements/lag-machines.md#farms-and-clocks-under-load) | **Correct.** Clocks, sorters and farms do the same work under every lag machine; TNT beyond Spigot's budget stalls |
+| [Redstone wire without allocated positions](measurements/lag-machines.md#redstone-wire-without-allocated-positions) | **Same** tick time. Observer storm main-thread allocation −36 % |
+| [Paper's redstone implementations](measurements/lag-machines.md#papers-redstone-implementations) | **Faster**, opt-in. Observer storm 34.4 → 11.0 ms with `ALTERNATE_CURRENT`, other update order |
+| [Minecart lag machines](measurements/lag-machines.md#minecart-lag-machines) | **Faster**, opt-in. Minecart pits 22.1 → 19.0 ms with `minecart-push-limit` on |
+
 ## Vanilla parity
 
 [vanilla-parity.md](measurements/vanilla-parity.md). What each restoration changes: [Vanilla differences](reference/vanilla-differences.md).

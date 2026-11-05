@@ -13,6 +13,8 @@ enum ScenarioType {
     SLEEPING,
     /** Villagers competing for beds and job sites in sealed halls; see {@link VillagerLayout}. */
     VILLAGERS,
+    /** Self-running clocks, item sorters and TNT that must count the same beside lag machines; see {@link LagLayout}. */
+    LAG,
     /** Seed previews of chunks around the origin compared with the real chunks; needs a Kindling server, see {@link FidelityRun}. */
     FIDELITY;
 

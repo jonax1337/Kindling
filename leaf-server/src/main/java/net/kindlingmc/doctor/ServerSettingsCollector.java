@@ -53,7 +53,16 @@ final class ServerSettingsCollector {
             recommendedOptionsOff(),
             vanillaDeviations(server),
             IdleMemory.enabled,
-            regionFileCompression(server));
+            regionFileCompression(server),
+            redstoneImplementations(server));
+    }
+
+    private static List<String> redstoneImplementations(final MinecraftServer server) {
+        final Set<String> implementations = new LinkedHashSet<>();
+        for (final ServerLevel level : server.getAllLevels()) {
+            implementations.add(level.paperConfig().misc.redstoneImplementation.name());
+        }
+        return List.copyOf(implementations);
     }
 
     private static Optional<String> regionFileCompression(final DedicatedServer server) {

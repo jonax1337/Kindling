@@ -16,6 +16,7 @@ final class ServerSettingChecks {
     private static final int VIEW_DISTANCE_PER_PROCESSOR = 2;
     private static final int SIMULATION_DISTANCE_BASE = 4;
     private static final int NO_COMPRESSION = -1;
+    private static final String VANILLA_REDSTONE = "VANILLA";
     private static final String MEASURED_VIEW_DISTANCE_NOTE =
         "Kindling measured view distance 10 on 8 processors as already marginal for fast fliers (one elytra flier needs about 45 new chunks per second)";
     private static final String RULE_OF_THUMB_NOTE =
@@ -109,5 +110,29 @@ final class ServerSettingChecks {
             "Set " + deviations.stream().map(deviation -> deviation.setting() + " to " + deviation.vanilla()).collect(Collectors.joining("; "))
                 + " and restart, unless the difference is on purpose; Kindling writes vanilla values into a fresh file, an existing file keeps its old ones",
             Basis.LIVE_READING));
+    }
+
+    /**
+     * Paper ships faster redstone than vanilla's, but it orders the updates differently, so it stays the operator's choice;
+     * the doctor only says what it saved on Kindling's observer lag machine.
+     */
+    static Optional<Finding> redstoneImplementation(final ServerSettings server) {
+        final List<String> implementations = server.redstoneImplementations();
+        if (implementations.isEmpty()) {
+            return Optional.empty();
+        }
+        if (!implementations.equals(List.of(VANILLA_REDSTONE))) {
+            return Optional.of(Finding.note(
+                "Redstone runs on " + String.join(", ", implementations) + " (Paper's misc.redstone-implementation): the "
+                    + "implementations other than VANILLA are faster but order redstone updates differently, so contraptions built on "
+                    + "vanilla's order can behave differently",
+                Basis.LIVE_READING));
+        }
+        return Optional.of(Finding.info(
+            "Redstone runs on vanilla's implementation: on Kindling's observer lag machine, Paper's ALTERNATE_CURRENT ticked in "
+                + "11.0 ms instead of 34.4 ms",
+            "If redstone lags the server, set misc.redstone-implementation: ALTERNATE_CURRENT in config/paper-world-defaults.yml and "
+                + "restart; it changes the order of redstone updates, so test contraptions that depend on vanilla's order first",
+            Basis.KINDLING_MEASUREMENT));
     }
 }

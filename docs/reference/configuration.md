@@ -25,6 +25,7 @@ An existing properties file, including an empty one, disables this initializatio
 | [`worker-governor`](#worker-governor) | off | Linux |
 | [`idle-memory`](#idle-memory) | off | all (native trim glibc Linux only) |
 | [`biome-zoom-shortcut`](#biome-zoom-shortcut) | off | all |
+| [`minecart-push-limit`](#minecart-push-limit) | off | all |
 | [`network.preview-chunks`](#networkpreview-chunks) | off | all |
 
 Paper's `chunk-system.worker-threads` in `config/paper-global.yml` keeps its meaning. At `-1` (the default) Kindling picks five eighths of the processors, at most five and never fewer than Paper would (5 on 8 cores).
@@ -239,6 +240,22 @@ performance:
 | `enabled` | `false` | Where the eight cells the biome zoom chooses from lie in one chunk column and hold one identical biome, returns that biome without the zoom's distance math. |
 
 It only reads, and returns what the zoom would pick. Otherwise the exact zoom runs.
+
+## minecart-push-limit
+
+```yaml
+performance:
+  minecart-push-limit:
+    enabled: false
+    max-pushes: 4
+```
+
+| Key | Default | Values | Effect |
+| --- | --- | --- | --- |
+| `enabled` | `false` | boolean | Lets each minecart push at most `max-pushes` other minecarts per tick. |
+| `max-pushes` | `4` | 1 or more | The other minecarts one minecart pushes per tick; it skips the others in its reach that tick, though they can still push it in their own tick. A push a plugin cancels counts too. |
+
+Opt-in, because it changes gameplay: a crowd of minecarts spreads out more slowly than in vanilla. A cart with no more than `max-pushes` other carts in reach behaves as in vanilla. Pushes of players, mobs and items are not limited. It applies to vanilla's minecart movement; worlds with the experimental `minecart_improvements` feature use another movement and are not affected. Meant against minecart lag machines ([guide](../guides/lag-machines.md#minecarts-limit-the-pushes), [measurement](../measurements/lag-machines.md#minecart-lag-machines)).
 
 ## network.preview-chunks
 
