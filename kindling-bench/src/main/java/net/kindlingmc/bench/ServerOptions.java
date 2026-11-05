@@ -24,7 +24,8 @@ final class ServerOptions {
             new Option("spigot.hopper-amount", SPIGOT_FILE, SPIGOT_WORLD + "hopper-amount"),
             new Option("spigot.ticks-per.hopper-transfer", SPIGOT_FILE, SPIGOT_WORLD + "ticks-per.hopper-transfer"),
             new Option("spigot.entity-activation-range.villagers", SPIGOT_FILE,
-                    SPIGOT_WORLD + "entity-activation-range.villagers"));
+                    SPIGOT_WORLD + "entity-activation-range.villagers"),
+            new Option("spigot.max-tnt-per-tick", SPIGOT_FILE, SPIGOT_WORLD + "max-tnt-per-tick"));
 
     private ServerOptions() {
     }
