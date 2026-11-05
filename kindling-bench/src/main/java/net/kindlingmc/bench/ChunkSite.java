@@ -1,5 +1,6 @@
 package net.kindlingmc.bench;
 
+import java.util.function.Consumer;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.World;
@@ -51,6 +52,14 @@ final class ChunkSite {
 
     void place(int x, int y, int z, Material material) {
         place(x, y, z, material.createBlockData());
+    }
+
+    /**
+     * Sets the block with block updates, as a player placing it would: observers next to it fire and dust reshapes. A
+     * self-running clock is built without updates and started this way.
+     */
+    void placeWithUpdates(int x, int y, int z, BlockData data) {
+        block(x, y, z).setBlockData(data, true);
     }
 
     /** Sets the block through {@link Block#setType(Material, boolean)} without physics, the way plugins and tools place. */
@@ -129,6 +138,19 @@ final class ChunkSite {
 
     <T extends Entity> T spawn(int x, int y, int z, Class<T> type) {
         return world.spawn(centre(x, y, z), type);
+    }
+
+    /**
+     * Spawns an entity at exact chunk-local coordinates (the block at {@code (1, 1, 1)} spans 1.0 to 2.0), set up by
+     * {@code setup} before it is added to the world, so its first tick already sees that state.
+     */
+    <T extends Entity> T spawnAt(double x, double y, double z, Class<T> type, Consumer<? super T> setup) {
+        return world.spawn(new Location(world, minX + x, floorY + y, minZ + z), type, setup);
+    }
+
+    /** Spawns an entity at exact chunk-local coordinates, as {@link #spawnAt(double, double, double, Class, Consumer)}. */
+    <T extends Entity> T spawnAt(double x, double y, double z, Class<T> type) {
+        return world.spawn(new Location(world, minX + x, floorY + y, minZ + z), type);
     }
 
     Block block(int x, int y, int z) {

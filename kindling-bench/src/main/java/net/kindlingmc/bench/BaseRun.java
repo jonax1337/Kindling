@@ -17,10 +17,11 @@ import org.bukkit.scheduler.BukkitTask;
 /**
  * A run in plots built for counting: every fake player hovers among its {@link Plot}s ({@link PlotGrid}), which the
  * scenario's {@link Layout} fills: survival bases with hoppers, furnaces, redstone and a workshop, the cases where
- * sleeping block entities can differ, or halls of villagers. Once world generation around the players has calmed
- * down, all contraptions are built in the same tick, run through the warm-up and are then measured: tick times, and
- * how far every contraption got. Nothing in a layout depends on chance, so two runs, and two server builds that keep
- * vanilla behaviour, must report the same counters; a difference means behaviour changed.
+ * sleeping block entities can differ, halls of villagers, or self-running clocks and TNT beside lag machines. Once
+ * world generation around the players has calmed down, all contraptions are built in the same tick, run through the
+ * warm-up and are then measured: tick times, and how far every contraption got. Nothing in a layout depends on chance,
+ * so two runs, and two server builds that keep vanilla behaviour, must report the same counters; a difference means
+ * behaviour changed.
  */
 final class BaseRun {
 

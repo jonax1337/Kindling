@@ -1,0 +1,5 @@
+# Lag scenario: no TNT budget (Spigot default 100 per tick and world), so every lit TNT ticks as in vanilla and only
+# the cost of the TNT, not the budget, shows in the comparison.
+world-settings:
+  default:
+    max-tnt-per-tick: 0

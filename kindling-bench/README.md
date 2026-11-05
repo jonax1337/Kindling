@@ -174,6 +174,31 @@ Two keys add a plugin stand-in:
 - `hopper-guard-seconds=10` (default 0) adds a protection plugin stand-in. For the first 10 seconds after the build it holds every hopper back (it hides their sources and cancels transfers and pickups, as a claim plugin does until its claims are loaded), then lets everything through. Its counters compare only with other guarded runs: a server whose hoppers stay stuck after the release reports far lower counters than one without sleeping hoppers.
 - `move-event-listener=true` (default `false`) registers `PassiveMoveListener`, which listens to `InventoryMoveItemEvent` at `MONITOR` with `ignoreCancelled=true` and does nothing, for the whole run and every scenario type. A listener makes hoppers take Paper's event path, as protection and logging plugins do. Use it to measure whether sleeping hoppers stay asleep through Paper's temporary stack count. `type=sleeping` and `hopper-guard-seconds` runs already have a listener, so the key matters mostly for `type=bases` and `type=mixed`. The run records it as `scenario.moveEventListener`.
 
+## The lag scenario
+
+`--scenario "type=lag"` asks whether load changes what contraptions do. In vanilla nothing a contraption does depends on how long a tick takes, so its counters must come out the same with and without lag machines next to it. It uses the plots of the bases scenario, with four chunks per plot:
+
+- **Clocks** that run by themselves, each driving counted sticky pistons: two observers watching each other, each driving a piston of its own (`clock_observer_pair_extensions`), an observer watching the block its own piston moves (`clock_piston_observer_extensions`), and one item passed back and forth between two hoppers with a comparator reading one of them (`clock_hopper_extensions`). Nothing but redstone drives them; they are started by placing their last block with updates.
+- **The workshop** of the bases scenario, with its item sorters, hoppers fed by drops, minecarts, brewing stands and crafter.
+- **A TNT chamber**: water in a closed obsidian box, where the bench lights one TNT every 80 ticks (`tnt_chamber_explosions`). Each chamber keeps at most one TNT alive, so up to 100 plots stay within Spigot's `max-tnt-per-tick` of 100; with more plots the run without lag machines already starves TNT.
+- **A lag machine**, or nothing. `lag-machines=observers;tnt;carts` (separated by `;`, none by default) builds them in turn from plot to plot:
+  - `observers`: eight observer clocks, each driving a line of dust over redstone lamps (block updates and light);
+  - `tnt`: a chamber where four TNT are lit every 10 ticks, about 32 alive at a time (explosions, and Spigot's TNT budget);
+  - `carts`: four pits of three by three blocks with 25 minecarts each (entity collisions).
+
+Run the scenario without and with lag machines, three times each, and compare. The counters are expected to match; the tick times show what the machines cost. A counter that differs is behaviour the load changed.
+
+One such change follows from the server's settings: with the `tnt` machine a world holds far more than 100 TNT, and Spigot's `max-tnt-per-tick` (default 100) skips every TNT over that budget for the tick, the counted ones included, so `tnt_chamber_explosions` falls. That is what TNT farms and cannons run into under load. The overlay `overlays/lag-tnt-unlimited` sets the budget to 0 (none); with it the TNT counter must match too, and only the cost of the TNT remains. The result records the budget under `options` as `spigot.max-tnt-per-tick`.
+
+```bash
+python -I kindling-bench/run_bench.py --jar <server.jar> --plugin kindling-bench/build/libs/kindling-bench.jar \
+    --label lag-calm --repeat 3 --scenario "type=lag"
+python -I kindling-bench/run_bench.py --jar <server.jar> --plugin kindling-bench/build/libs/kindling-bench.jar \
+    --label lag-load --repeat 3 --scenario "type=lag,lag-machines=observers;tnt;carts"
+python -I kindling-bench/run_bench.py --jar <server.jar> --plugin kindling-bench/build/libs/kindling-bench.jar     --label lag-load-unlimited --repeat 3 --overlay kindling-bench/overlays/lag-tnt-unlimited     --scenario "type=lag,lag-machines=observers;tnt;carts"
+python -I kindling-bench/compare.py lag-calm lag-load lag-load-unlimited
+```
+
 ## Parity check (CI)
 
 `parity/run.sh <server.jar>` runs the bases scenario in a size a GitHub runner finishes in a few minutes: one player over two plots, 20 s warm-up, 90 s measured, every contraption type in each plot. It compares the counters with [`parity/bases-ci.json`](parity/bases-ci.json). A counter that differs makes `parity/check.py` print `name: expected X, got Y` and exit 1. The workflows [`parity.yml`](../.github/workflows/parity.yml) (patch, Kindling code and bench changes) and [`leaf-upstream.yml`](../.github/workflows/leaf-upstream.yml) (after the weekly Leaf merge; it reports the result in the `upstream` issue) run it.
