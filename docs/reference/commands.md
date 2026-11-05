@@ -68,7 +68,7 @@ Reads the machine and the server settings and lists what costs performance or me
 | `region-file-compression` | A hint to use `lz4` while the region files use `deflate` and the disk has room. Skipped with Leaf's Buffered Linear region format. |
 | Kindling's recommended options in `leaf-global.yml` | An older file that keeps other values. |
 | Vanilla parity | Ten Leaf and Gale settings an older file may still run at non-vanilla values. One `INFO` names each deviating value and the vanilla one. |
-| Paper's `misc.redstone-implementation` | With `VANILLA`, a hint that `ALTERNATE_CURRENT` is much faster on redstone lag machines but orders the updates differently; otherwise a note naming the implementation of each world. |
+| Paper's `misc.redstone-implementation` | With `VANILLA`, a hint that `ALTERNATE_CURRENT` is much faster on redstone lag machines but orders the updates differently; otherwise a note naming the implementations the worlds use. |
 
 ### Live section (Linux)
 

@@ -253,9 +253,9 @@ performance:
 | Key | Default | Values | Effect |
 | --- | --- | --- | --- |
 | `enabled` | `false` | boolean | Lets each minecart push at most `max-pushes` other minecarts per tick. |
-| `max-pushes` | `4` | 1 or more | The other minecarts one minecart pushes per tick; the others in its reach are not pushed by it that tick. |
+| `max-pushes` | `4` | 1 or more | The other minecarts one minecart pushes per tick; it skips the others in its reach that tick, though they can still push it in their own tick. A push a plugin cancels counts too. |
 
-Opt-in, because it changes gameplay: a crowd of minecarts spreads out more slowly than in vanilla. A cart with no more than `max-pushes` other carts in reach behaves as in vanilla. Pushes of players, mobs and items are not limited. Meant against minecart lag machines ([guide](../guides/lag-machines.md#minecarts-limit-the-pushes), [measurement](../measurements/lag-machines.md#minecart-lag-machines)).
+Opt-in, because it changes gameplay: a crowd of minecarts spreads out more slowly than in vanilla. A cart with no more than `max-pushes` other carts in reach behaves as in vanilla. Pushes of players, mobs and items are not limited. It applies to vanilla's minecart movement; worlds with the experimental `minecart_improvements` feature use another movement and are not affected. Meant against minecart lag machines ([guide](../guides/lag-machines.md#minecarts-limit-the-pushes), [measurement](../measurements/lag-machines.md#minecart-lag-machines)).
 
 ## network.preview-chunks
 

@@ -39,6 +39,6 @@ Spigot ticks at most `max-tnt-per-tick` primed TNT per tick (100 by default, in 
 
 ## Check the result
 
-Run `/kindling doctor`. It names the redstone implementation each world uses. Run [`/kindling stress`](../reference/commands.md#kindling-stress) or the [bench's lag scenario](../../kindling-bench/README.md#the-lag-scenario) before and after a change to compare the tick times.
+Run `/kindling doctor`. It names the redstone implementations the worlds use. Run [`/kindling stress`](../reference/commands.md#kindling-stress) or the [bench's lag scenario](../../kindling-bench/README.md#the-lag-scenario) before and after a change to compare the tick times.
 
 The measurements behind these numbers: [Lag machines](../measurements/lag-machines.md).
