@@ -22,7 +22,11 @@ final class PreviewWorld {
     private static final Map<ServerLevel, PreviewWorld> WORLDS = Collections.synchronizedMap(new WeakHashMap<>());
 
     private final Optional<PreviewGenerator> generator;
-    /** Present with the generator; holds the world weakly. */
+    /**
+     * Present with the generator in overworld-like worlds only; holds the world weakly. A saved whole column (the
+     * Nether, the End) would show every tunnel and room in it, far beyond the view distance, where the overworld's
+     * saved previews show only the ground below the surface.
+     */
     private final Optional<SavedChunks> saved;
     /** Vanilla's vegetation, or where the world's generator does not allow it, the approximate trees. */
     private final Decoration decoration;
@@ -46,7 +50,8 @@ final class PreviewWorld {
     private static PreviewWorld create(final ServerLevel level) {
         final Optional<PreviewGenerator> generator = PreviewGenerator.forLevel(level);
         final Decoration decoration = generator.isEmpty() ? Decoration.NONE : decoration(level);
-        final Optional<SavedChunks> saved = generator.map(previews -> new SavedChunks(level, previews.terrain()));
+        final Optional<SavedChunks> saved = generator.filter(previews -> previews.terrain().shape().surfaceBand())
+            .map(previews -> new SavedChunks(level, previews.terrain()));
         return new PreviewWorld(generator, saved, decoration, level.getSeed(), level.getSeaLevel());
     }
 

@@ -22,13 +22,12 @@ import org.junit.jupiter.api.Test;
 import static net.kindlingmc.preview.PreviewTestWorld.blockAt;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Previews of the Nether and the End: the whole column at the world's height instead of a band over rock, so caves
- * and the void under islands stay open; block light instead of sky light where the world has no sky; and in saved
- * whole columns, blocks nobody can see turned into the default block.
+ * and the void under islands stay open; block light instead of sky light where the world has no sky; and vanilla's
+ * features of both worlds.
  */
 @Normal
 class PreviewDimensionsTest {
@@ -104,29 +103,6 @@ class PreviewDimensionsTest {
     }
 
     @Test
-    void aSavedWholeColumnShowsOnlyWhatCanBeSeen() {
-        PreviewTestWorld nether = new PreviewTestWorld(SEED, Dimension.NETHER);
-        BlockState netherrack = nether.terrain().settings().defaultBlock();
-        ProtoChunk chunk = nether.emptyChunk(NETHER_CHUNK);
-        for (int y = 0; y < 64; y++) {
-            fillLayer(chunk, y, netherrack);
-        }
-        set(chunk, 5, 20, 5, Blocks.ANCIENT_DEBRIS.defaultBlockState());
-        set(chunk, 0, 20, 9, Blocks.NETHER_QUARTZ_ORE.defaultBlockState());
-        set(chunk, 9, 63, 9, Blocks.NETHER_GOLD_ORE.defaultBlockState());
-        set(chunk, 9, 30, 2, Blocks.AIR.defaultBlockState());
-        set(chunk, 9, 30, 3, Blocks.NETHER_QUARTZ_ORE.defaultBlockState());
-
-        Skin.hideEnclosed(chunk, netherrack);
-
-        assertSame(netherrack, blockAt(chunk, 5, 20, 5), "debris inside the rock");
-        assertSame(netherrack, blockAt(chunk, 0, 20, 9), "ore seen only from the neighbouring chunk");
-        assertSame(Blocks.NETHER_GOLD_ORE, blockAt(chunk, 9, 63, 9).getBlock(), "ore under open air");
-        assertSame(Blocks.NETHER_QUARTZ_ORE, blockAt(chunk, 9, 30, 3).getBlock(), "ore beside a cave");
-        assertSame(Blocks.AIR, blockAt(chunk, 9, 30, 2).getBlock(), "the cave itself");
-    }
-
-    @Test
     void theNetherGetsItsFungiAndTheEndItsChorus() {
         assertTrue(decoratedBlocks(Dimension.NETHER, Biomes.CRIMSON_FOREST, Blocks.CRIMSON_STEM, Set.of()) > 0, "crimson fungi");
         assertTrue(decoratedBlocks(Dimension.END, Biomes.END_HIGHLANDS, Blocks.CHORUS_PLANT, Set.of()) > 0, "chorus plants");
@@ -191,14 +167,6 @@ class PreviewDimensionsTest {
             count += countOf(chunk, Blocks.AIR, y);
         }
         return count;
-    }
-
-    private static void fillLayer(ProtoChunk chunk, int y, BlockState state) {
-        for (int z = 0; z < 16; z++) {
-            for (int x = 0; x < 16; x++) {
-                set(chunk, x, y, z, state);
-            }
-        }
     }
 
     private static void set(ProtoChunk chunk, int x, int y, int z, BlockState state) {

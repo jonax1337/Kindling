@@ -1,6 +1,5 @@
 package net.kindlingmc.preview;
 
-import java.util.BitSet;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunkSection;
@@ -10,8 +9,7 @@ import net.minecraft.world.level.chunk.ProtoChunk;
 
 /**
  * Turns a preview into what would be sent: the default block below the band, so that a cliff reaching below a chunk's
- * band shows rock instead of a hole. Whole sections below the band become single-value sections. A whole column gets
- * the default block in place of every block nobody can see ({@link #hideEnclosed}).
+ * band shows rock instead of a hole. Whole sections below the band become single-value sections.
  */
 final class Skin {
     /**
@@ -21,8 +19,6 @@ final class Skin {
     static final int KEPT_BELOW_SURFACE = 8;
 
     private static final int COLUMNS = 16 * 16;
-    private static final int SECTION_CELLS = 16 * COLUMNS;
-    private static final int SECTION_SHIFT = 12;
 
     private Skin() {
     }
@@ -49,55 +45,6 @@ final class Skin {
         fillBelowBand(chunk, band, block, factory);
         fillColumnsBelowKept(chunk, band, keptFromY, block);
         return band;
-    }
-
-    /**
-     * Turns every block that is hidden on all six sides into the default block, so that a whole column shows what can
-     * be seen, not the ores and rooms inside the rock. A side is hidden by a block that renders as a solid full cube;
-     * beyond the chunk's edges and the world's top and bottom counts as hidden, so a block seen only from a
-     * neighbouring chunk becomes the default block, too. Decided on the blocks as given, before any is changed.
-     */
-    static void hideEnclosed(ProtoChunk chunk, BlockState block) {
-        LevelChunkSection[] sections = chunk.getSections();
-        BitSet enclosed = new BitSet(sections.length * SECTION_CELLS);
-        for (int index = 0; index < sections.length; index++) {
-            if (!sections[index].hasOnlyAir()) {
-                markEnclosed(sections, index, block, enclosed);
-            }
-        }
-        for (int cell = enclosed.nextSetBit(0); cell >= 0; cell = enclosed.nextSetBit(cell + 1)) {
-            sections[cell >> SECTION_SHIFT].setBlockState(cell & 15, cell >> 8 & 15, cell >> 4 & 15, block, false);
-        }
-    }
-
-    /** Cells are numbered y << 8 | z << 4 | x with y counted from the bottom of the world. */
-    private static void markEnclosed(LevelChunkSection[] sections, int sectionIndex, BlockState block, BitSet enclosed) {
-        LevelChunkSection section = sections[sectionIndex];
-        for (int y = 0; y < 16; y++) {
-            int worldY = sectionIndex << 4 | y;
-            for (int z = 0; z < 16; z++) {
-                for (int x = 0; x < 16; x++) {
-                    BlockState state = section.getBlockState(x, y, z);
-                    if (!state.isAir() && state != block && isHiddenOnAllSides(sections, x, worldY, z)) {
-                        enclosed.set(worldY << 8 | z << 4 | x);
-                    }
-                }
-            }
-        }
-    }
-
-    private static boolean isHiddenOnAllSides(LevelChunkSection[] sections, int x, int y, int z) {
-        return hides(sections, x - 1, y, z) && hides(sections, x + 1, y, z)
-            && hides(sections, x, y, z - 1) && hides(sections, x, y, z + 1)
-            && hides(sections, x, y - 1, z) && hides(sections, x, y + 1, z);
-    }
-
-    /** Whether the block at a position hides its neighbours' faces; outside the chunk, it does. */
-    private static boolean hides(LevelChunkSection[] sections, int x, int y, int z) {
-        if (x < 0 || x > 15 || z < 0 || z > 15 || y < 0 || y >= sections.length << 4) {
-            return true;
-        }
-        return sections[y >> 4].getBlockState(x, y & 15, z).isSolidRender();
     }
 
     static void fillBelowBand(ProtoChunk chunk, Band band, BlockState block, PalettedContainerFactory factory) {

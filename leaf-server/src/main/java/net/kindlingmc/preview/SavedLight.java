@@ -1,14 +1,14 @@
 package net.kindlingmc.preview;
 
 import java.util.List;
-import java.util.Optional;
 import net.minecraft.world.level.chunk.DataLayer;
+import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.storage.SerializableChunkData.SectionData;
 
 /**
  * The light a saved chunk is previewed with: its saved light, as the chunk would send it (the light engine's
- * per-section states decide between "no data", "all dark" and the stored array). None when the saved light is not
- * correct or unreadable; the caller then estimates it. Sections below the skin are sent dark, as seed previews do:
+ * per-section states decide between "no data", "all dark" and the stored array), or the estimate of {@link SkyLight}
+ * when the saved light is not correct or unreadable. Sections below the skin are sent dark, as seed previews do:
  * they are filled with the default block, so their light never shows.
  */
 final class SavedLight {
@@ -26,17 +26,17 @@ final class SavedLight {
     }
 
     /**
-     * @param sectionCount the number of block sections of the world
+     * @param sections the preview's sections, already skinned (the estimate reads them)
      * @param saved the chunk's sections, all within one section of the world's range (see {@link SavedChunkCheck})
      * @param minSectionY the lowest block section of the world; light sections run one below it to one above the highest
      * @param skinMinSectionY the lowest section the skin keeps
      */
-    static Optional<SkyLight.Light> of(boolean lightCorrect, List<SectionData> saved, int sectionCount, int minSectionY, int skinMinSectionY) {
+    static SkyLight.Light of(boolean lightCorrect, List<SectionData> saved, LevelChunkSection[] sections, int minSectionY, int skinMinSectionY) {
         if (!lightCorrect || !readable(saved)) {
-            return Optional.empty();
+            return SkyLight.fromAbove(sections);
         }
-        byte[][] sky = new byte[sectionCount + 2][];
-        byte[][] block = new byte[sectionCount + 2][];
+        byte[][] sky = new byte[sections.length + 2][];
+        byte[][] block = new byte[sections.length + 2][];
         int lowestLightSectionY = minSectionY - 1;
         for (int index = 0; index < skinMinSectionY - lowestLightSectionY; index++) {
             sky[index] = DARK;
@@ -48,7 +48,7 @@ final class SavedLight {
                 block[index] = layer(section.blockLight(), section.starlight$getBlockLightState());
             }
         }
-        return Optional.of(new SkyLight.Light(SkyLight.Layers.of(sky), SkyLight.Layers.of(block)));
+        return new SkyLight.Light(SkyLight.Layers.of(sky), SkyLight.Layers.of(block));
     }
 
     private static boolean readable(List<SectionData> saved) {
