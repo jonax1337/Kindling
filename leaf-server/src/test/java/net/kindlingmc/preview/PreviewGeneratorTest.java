@@ -18,6 +18,7 @@ import net.minecraft.world.level.biome.MultiNoiseBiomeSourceParameterList;
 import net.minecraft.world.level.biome.MultiNoiseBiomeSourceParameterLists;
 import net.minecraft.world.level.chunk.PalettedContainerFactory;
 import net.minecraft.world.level.chunk.ProtoChunk;
+import net.minecraft.world.level.dimension.BuiltinDimensionTypes;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.NoiseChunk;
@@ -83,7 +84,7 @@ class PreviewGeneratorTest {
     void packetBuilds() {
         Terrain terrain = terrain(1L);
         ProtoChunk chunk = new PreviewGenerator(terrain).generate(new ChunkPos(3, 4));
-        PreviewPacket packet = PreviewPacket.of(chunk);
+        PreviewPacket packet = PreviewPacket.of(chunk, SkyLight.fromAbove(chunk.getSections()));
         assertNotNull(packet.packet());
         assertTrue(packet.rawBytes() > 0);
     }
@@ -147,7 +148,8 @@ class PreviewGeneratorTest {
             .getOrThrow(MultiNoiseBiomeSourceParameterLists.OVERWORLD);
         NoiseBasedChunkGenerator generator = new NoiseBasedChunkGenerator(MultiNoiseBiomeSource.createFromPreset(parameters), settings);
         RandomState randomState = RandomState.create(registries.lookupOrThrow(Registries.NOISE), seed, settings.value());
-        return new Terrain(seed, generator, settings.value(), randomState, PalettedContainerFactory.create(registries), STAND_IN_LEVEL);
+        return new Terrain(seed, generator, settings.value(), randomState, PalettedContainerFactory.create(registries), STAND_IN_LEVEL,
+            PreviewTestWorld.shape(registries, BuiltinDimensionTypes.OVERWORLD, settings.value().noiseSettings()));
     }
 
     /** Held here because Terrain only holds its level weakly. */

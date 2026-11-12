@@ -26,7 +26,7 @@ const STEPS = [
   },
   {
     title: "Start it with Java 25.",
-    body: "Like any Leaf or Paper JAR. Accept the EULA on the first run, then restart.",
+    body: "Like any Leaf JAR: the very first run only writes config/leaf-loader.yml and stops. Start again, accept the EULA, then restart.",
   },
   {
     title: "Prepare the world.",

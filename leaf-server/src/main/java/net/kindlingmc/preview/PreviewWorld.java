@@ -14,7 +14,7 @@ import net.minecraft.world.level.chunk.ProtoChunk;
 import org.dreeam.leaf.config.modules.network.PreviewChunks;
 
 /**
- * The previews of one world: its generator (none for worlds without one, such as the Nether), the saved chunks it
+ * The previews of one world: its generator (none for worlds without a noise generator, such as flat worlds), the saved chunks it
  * previews from where they exist, and the most recently built seed preview packets, so that several players and a
  * player flying back reuse them. Safe to use from any thread; it never holds the world strongly.
  */
@@ -22,7 +22,11 @@ final class PreviewWorld {
     private static final Map<ServerLevel, PreviewWorld> WORLDS = Collections.synchronizedMap(new WeakHashMap<>());
 
     private final Optional<PreviewGenerator> generator;
-    /** Present with the generator; holds the world weakly. */
+    /**
+     * Present with the generator in overworld-like worlds only; holds the world weakly. A saved whole column (the
+     * Nether, the End) would show every tunnel and room in it, far beyond the view distance, where the overworld's
+     * saved previews show only the ground below the surface.
+     */
     private final Optional<SavedChunks> saved;
     /** Vanilla's vegetation, or where the world's generator does not allow it, the approximate trees. */
     private final Decoration decoration;
@@ -46,7 +50,8 @@ final class PreviewWorld {
     private static PreviewWorld create(final ServerLevel level) {
         final Optional<PreviewGenerator> generator = PreviewGenerator.forLevel(level);
         final Decoration decoration = generator.isEmpty() ? Decoration.NONE : decoration(level);
-        final Optional<SavedChunks> saved = generator.map(previews -> new SavedChunks(level, previews.terrain()));
+        final Optional<SavedChunks> saved = generator.filter(previews -> previews.terrain().shape().surfaceBand())
+            .map(previews -> new SavedChunks(level, previews.terrain()));
         return new PreviewWorld(generator, saved, decoration, level.getSeed(), level.getSeaLevel());
     }
 
@@ -65,6 +70,11 @@ final class PreviewWorld {
 
     boolean available() {
         return this.generator.isPresent();
+    }
+
+    /** Whether the world has a generator and a sky, so its previews carry sky light. */
+    boolean hasSkyLight() {
+        return this.generator.map(previews -> previews.terrain().shape().skyLight()).orElse(false);
     }
 
     /**
@@ -102,7 +112,8 @@ final class PreviewWorld {
     }
 
     private PreviewPacket seedPreview(final ChunkPos pos, final long chunkKey, final boolean cache) {
-        final PreviewPacket built = PreviewPacket.of(seedChunk(pos));
+        final ProtoChunk chunk = seedChunk(pos);
+        final PreviewPacket built = PreviewPacket.of(chunk, this.generator.orElseThrow().terrain().shape().estimatedLight(chunk.getSections()));
         if (cache) {
             this.recent.put(chunkKey, built);
         }

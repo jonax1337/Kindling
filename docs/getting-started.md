@@ -14,7 +14,7 @@ Download the newest `kindling-26.3-<build>.jar` from [Releases](https://github.c
 java -Xms3G -Xmx3G -XX:+UseCompactObjectHeaders -jar kindling-26.3-<build>.jar --nogui
 ```
 
-Accept the EULA in `eula.txt` when asked and start again. When the log shows `Done`, the server is up.
+The very first start only writes the settings of Leaf's launcher to `config/leaf-loader.yml` and stops; start again. Its `auto-update` does nothing in Kindling's jar, which has no update source. Then accept the EULA in `eula.txt` when asked and start again. When the log shows `Done`, the server is up.
 
 ## 3. Check the version
 

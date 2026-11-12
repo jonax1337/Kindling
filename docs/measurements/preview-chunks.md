@@ -41,7 +41,7 @@ The first version without the two changes below (B, build `3748e9f9`) cost more:
 - The previews are not the real chunks; see [how faithful seed previews are](#how-faithful-seed-previews-are). Structures (villages, temples) are not in seed previews.
 - The cost is CPU time on background threads (`threads`, 2, plus one shared by standing players). A host without spare cores pays it in tick time.
 - The fake players discard packets, so encoding and the bandwidth of previews are not in the numbers. A seed preview's packet is about 6 times smaller than a saved chunk's ([below](#cost-of-one-preview)).
-- Overworld-like worlds only.
+- Measured in the overworld only. The Nether and the End get previews of the whole column ([settings](../reference/configuration.md#networkpreview-chunks)); their cost is not measured.
 
 </details>
 

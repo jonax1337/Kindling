@@ -109,7 +109,8 @@ class SavedPreviewTest {
     @Test
     void thePacketCarriesTheChunkAndIsSmallerThanTheUnskinnedOne() {
         PreviewPacket saved = SavedPreview.of(savedData(chunkWithDeepOres()), this.world.terrain());
-        PreviewPacket unskinned = PreviewPacket.of(chunkWithDeepOres());
+        ProtoChunk deepOres = chunkWithDeepOres();
+        PreviewPacket unskinned = PreviewPacket.of(deepOres, SkyLight.fromAbove(deepOres.getSections()));
         assertEquals(POS.x(), saved.packet().x());
         assertEquals(POS.z(), saved.packet().z());
         assertTrue(saved.rawBytes() < unskinned.rawBytes(), saved.rawBytes() + " < " + unskinned.rawBytes());

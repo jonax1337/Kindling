@@ -6,6 +6,8 @@ Releases, newest first. Every build is a pre-release; the jars are on the [Relea
 
 ### Added
 
+- Preview chunks in the Nether and the End (`network.preview-chunks`): the whole column instead of a band over stone, so caves and the void under the End's islands stay open, with the block light of the lava in the Nether. Both get seed previews only, so builds and tunnels there are not shown beyond the view distance. Vanilla clients see at most 96 blocks into the Nether's fog, so there the previews mostly fill gaps while travelling. Not measured ([settings](docs/reference/configuration.md#networkpreview-chunks)).
+
 - `performance.minecart-push-limit` (opt-in, patch `0350`): each minecart pushes at most `max-pushes` other minecarts per tick. On the bench's minecart lag machine the tick time fell from 22.1 to 19.0 ms with every counter the same; a crowd of carts spreads out more slowly than in vanilla, so it is off by default ([details](docs/measurements/lag-machines.md#minecart-lag-machines), [guide](docs/guides/lag-machines.md)).
 - `/kindling doctor` names Paper's `misc.redstone-implementation` the worlds use and, with vanilla redstone, points to `ALTERNATE_CURRENT`: on the bench's observer lag machine 34.4 → 11.0 ms, at the cost of a different update order ([details](docs/measurements/lag-machines.md#papers-redstone-implementations)).
 - kindling-bench `type=lag`: self-running clocks, farms, item sorters and a TNT chamber per plot, with optional observer, TNT and minecart lag machines. Under every lag machine the clocks, sorters and farms did the same work as on a calm server; TNT beyond Spigot's `max-tnt-per-tick` budget stalls instead of exploding ([details](docs/measurements/lag-machines.md#farms-and-clocks-under-load)).
@@ -14,6 +16,10 @@ Releases, newest first. Every build is a pre-release; the jars are on the [Relea
 ### Performance
 
 - The redstone wire power calculation reuses two block positions instead of allocating one per neighbour: on the observer lag machine the main thread allocated 36 % less, at the same tick time ([details](docs/measurements/lag-machines.md#redstone-wire-without-allocated-positions)).
+
+### Changed
+
+- Leaf upstream `3ab88076`: a Paper update, Leaf drops its fix for MC-298464, and the jar starts through Leaf's launcher (QuantumLeaper). Without `config/leaf-loader.yml` the first start only writes it and stops, as on Leaf; start again ([getting started](docs/getting-started.md)). Its auto-update has no update source in Kindling's jar, so it can never replace Kindling with a Leaf build.
 
 ## 26.3-24 - 2026-11-03
 

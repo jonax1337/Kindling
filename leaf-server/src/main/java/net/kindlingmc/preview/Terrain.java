@@ -9,7 +9,6 @@ import net.minecraft.core.QuartPos;
 import java.lang.ref.WeakReference;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelHeightAccessor;
 import net.minecraft.world.level.biome.BiomeManager;
 import net.minecraft.world.level.biome.BiomeResolver;
 import net.minecraft.world.level.biome.Climate;
@@ -34,8 +33,8 @@ import net.minecraft.world.level.levelgen.densityfunction.SamplerContext;
 /**
  * The work of the BIOMES and TERRAIN statuses, callable on part of a chunk: noise biomes per section, the density fill
  * of NoiseBasedChunkGenerator.doFill over any volume, and MaterialSystem.buildSurface, for one world (its seed,
- * generator, settings, the RandomState of its chunk map, the chunk container factory and the Level that
- * WorldGenerationContext reads). Left out, because they need a WorldGenRegion or structures: carvers and blending; the
+ * generator, settings, the RandomState of its chunk map, the chunk container factory, the Level that
+ * WorldGenerationContext reads, and the {@link PreviewShape} its chunks are built in). Left out, because they need a WorldGenRegion or structures: carvers and blending; the
  * beardifier is empty, as for a chunk without structures.
  *
  * <p>Thread safety: every field is immutable after construction and every method keeps its state in locals, so
@@ -55,9 +54,10 @@ final class Terrain {
     /** Weak, so that the previews of a world never keep an unloaded world in memory. */
     private final WeakReference<Level> level;
     private final Aquifer.FluidPicker fluidPicker;
+    private final PreviewShape shape;
 
     Terrain(long seed, NoiseBasedChunkGenerator generator, NoiseGeneratorSettings settings, RandomState randomState,
-        PalettedContainerFactory containerFactory, Level level) {
+        PalettedContainerFactory containerFactory, Level level, PreviewShape shape) {
         this.seed = seed;
         this.generator = generator;
         this.settings = settings;
@@ -65,6 +65,7 @@ final class Terrain {
         this.containerFactory = containerFactory;
         this.level = new WeakReference<>(level);
         this.fluidPicker = globalFluidPicker(generator);
+        this.shape = shape;
     }
 
     long seed() {
@@ -91,10 +92,13 @@ final class Terrain {
         return this.settings.noiseSettings();
     }
 
+    PreviewShape shape() {
+        return this.shape;
+    }
+
+    /** An empty chunk of the world's height; the terrain fills only the noise settings' part of it. */
     ProtoChunk emptyChunk(ChunkPos pos) {
-        NoiseSettings noise = noiseSettings();
-        LevelHeightAccessor height = LevelHeightAccessor.create(noise.minY(), noise.height());
-        return new ProtoChunk(pos, UpgradeData.EMPTY, height, this.containerFactory, null);
+        return new ProtoChunk(pos, UpgradeData.EMPTY, this.shape.worldHeight(), this.containerFactory, null);
     }
 
     DensityVolume chunkVolume(ChunkPos pos) {

@@ -99,6 +99,9 @@ def prepare_folder(args: argparse.Namespace, attempt: int) -> Path:
         shutil.rmtree(folder)
     (folder / "plugins" / "KindlingBench").mkdir(parents=True)
     (folder / "eula.txt").write_text("eula=true\n", encoding="utf-8")
+    # Leaf's launcher (QuantumLeaper) writes its config and exits on a first start; an existing file, even empty, skips that.
+    (folder / "config").mkdir()
+    (folder / "config" / "leaf-loader.yml").touch()
     (folder / "server.properties").write_text(
         SERVER_PROPERTIES.format(port=PORT, seed=SEED, view_distance=args.view_distance), encoding="utf-8")
     shutil.copy(args.plugin, folder / "plugins" / "kindling-bench.jar")

@@ -287,8 +287,8 @@ network:
 | `send-per-tick` | `40` | 1 or more | Previews sent per player and tick at most. |
 | `keep-real-chunks` | `true` | boolean | Real chunks a player leaves stay on the client as their own preview while within `radius`. |
 | `fill-gaps` | `true` | boolean | Chunks within the view distance that are not loaded yet get a preview until the real one arrives, while the player moves, except the two chunks around the player. |
-| `trees` | `true` | boolean | Seed previews get vanilla's surface features: lakes, rocks, icebergs, ice spikes, desert wells, trees, grass and flowers. |
-| `saved-chunks` | `true` | boolean | A chunk that is already saved is previewed as saved: its trees, structures and builds, from a little below its surface up. |
+| `trees` | `true` | boolean | Seed previews get vanilla's surface features: lakes, rocks, icebergs, ice spikes, desert wells, trees, grass and flowers; in the Nether fungi, roots and the basalt deltas without their columns; in the End small islands and chorus plants. |
+| `saved-chunks` | `true` | boolean | A chunk that is already saved is previewed as saved: its trees, structures and builds, from a little below its surface up. Overworld-like worlds only: the Nether and the End always get seed previews. |
 | `cache-size` | `2048` | 0 or more | Seed preview packets kept for reuse across players. |
 | `travel-view-distance` | `0` (off) | 0, or 3 to 32 | A player moving faster than `travel-speed` for two seconds gets at most this view and simulation distance until it has been slower for five seconds; previews show the rest. |
 | `travel-speed` | `15.0` | 1 or more | Horizontal blocks a second that count as travelling. |
@@ -297,7 +297,9 @@ network:
 - A seed preview shows no structures (villages, temples), ores or caves, and some trees stand elsewhere than in the real chunk ([how faithful](../measurements/preview-chunks.md#how-faithful-seed-previews-are)).
 - Saved previews leave out chests, signs, banners and item frames. They are read at the lowest I/O priority through the chunk system's read path. Changes show after the next save. Worlds with Paper's Anti-Xray keep the seed previews; packet-based anti-xray plugins are not detected.
 - Plugins still see the usual chunk unload event for real chunks kept as previews.
-- Overworld-like worlds only.
+- Every world with vanilla's noise generator gets previews, the Nether and the End included; flat and void worlds do not. In the overworld a seed preview is the terrain of a band around the surface with stone below; in the Nether and the End it is the whole column, so caves and the void under the islands stay open. Nether previews carry the block light of their lava instead of sky light.
+- The Nether's fog hides everything farther than 96 blocks (6 chunks) on vanilla clients, whatever the render distance. There previews only show within that distance: where `fill-gaps` or `travel-view-distance` stand in for chunks not loaded yet, or below a view distance of 6.
+- The Nether and the End get seed previews only, never saved ones: a saved whole column would show every tunnel and room in it to players far beyond the view distance, where the overworld's saved previews show only the ground below the surface. Builds there appear once the real chunk is sent.
 - `travel-view-distance` changes what the server does around a fast traveller, which is why it is off by default. Chunks between the lowered and the usual distance are not loaded, so their mobs and blocks do not tick, nothing spawns there and the player does not see their entities. Chunks the player only flies past are never generated. A player faster than the chunks within the lowered distance are generated reaches chunks that are only previews. Plugins asking for the player's view, simulation or send distance get the lowered one.
 
 ## Vanilla settings worth changing
