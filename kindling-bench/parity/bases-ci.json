@@ -21,7 +21,8 @@
     "fidelityChunks": 400,
     "fidelityRadius": 1500,
     "fidelityAgainst": "PREVIEW",
-    "travelCommands": []
+    "travelCommands": [],
+    "lagMachines": []
   },
   "counters": {
     "brewing_brews_finished": 20,
