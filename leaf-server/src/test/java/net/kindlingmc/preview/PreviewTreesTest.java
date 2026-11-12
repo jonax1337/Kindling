@@ -24,6 +24,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.PalettedContainerFactory;
 import net.minecraft.world.level.chunk.ProtoChunk;
+import net.minecraft.world.level.dimension.BuiltinDimensionTypes;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
@@ -342,7 +343,8 @@ class PreviewTreesTest {
             .getOrThrow(MultiNoiseBiomeSourceParameterLists.OVERWORLD);
         NoiseBasedChunkGenerator generator = new NoiseBasedChunkGenerator(MultiNoiseBiomeSource.createFromPreset(parameters), settings);
         RandomState randomState = RandomState.create(this.registries.lookupOrThrow(Registries.NOISE), seed, settings.value());
-        return new Terrain(seed, generator, settings.value(), randomState, PalettedContainerFactory.create(this.registries), this.level);
+        return new Terrain(seed, generator, settings.value(), randomState, PalettedContainerFactory.create(this.registries), this.level,
+            PreviewTestWorld.shape(this.registries, BuiltinDimensionTypes.OVERWORLD, settings.value().noiseSettings()));
     }
 
     /** The same stand-in Level as PreviewGeneratorTest uses: a ServerLevel whose constructor never ran, answering only the flat-bedrock setting. */

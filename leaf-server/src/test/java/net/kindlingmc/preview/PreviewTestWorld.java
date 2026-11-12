@@ -14,11 +14,14 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.flag.FeatureFlags;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.level.LevelHeightAccessor;
 import net.minecraft.world.level.biome.Biome;
 import net.minecraft.world.level.biome.BiomeResolver;
+import net.minecraft.world.level.biome.BiomeSource;
 import net.minecraft.world.level.biome.MultiNoiseBiomeSource;
 import net.minecraft.world.level.biome.MultiNoiseBiomeSourceParameterList;
 import net.minecraft.world.level.biome.MultiNoiseBiomeSourceParameterLists;
+import net.minecraft.world.level.biome.TheEndBiomeSource;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.PalettedContainerFactory;
 import net.minecraft.world.level.chunk.ProtoChunk;
@@ -26,30 +29,61 @@ import net.minecraft.world.level.dimension.BuiltinDimensionTypes;
 import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
+import net.minecraft.world.level.levelgen.NoiseSettings;
 import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.densityfunction.SamplerContext;
 import org.bukkit.support.RegistryHelper;
 import sun.misc.Unsafe;
 
 /**
- * A real overworld generator for the preview tests: its terrain, previews, and a search for chunks lying entirely in a
- * biome. Holds the stand-in Level that Terrain only references weakly, so keep the instance for the whole test.
+ * A real overworld, Nether or End generator for the preview tests: its terrain, previews, and a search for chunks
+ * lying entirely in a biome. Holds the stand-in Level that Terrain only references weakly, so keep the instance for
+ * the whole test.
  */
 final class PreviewTestWorld {
+    /** A vanilla dimension: its type, noise settings and biome source. */
+    enum Dimension {
+        OVERWORLD(BuiltinDimensionTypes.OVERWORLD, NoiseGeneratorSettings.OVERWORLD),
+        NETHER(BuiltinDimensionTypes.NETHER, NoiseGeneratorSettings.NETHER),
+        END(BuiltinDimensionTypes.END, NoiseGeneratorSettings.END);
+
+        private final ResourceKey<DimensionType> type;
+        private final ResourceKey<NoiseGeneratorSettings> noise;
+
+        Dimension(ResourceKey<DimensionType> type, ResourceKey<NoiseGeneratorSettings> noise) {
+            this.type = type;
+            this.noise = noise;
+        }
+
+        private BiomeSource biomeSource(RegistryAccess registries) {
+            if (this == END) {
+                return TheEndBiomeSource.create(registries.lookupOrThrow(Registries.BIOME));
+            }
+            ResourceKey<MultiNoiseBiomeSourceParameterList> preset = this == NETHER
+                ? MultiNoiseBiomeSourceParameterLists.NETHER : MultiNoiseBiomeSourceParameterLists.OVERWORLD;
+            return MultiNoiseBiomeSource.createFromPreset(registries.lookupOrThrow(Registries.MULTI_NOISE_BIOME_SOURCE_PARAMETER_LIST).getOrThrow(preset));
+        }
+    }
+
     private static final int SEARCH_STEP = 4;
     private static final int SEARCH_RADIUS = 256;
     private static final int SURFACE_QUART_Y = 16;
     private static final int PROBES_PER_AXIS = 3;
-    private static final int OVERWORLD_SEA_LEVEL = 63;
 
     private final long seed;
+    private final Dimension dimension;
     private final RegistryAccess registries = RegistryHelper.registryAccess();
     private final Level level = standInLevel();
     private final Terrain terrain;
     private final PreviewGenerator previews;
 
     PreviewTestWorld(long seed) {
+        this(seed, Dimension.OVERWORLD);
+    }
+
+    PreviewTestWorld(long seed, Dimension dimension) {
         this.seed = seed;
+        this.dimension = dimension;
         this.terrain = createTerrain();
         this.previews = new PreviewGenerator(this.terrain);
     }
@@ -59,7 +93,7 @@ final class PreviewTestWorld {
     }
 
     int seaLevel() {
-        return OVERWORLD_SEA_LEVEL;
+        return this.terrain.settings().seaLevel();
     }
 
     RegistryAccess registries() {
@@ -89,8 +123,8 @@ final class PreviewTestWorld {
 
     /** Vanilla's vegetation for this world, with no configured feature seeds. */
     PreviewVegetation vegetation() {
-        DimensionType overworld = this.registries.lookupOrThrow(Registries.DIMENSION_TYPE).getOrThrow(BuiltinDimensionTypes.OVERWORLD).value();
-        PreviewRegion.World world = new PreviewRegion.World(this.seed, OVERWORLD_SEA_LEVEL, this.registries, overworld, FeatureFlags.DEFAULT_FLAGS,
+        DimensionType type = this.registries.lookupOrThrow(Registries.DIMENSION_TYPE).getOrThrow(this.dimension.type).value();
+        PreviewRegion.World world = new PreviewRegion.World(this.seed, seaLevel(), this.registries, type, FeatureFlags.DEFAULT_FLAGS,
             this.terrain.randomState(), this.terrain.containerFactory());
         return PreviewVegetation.of(this.terrain.generator(), world, new Reference2LongOpenHashMap<>());
     }
@@ -125,12 +159,17 @@ final class PreviewTestWorld {
     }
 
     private Terrain createTerrain() {
-        Holder<NoiseGeneratorSettings> settings = this.registries.lookupOrThrow(Registries.NOISE_SETTINGS).getOrThrow(NoiseGeneratorSettings.OVERWORLD);
-        Holder<MultiNoiseBiomeSourceParameterList> parameters = this.registries.lookupOrThrow(Registries.MULTI_NOISE_BIOME_SOURCE_PARAMETER_LIST)
-            .getOrThrow(MultiNoiseBiomeSourceParameterLists.OVERWORLD);
-        NoiseBasedChunkGenerator generator = new NoiseBasedChunkGenerator(MultiNoiseBiomeSource.createFromPreset(parameters), settings);
+        Holder<NoiseGeneratorSettings> settings = this.registries.lookupOrThrow(Registries.NOISE_SETTINGS).getOrThrow(this.dimension.noise);
+        NoiseBasedChunkGenerator generator = new NoiseBasedChunkGenerator(this.dimension.biomeSource(this.registries), settings);
         RandomState randomState = RandomState.create(this.registries.lookupOrThrow(Registries.NOISE), this.seed, settings.value());
-        return new Terrain(this.seed, generator, settings.value(), randomState, PalettedContainerFactory.create(this.registries), this.level);
+        return new Terrain(this.seed, generator, settings.value(), randomState, PalettedContainerFactory.create(this.registries), this.level,
+            shape(this.registries, this.dimension.type, settings.value().noiseSettings()));
+    }
+
+    /** The shape the server gives a world of the vanilla dimension type with these noise settings. */
+    static PreviewShape shape(RegistryAccess registries, ResourceKey<DimensionType> type, NoiseSettings noise) {
+        DimensionType dimension = registries.lookupOrThrow(Registries.DIMENSION_TYPE).getOrThrow(type).value();
+        return PreviewShape.of(dimension, noise, LevelHeightAccessor.create(dimension.minY(), dimension.height())).orElseThrow();
     }
 
     /** The same stand-in Level as PreviewGeneratorTest uses: a ServerLevel whose constructor never ran, answering only the flat-bedrock setting. */

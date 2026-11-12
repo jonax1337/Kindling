@@ -2,6 +2,7 @@ package net.kindlingmc.preview;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 import net.minecraft.world.level.ChunkPos;
 import net.minecraft.world.level.chunk.DataLayer;
 import net.minecraft.world.level.chunk.LevelChunkSection;
@@ -9,7 +10,6 @@ import net.minecraft.world.level.chunk.storage.SerializableChunkData.SectionData
 import org.bukkit.support.environment.Normal;
 import org.junit.jupiter.api.Test;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -31,12 +31,8 @@ class SavedLightTest {
     private final LevelChunkSection[] sections = new PreviewTestWorld(SEED).emptyChunk(new ChunkPos(0, 0)).getSections();
 
     @Test
-    void lightThatIsNotCorrectIsEstimatedFromAbove() {
-        SkyLight.Light estimate = SkyLight.fromAbove(this.sections);
-        SkyLight.Light light = lightOf(false, saved(INITIALISED, filled(7), INITIALISED, filled(3)));
-        assertEquals(estimate.sky().present(), light.sky().present());
-        assertEquals(estimate.sky().empty(), light.sky().empty());
-        assertEquals(estimate.block().present(), light.block().present());
+    void lightThatIsNotCorrectIsLeftToTheEstimate() {
+        assertTrue(savedLight(false, saved(INITIALISED, filled(7), INITIALISED, filled(3))).isEmpty());
     }
 
     @Test
@@ -72,15 +68,16 @@ class SavedLightTest {
     }
 
     @Test
-    void anInitialisedSectionWithoutDataFallsBackToTheEstimate() {
-        SkyLight.Light estimate = SkyLight.fromAbove(this.sections);
-        SkyLight.Light light = lightOf(true, saved(INITIALISED, null, NULL, null));
-        assertEquals(estimate.sky().present(), light.sky().present());
-        assertEquals(estimate.sky().empty(), light.sky().empty());
+    void anInitialisedSectionWithoutDataIsLeftToTheEstimate() {
+        assertTrue(savedLight(true, saved(INITIALISED, null, NULL, null)).isEmpty());
     }
 
     private SkyLight.Light lightOf(boolean lightCorrect, SectionData saved) {
-        return SavedLight.of(lightCorrect, List.of(saved), this.sections, MIN_SECTION_Y, SKIN_MIN_SECTION_Y);
+        return savedLight(lightCorrect, saved).orElseThrow();
+    }
+
+    private Optional<SkyLight.Light> savedLight(boolean lightCorrect, SectionData saved) {
+        return SavedLight.of(lightCorrect, List.of(saved), this.sections.length, MIN_SECTION_Y, SKIN_MIN_SECTION_Y);
     }
 
     private static SectionData saved(int skyState, DataLayer sky, int blockState, DataLayer block) {

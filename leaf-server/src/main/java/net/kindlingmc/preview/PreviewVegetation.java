@@ -40,9 +40,9 @@ import su.plo.matter.WorldgenCryptoRandom;
 
 /**
  * Vanilla's own surface features on a preview chunk: the {@link #STEPS} of ChunkGenerator.addVanillaDecorations that
- * shape the surface (lakes, rocks, icebergs, ice spikes, desert wells, then the vegetation), with the same features in
- * the same order, the same decoration and feature seeds (including Paper's configured feature seeds and Leaf's secure
- * seed) and the same biome check, through a {@link PreviewRegion} over the chunk. Underground features of these steps
+ * shape the surface (the End's small islands, lakes, rocks, icebergs, ice spikes, desert wells, the Nether's basalt
+ * pillars and deltas, then the vegetation), with the same features in the same order, the same decoration and feature
+ * seeds (including Paper's configured feature seeds and Leaf's secure seed) and the same biome check, through a {@link PreviewRegion} over the chunk. Underground features of these steps
  * (lava lakes, geodes) run too; they are rare and hidden in the stone below the preview's band. Inside the chunk the
  * features land where the real world has them, as far as the chunk alone decides that:
  * <ul>
@@ -54,9 +54,10 @@ import su.plo.matter.WorldgenCryptoRandom;
  * <li>Structures (villages and the like), ores, springs, carvers and post-processing do not run, so what they change on
  * the surface, and the vegetation that depends on it, differs.
  * <li>A feature that fails, for instance because it needs the server level, is left out of the rest of that chunk and
- * reported once; its blocks placed so far stay, and it runs (and fails) again on the next chunk. Known case:
- * pale_garden_vegetation, whose PaleMossDecorator asks the server level for its chunk source; that needs a change to
- * vanilla and is not made here.
+ * reported once; its blocks placed so far stay, and it runs (and fails) again on the next chunk. Known cases:
+ * pale_garden_vegetation, whose PaleMossDecorator asks the server level for its chunk source, and the Nether's
+ * small_basalt_columns and large_basalt_columns, whose height predicate (WorldGenerationContext.of) asks it for the
+ * generator; that needs a change to vanilla and is not made here.
  * </ul>
  *
  * <p>Thread safety: every field is immutable after construction and {@link #decorate} keeps its state in locals, so
@@ -66,11 +67,12 @@ import su.plo.matter.WorldgenCryptoRandom;
 final class PreviewVegetation {
     private static final Logger LOGGER = LogUtils.getLogger();
     /**
-     * The steps whose features shape the surface, in vanilla's order: lakes, rocks and icebergs, ice spikes and desert
-     * wells, then the vegetation, which so avoids the lakes and rocks as in the real world. Each feature has a seed of
-     * its own, so the steps left out (underground structures, ores, springs) do not move what these place.
+     * The steps whose features shape the surface, in vanilla's order: the End's small islands (vanilla's overworld and
+     * Nether have no raw generation), lakes, rocks and icebergs, ice spikes and desert wells, then the vegetation,
+     * which so avoids the lakes and rocks as in the real world. Each feature has a seed of its own, so the steps left
+     * out (underground structures, ores, springs, and the Nether's glowstone and fire) do not move what these place.
      */
-    private static final List<GenerationStep.Decoration> STEPS = List.of(GenerationStep.Decoration.LAKES,
+    private static final List<GenerationStep.Decoration> STEPS = List.of(GenerationStep.Decoration.RAW_GENERATION, GenerationStep.Decoration.LAKES,
         GenerationStep.Decoration.LOCAL_MODIFICATIONS, GenerationStep.Decoration.SURFACE_STRUCTURES, GenerationStep.Decoration.VEGETAL_DECORATION);
     private static final long NO_CONFIGURED_SEED = -1L;
 
@@ -111,7 +113,8 @@ final class PreviewVegetation {
         List<FeatureSorter.StepFeatureData> featuresPerStep = featuresPerStep(generator);
         List<StepFeatures> steps = new ArrayList<>();
         for (GenerationStep.Decoration step : STEPS) {
-            if (step.ordinal() < featuresPerStep.size()) {
+            // A step without features in this world (raw generation outside the End) is left out of the decoration statistics, too.
+            if (step.ordinal() < featuresPerStep.size() && !featuresPerStep.get(step.ordinal()).features().isEmpty()) {
                 steps.add(StepFeatures.of(step.ordinal(), featuresPerStep.get(step.ordinal()), generator, featureSeeds));
             }
         }

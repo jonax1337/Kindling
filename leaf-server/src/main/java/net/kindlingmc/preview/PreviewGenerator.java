@@ -10,10 +10,10 @@ import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 import net.minecraft.world.level.chunk.ProtoChunk;
-import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.NoiseBasedChunkGenerator;
 import net.minecraft.world.level.levelgen.NoiseChunk;
+import net.minecraft.world.level.levelgen.NoiseGeneratorSettings;
 import net.minecraft.world.level.levelgen.NoiseSettings;
 import net.minecraft.world.level.levelgen.RandomState;
 import net.minecraft.world.level.levelgen.densityfunction.DensityBuffer;
@@ -21,8 +21,9 @@ import net.minecraft.world.level.levelgen.densityfunction.DensityVolume;
 import net.minecraft.world.level.levelgen.densityfunction.SamplerContext;
 
 /**
- * Preview chunks: the vanilla terrain of a vertical band around the surface instead of the whole column, with the
- * surface rules applied and the default block below the band. The band starts at the chunk's preliminary surface
+ * Preview chunks: vanilla terrain with the surface rules applied. In overworld-like worlds (see {@link PreviewShape})
+ * it is the terrain of a vertical band around the surface instead of the whole column, with the default block below
+ * the band; elsewhere it is the whole column of the noise settings. The band starts at the chunk's preliminary surface
  * levels plus margins, reaches at least the sea surface, and grows until no terrain touches its top layer and every
  * column has at least {@link #SKIN_DEPTH} blocks of terrain inside it. Inside the band the density is bit-identical to
  * the full chunk's.
@@ -54,27 +55,16 @@ public final class PreviewGenerator {
         return this.terrain;
     }
 
-    /** Empty unless the level uses a NoiseBasedChunkGenerator and its dimension has sky light and no ceiling. */
+    /** Empty unless the level uses a NoiseBasedChunkGenerator whose noise lies inside the world's height. */
     public static Optional<PreviewGenerator> forLevel(ServerLevel level) {
-        DimensionType dimension = level.dimensionType();
-        if (!dimension.hasSkyLight() || dimension.hasCeiling()) {
-            return Optional.empty();
-        }
         ChunkGenerator generator = level.getChunkSource().getGenerator();
-        if (!(generator instanceof NoiseBasedChunkGenerator noise) || !spansWorldHeight(noise.generatorSettings().value().noiseSettings(), level)) {
+        if (!(generator instanceof NoiseBasedChunkGenerator noise)) {
             return Optional.empty();
         }
-        Terrain terrain = new Terrain(level.getSeed(), noise, noise.generatorSettings().value(), level.getChunkSource().randomState(),
-            level.palettedContainerFactory(), level);
-        return Optional.of(new PreviewGenerator(terrain));
-    }
-
-    /**
-     * Previews are built at the noise settings' height; the client expects the world's. A data pack may raise the
-     * world's build limit without the noise, so such worlds get no previews rather than malformed chunk packets.
-     */
-    private static boolean spansWorldHeight(NoiseSettings noise, ServerLevel level) {
-        return noise.minY() == level.getMinY() && noise.height() == level.getHeight();
+        NoiseGeneratorSettings settings = noise.generatorSettings().value();
+        return PreviewShape.of(level.dimensionType(), settings.noiseSettings(), level)
+            .map(shape -> new PreviewGenerator(new Terrain(level.getSeed(), noise, settings, level.getChunkSource().randomState(),
+                level.palettedContainerFactory(), level, shape)));
     }
 
     /** A preview chunk and the noise biomes its surface rules read, for decorating it on the same thread. */
@@ -88,6 +78,10 @@ public final class PreviewGenerator {
 
     /** {@link #generate}, together with the biomes the chunk was built with. */
     Generated generateWithBiomes(ChunkPos pos) {
+        return this.terrain.shape().surfaceBand() ? generateBand(pos) : generateWholeColumn(pos);
+    }
+
+    private Generated generateBand(ChunkPos pos) {
         ChunkBiomes.Outside outside = new ChunkBiomes.Outside(this.terrain);
         Band band = initialBand(preliminarySurface(pos));
         while (true) {
@@ -104,6 +98,19 @@ public final class PreviewGenerator {
                 }
                 band = needed;
             }
+        }
+    }
+
+    /** The BIOMES and TERRAIN work on the whole chunk, minus carvers: the biomes of every section, the noise over its whole range. */
+    private Generated generateWholeColumn(ChunkPos pos) {
+        ProtoChunk chunk = this.terrain.emptyChunk(pos);
+        this.terrain.createBiomes(chunk, chunk.getMinSectionY(), chunk.getMaxSectionY());
+        try (NoiseChunk noiseChunk = this.terrain.noiseChunk(this.terrain.chunkVolume(pos))) {
+            this.terrain.fill(noiseChunk, chunk);
+            ChunkBiomes biomes = ChunkBiomes.sections(this.terrain.seed(), chunk, chunk.getMinSectionY(), chunk.getMaxSectionY(),
+                new ChunkBiomes.Outside(this.terrain));
+            this.terrain.buildSurface(chunk, noiseChunk, biomes.manager());
+            return new Generated(chunk, biomes);
         }
     }
 

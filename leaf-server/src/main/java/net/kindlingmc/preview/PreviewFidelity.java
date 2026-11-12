@@ -40,10 +40,10 @@ public final class PreviewFidelity {
     private PreviewFidelity() {
     }
 
-    /** The counts of one chunk, or none where the world has no preview generator (such as the Nether). */
+    /** The counts of one chunk, or none where the world has no preview generator or no sky light to compare (such as the Nether). */
     public static Optional<FidelityCounts> compare(final ServerLevel level, final LevelChunk real) {
         final PreviewWorld world = PreviewWorld.of(level);
-        if (!world.available()) {
+        if (!world.hasSkyLight()) {
             return Optional.empty();
         }
         final ProtoChunk preview = world.seedChunk(real.getPos());

@@ -14,7 +14,7 @@ import net.minecraft.world.level.chunk.ProtoChunk;
 import org.dreeam.leaf.config.modules.network.PreviewChunks;
 
 /**
- * The previews of one world: its generator (none for worlds without one, such as the Nether), the saved chunks it
+ * The previews of one world: its generator (none for worlds without a noise generator, such as flat worlds), the saved chunks it
  * previews from where they exist, and the most recently built seed preview packets, so that several players and a
  * player flying back reuse them. Safe to use from any thread; it never holds the world strongly.
  */
@@ -67,6 +67,11 @@ final class PreviewWorld {
         return this.generator.isPresent();
     }
 
+    /** Whether the world has a generator and a sky, so its previews carry sky light. */
+    boolean hasSkyLight() {
+        return this.generator.map(previews -> previews.terrain().shape().skyLight()).orElse(false);
+    }
+
     /**
      * The preview of a chunk: the recent seed packet, else the chunk as saved when it is saved, else computed from the
      * seed now. A seed packet is cached only when the saved chunks lastingly have nothing to show for the chunk, so a
@@ -102,7 +107,8 @@ final class PreviewWorld {
     }
 
     private PreviewPacket seedPreview(final ChunkPos pos, final long chunkKey, final boolean cache) {
-        final PreviewPacket built = PreviewPacket.of(seedChunk(pos));
+        final ProtoChunk chunk = seedChunk(pos);
+        final PreviewPacket built = PreviewPacket.of(chunk, this.generator.orElseThrow().terrain().shape().estimatedLight(chunk.getSections()));
         if (cache) {
             this.recent.put(chunkKey, built);
         }

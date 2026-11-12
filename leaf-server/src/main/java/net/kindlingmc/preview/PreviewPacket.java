@@ -20,18 +20,13 @@ import net.minecraft.world.level.levelgen.Heightmap;
 
 /**
  * A preview chunk as the packet a vanilla client gets for a real chunk: the client's heightmaps, the section data, no
- * block entities, and the estimated sky light of {@link SkyLight}. rawBytes is the uncompressed size of sections and
+ * block entities, and the light it is given (estimated by {@link SkyLight} or as saved). rawBytes is the uncompressed size of sections and
  * light. The packet is built once and may be sent to any number of players.
  */
 public record PreviewPacket(ClientboundLevelChunkWithLightPacket packet, int rawBytes) {
     private static final Set<Heightmap.Types> CLIENT_HEIGHTMAPS = clientHeightmaps();
     private static final MethodHandle CHUNK_DATA = chunkDataConstructor();
     private static final int LIGHT_ARRAY_BYTES = 2048;
-
-    /** Builds the packet of a finished preview with the sky light estimated from above; see {@link #of(ProtoChunk, SkyLight.Light)}. */
-    public static PreviewPacket of(ProtoChunk chunk) {
-        return of(chunk, SkyLight.fromAbove(chunk.getSections()));
-    }
 
     /** Builds the packet of a finished preview with the given light; primes the chunk's client heightmaps, so the chunk belongs to the caller. */
     static PreviewPacket of(ProtoChunk chunk, SkyLight.Light light) {

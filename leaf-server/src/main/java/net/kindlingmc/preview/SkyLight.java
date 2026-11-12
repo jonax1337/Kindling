@@ -4,12 +4,14 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Predicate;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.LevelChunkSection;
 
 /**
- * The sky light a preview is sent with, computed by the rules of the light engine (Moonrise's SkyStarLightEngine):
+ * The light a preview is sent with, computed by the rules of the light engine. Sky light (as Moonrise's
+ * SkyStarLightEngine computes it), for worlds with a sky:
  * the sky is 15 above the chunk and falls straight down through every block that dampens no light; light then
  * spreads in all six directions and loses {@code max(1, dampening)} per step into a block. So ground under leaves and
  * overhangs is lit from the open columns next to them, and water darkens one level per block.
@@ -19,6 +21,10 @@ import net.minecraft.world.level.chunk.LevelChunkSection;
  * in the full chunk, where light flows in from outside), and the directional occlusion of slabs and stairs. Block
  * light is empty. Sections above the highest non-empty one get no array but the first one, as the light engine
  * stores none.
+ *
+ * <p>Worlds without a sky, such as the Nether, get no sky light and the block light of the chunk's own blocks instead
+ * ({@link #fromBlocks}): each block that emits light starts at its emission, which spreads by the same rules. Without
+ * it, the ground around a preview's lava would stay dark next to the lit real chunks.
  *
  * <p>Thread safety: each thread works in its own reusable buffers; nothing is shared.
  */
@@ -33,6 +39,7 @@ final class SkyLight {
     private static final int Y_SHIFT = 8;
     private static final int NO_LIGHT_RUN = Integer.MAX_VALUE;
     private static final Predicate<BlockState> LETS_LIGHT_THROUGH = state -> state.getLightDampening() < OPAQUE_DAMPENING;
+    private static final Predicate<BlockState> EMITS_LIGHT = state -> state.getLightEmission() > 0;
     private static final ThreadLocal<Workspace> WORKSPACE = ThreadLocal.withInitial(Workspace::new);
 
     /** The light layers of one kind: which light sections carry an array, which are all zero, and the arrays. */
@@ -73,15 +80,25 @@ final class SkyLight {
     }
 
     static Light fromAbove(LevelChunkSection[] sections) {
+        return new Light(Layers.of(spread(sections, Spreader::spreadFromSky)), Layers.of(new byte[sections.length + 2][]));
+    }
+
+    /** No sky light, and the block light of the blocks that emit light. */
+    static Light fromBlocks(LevelChunkSection[] sections) {
+        return new Light(Layers.of(new byte[sections.length + 2][]), Layers.of(spread(sections, Spreader::spreadFromEmitters)));
+    }
+
+    /** The light layers of one pass, one per light section (the chunk sections plus one below and one above). */
+    private static byte[][] spread(LevelChunkSection[] sections, Consumer<Spreader> pass) {
         int litSections = Math.min(highestNonEmpty(sections) + 2, sections.length);
         Workspace workspace = WORKSPACE.get();
         byte[] levels = workspace.lightLevels(litSections * SECTION_CELLS);
-        new Spreader(sections, litSections, levels, workspace).spread();
-        byte[][] sky = new byte[sections.length + 2][];
+        pass.accept(new Spreader(sections, litSections, levels, workspace));
+        byte[][] layers = new byte[sections.length + 2][];
         for (int index = 0; index < litSections; index++) {
-            sky[index + 1] = packSection(levels, index * SECTION_CELLS);
+            layers[index + 1] = packSection(levels, index * SECTION_CELLS);
         }
-        return new Light(Layers.of(sky), Layers.of(new byte[sections.length + 2][]));
+        return layers;
     }
 
     /** Two cells per byte, the lower cell index in the low nibble, as DataLayer stores them. */
@@ -156,10 +173,31 @@ final class SkyLight {
             }
         }
 
-        void spread() {
+        void spreadFromSky() {
             int[] lowestFullLight = fallStraightDown();
             queueFullLightBesideDarkerCells(lowestFullLight);
             spreadQueued();
+        }
+
+        void spreadFromEmitters() {
+            for (int index = 0; index < this.airOnly.length; index++) {
+                if (!this.airOnly[index] && this.sections[index].maybeHas(EMITS_LIGHT)) {
+                    queueEmitters(index);
+                }
+            }
+            spreadQueued();
+        }
+
+        private void queueEmitters(int sectionIndex) {
+            LevelChunkSection section = this.sections[sectionIndex];
+            int firstCell = sectionIndex * SECTION_CELLS;
+            for (int cell = 0; cell < SECTION_CELLS; cell++) {
+                int emission = section.getBlockState(cell & X_MASK, cell >> Y_SHIFT, cell >> Z_SHIFT & X_MASK).getLightEmission();
+                if (emission > 0) {
+                    this.levels[firstCell + cell] = (byte) emission;
+                    enqueue(firstCell + cell);
+                }
+            }
         }
 
         /**
