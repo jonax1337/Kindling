@@ -17,6 +17,10 @@ Releases, newest first. Every build is a pre-release; the jars are on the [Relea
 
 - The redstone wire power calculation reuses two block positions instead of allocating one per neighbour: on the observer lag machine the main thread allocated 36 % less, at the same tick time ([details](docs/measurements/lag-machines.md#redstone-wire-without-allocated-positions)).
 
+### Changed
+
+- Leaf upstream `3ab88076`: a Paper update, Leaf drops its fix for MC-298464, and the jar starts through Leaf's launcher (QuantumLeaper), which writes `config/leaf-loader.yml`. Its auto-update has no update source in Kindling's jar, so it can never replace Kindling with a Leaf build.
+
 ## 26.3-24 - 2026-11-03
 
 Uniform chunk data shared instead of allocated per section, and the comparison with other forks carries the new runs.
