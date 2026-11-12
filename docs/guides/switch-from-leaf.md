@@ -3,7 +3,7 @@
 Kindling reads Leaf's configuration as it is and keeps Leaf's brand id, so plugins that check for Leaf keep working. What an existing `config/leaf-global.yml` does not get by itself are Kindling's defaults, because Leaf writes new defaults only into a fresh file.
 
 1. Stop the server and back up the worlds and `config/`.
-2. Replace the Leaf jar with `kindling-26.3-<build>.jar`. Keep your start command; see [Memory and JVM flags](memory-and-jvm.md) for the recommended one.
+2. Replace the Leaf jar with `kindling-26.3-<build>.jar`. Keep your start command; see [Memory and JVM flags](memory-and-jvm.md) for the recommended one. Without `config/leaf-loader.yml` the first start only writes it and stops; start again. Its `auto-update` does nothing in Kindling's jar.
 3. In `config/leaf-global.yml`, turn on what Kindling turns on:
 
    ```yaml
